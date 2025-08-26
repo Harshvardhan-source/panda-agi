@@ -169,6 +169,14 @@ async def upload_file_to_gcs(
     prefix: str,
     relative_path: str = None,
 ):
+    """Upload a file to GCS.
+
+    Args:
+        presigned_post (dict): GCP bucket presigned credentials
+        file_bytes (bytes): file content in bytes
+        prefix (str): Artifact ID to upload to
+        relative_path (str, optional): relative path of file Defaults to None.
+    """
     upload_url = presigned_post["url"]
     fields = presigned_post["fields"].copy()
 
