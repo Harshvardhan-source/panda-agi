@@ -178,21 +178,34 @@ async def upload_file_to_gcs(
 
     file_obj = BytesIO(file_bytes)
 
-    async with aiohttp.ClientSession() as session:
-        data = aiohttp.FormData()
+    try:
 
-        for key, value in fields.items():
-            data.add_field(key, value)
+        async with aiohttp.ClientSession() as session:
+            data = aiohttp.FormData()
 
-        data.add_field("file", file_obj)
+            for key, value in fields.items():
+                data.add_field(key, value)
 
-        async with session.post(upload_url, data=data) as resp:
-            if not resp.status in (200, 201, 204):
-                body = await resp.text()
-                raise Exception(f"GCS upload failed: {resp.status} {body}")
+            data.add_field("file", file_obj)
 
-            logger.info(f"Successfully uploaded {filename} with status {resp.status}")
-            return resp
+            async with session.post(upload_url, data=data) as resp:
+                if not resp.status in (200, 201, 204):
+                    body = await resp.text()
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to upload file to GCS: {resp.status} {body}",
+                    )
+
+                logger.info(
+                    f"Successfully uploaded {filename} with status {resp.status}"
+                )
+                return resp
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
 
 
 @router.post("/{conversation_id}/save")
