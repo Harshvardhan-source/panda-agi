@@ -20,11 +20,11 @@ export default function ExcelViewer({ fileName, content }: ExcelViewerProps) {
     if (!content) return;
 
     const workbook = XLSX.read(content, { type: "array" });
-         const sheetData: SheetData[] = workbook.SheetNames.map((name) => {
-       const sheet = workbook.Sheets[name];
-       const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as (string | number | boolean | null)[][];
-       return { name, data };
-     });
+    const sheetData: SheetData[] = workbook.SheetNames.map((name) => {
+      const sheet = workbook.Sheets[name];
+      const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as (string | number | boolean | null)[][];
+      return { name, data };
+    });
     setSheets(sheetData);
   }, [content]);
 

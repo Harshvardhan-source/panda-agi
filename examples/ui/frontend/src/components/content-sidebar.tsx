@@ -162,6 +162,36 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Utility functions for file type validation
+  const getFileExtension = (filename: string): string => {
+    return filename.split(".").pop()?.toLowerCase() || "";
+  };
+
+  const isExcelFile = (filename: string): boolean => {
+    const extension = getFileExtension(filename);
+    return ["xls", "xlsx"].includes(extension);
+  };
+
+  const validateContentType = (content: string | ArrayBuffer | null, filename: string): { isValid: boolean; error?: string } => {
+    if (!content) return { isValid: true };
+    
+    if (isExcelFile(filename) && !(content instanceof ArrayBuffer)) {
+      return { 
+        isValid: false, 
+        error: `Invalid content type for Excel file. Expected ArrayBuffer, got ${typeof content}` 
+      };
+    }
+    
+    if (!isExcelFile(filename) && content instanceof ArrayBuffer) {
+      return { 
+        isValid: false, 
+        error: `Invalid content type. Expected string, got ArrayBuffer for non-Excel file` 
+      };
+    }
+    
+    return { isValid: true };
+  };
+
   // Fetch file content when previewData changes
   useEffect(() => {
     if (!previewData) {
@@ -210,11 +240,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}!`);
       }
 
-      const tableExtension = filename.split(".").pop()?.toLowerCase() || "";
-        
       let content: string | ArrayBuffer;
-      // Check if it's an Excel file
-      if (["xls", "xlsx"].includes(tableExtension)) {
+      // Check if it's an Excel file using reusable function
+      if (isExcelFile(filename)) {
         const excelContent = await response.arrayBuffer();
         content = excelContent;
       } else {
@@ -341,6 +369,21 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const renderContent = () => {
     const type = previewData.type || "text";
     const content = fileContent || previewData.content || "";
+    const currentFilename = normalizedFilename || previewData.url || "";
+
+    // Validate content type using reusable function
+    const validation = validateContentType(content, currentFilename);
+    if (!validation.isValid) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center text-red-500">
+            <div className="text-4xl mb-4">⚠️</div>
+            <p className="font-medium">Content type validation failed</p>
+            <p className="text-sm mt-2">{validation.error}</p>
+          </div>
+        </div>
+      );
+    }
 
     // Show loading state
     if (isLoading) {
@@ -390,13 +433,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "table":
-        const tableFilename = normalizedFilename || previewData.url || "";
-        const tableExtension = tableFilename.split(".").pop()?.toLowerCase() || "";
-        
         // Check if it's an Excel file
-        if (["xls", "xlsx"].includes(tableExtension)) {
-          
-          
+        if (isExcelFile(currentFilename)) {
           return (
             <ExcelViewer
               fileName={normalizedFilename}
@@ -407,6 +445,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         
         // Handle CSV files with the existing logic
         const tableData = parseCSV(content as string);
+        const fileExtension = getFileExtension(currentFilename);
         
         return (
           <div className="h-full flex flex-col">
@@ -414,11 +453,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium text-gray-700">
-                  {tableFilename.split("/").pop()}
+                  {currentFilename.split("/").pop()}
                 </span>
               </div>
               <div className="flex items-center space-x-3 text-xs text-gray-500">
-                <span>{tableExtension.toUpperCase()}</span>
+                <span>{fileExtension.toUpperCase()}</span>
                 <span>{tableData.length} rows</span>
                 {tableData.length > 0 && (
                   <span>{tableData[0].length} columns</span>
