@@ -172,7 +172,7 @@ async def upload_file_to_gcs(
     upload_url = presigned_post["url"]
     fields = presigned_post["fields"].copy()
 
-    filename = f"{prefix}/{relative_path.lstrip('/')}"
+    filename = f"{prefix}/{(relative_path or 'file').lstrip('/')}"
     # This is required for `starts-with` policies.
     fields["key"] = filename
 
