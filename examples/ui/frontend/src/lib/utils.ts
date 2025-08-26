@@ -84,7 +84,7 @@ export function generatePayload(eventType: string, eventData: any) {
     return {
       tool_name: eventData.tool_name || "Unknown tool",
       input_params: eventData.input_params || {},
-      error: eventData.data?.error || "Unknown error occurred",
+      error: eventData.data?.error || eventData.error|| "Unknown error occurred",
       isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.data?.error || "")
     }
   } else if (eventType === "file_read") { 
