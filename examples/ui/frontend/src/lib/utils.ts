@@ -173,3 +173,33 @@ export const getFileType = (filename: string) => {
     return "code";
   return "text";
 };
+
+// File type validation utilities
+export const getFileExtension = (filename: string): string => {
+  return filename.split(".").pop()?.toLowerCase() || "";
+};
+
+export const isExcelFile = (filename: string): boolean => {
+  const extension = getFileExtension(filename);
+  return ["xls", "xlsx"].includes(extension);
+};
+
+export const validateContentType = (content: string | ArrayBuffer | null, filename: string): { isValid: boolean; error?: string } => {
+  if (!content) return { isValid: true };
+  
+  if (isExcelFile(filename) && !(content instanceof ArrayBuffer)) {
+    return { 
+      isValid: false, 
+      error: `Unable to display Excel file. Expected ArrayBuffer, got ${typeof content}` 
+    };
+  }
+  
+  if (!isExcelFile(filename) && content instanceof ArrayBuffer) {
+    return { 
+      isValid: false, 
+      error: `Invalid content type. Expected string, got ArrayBuffer for non-Excel file` 
+    };
+  }
+  
+  return { isValid: true };
+};

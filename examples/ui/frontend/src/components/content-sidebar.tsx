@@ -18,7 +18,7 @@ import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
-import { downloadWithCheck } from "@/lib/utils";
+import { downloadWithCheck, getFileExtension, isExcelFile, validateContentType } from "@/lib/utils";
 
 export interface PreviewData {
   title?: string;
@@ -162,35 +162,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Utility functions for file type validation
-  const getFileExtension = (filename: string): string => {
-    return filename.split(".").pop()?.toLowerCase() || "";
-  };
 
-  const isExcelFile = (filename: string): boolean => {
-    const extension = getFileExtension(filename);
-    return ["xls", "xlsx"].includes(extension);
-  };
-
-  const validateContentType = (content: string | ArrayBuffer | null, filename: string): { isValid: boolean; error?: string } => {
-    if (!content) return { isValid: true };
-    
-    if (isExcelFile(filename) && !(content instanceof ArrayBuffer)) {
-      return { 
-        isValid: false, 
-        error: `Invalid content type for Excel file. Expected ArrayBuffer, got ${typeof content}` 
-      };
-    }
-    
-    if (!isExcelFile(filename) && content instanceof ArrayBuffer) {
-      return { 
-        isValid: false, 
-        error: `Invalid content type. Expected string, got ArrayBuffer for non-Excel file` 
-      };
-    }
-    
-    return { isValid: true };
-  };
 
   // Fetch file content when previewData changes
   useEffect(() => {
