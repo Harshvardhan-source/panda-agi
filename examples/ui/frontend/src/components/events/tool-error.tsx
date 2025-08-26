@@ -77,26 +77,45 @@ const ToolErrorEvent: React.FC<ToolErrorEventProps> = ({ payload, openUpgradeMod
 
     // Default error display for non-script tools
     return (
-      <div className="mx-3 mb-4 bg-red-50 border border-red-200 rounded-md overflow-hidden">
-        <div className="flex items-center px-3 py-2 bg-red-100 border-b border-red-200">
-          <AlertTriangle className="w-4 h-4 mr-2 text-red-600" />
-          <span className="text-sm font-mono text-red-700">
-            Tool Error: {tool_name || "Unknown tool"}
-          </span>
-        </div>
-        <div className="p-3 font-mono text-sm space-y-3">
-          {error && (
-            <div>
-              <div className="font-semibold text-red-700 mb-1">Error:</div>
-              <div className="text-red-600 whitespace-pre-wrap">{error}</div>
+      <div className="mx-3 mb-4 bg-gray-900 text-white rounded-md overflow-hidden border-red-200">
+        <div className="p-3">
+          {input_params && Object.keys(input_params).length > 0 && (
+            <div className="mb-3">
+              <div className="text-xs text-gray-400 mb-1">Input Parameters:</div>
+              <div 
+                className="max-h-64 overflow-y-auto"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#4B5563 #1F2937'
+                }}
+              >
+                <SyntaxHighlighter
+                  language="json"
+                  style={vscDarkPlus}
+                  customStyle={{
+                    margin: 0,
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                  showLineNumbers
+                >
+                  {JSON.stringify(input_params, null, 2)}
+                </SyntaxHighlighter>
+              </div>
             </div>
           )}
-          {input_params && Object.keys(input_params).length > 0 && (
+          {error && (
             <div>
-              <div className="font-semibold text-gray-700 mb-1">Input Parameters:</div>
-              <pre className="text-gray-600 whitespace-pre-wrap overflow-auto">
-                {JSON.stringify(input_params, null, 2)}
-              </pre>
+              <div className="text-xs text-gray-400 mb-1">Error:</div>
+              <div 
+                className="bg-gray-800 p-3 rounded-md font-mono text-sm text-gray-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#4B5563 #1F2937'
+                }}
+              >
+                {String(error)}
+              </div>
             </div>
           )}
         </div>
