@@ -191,7 +191,7 @@ async def upload_file_to_gcs(
                 body = await resp.text()
                 raise Exception(f"GCS upload failed: {resp.status} {body}")
 
-            print(f"Successfully uploaded {filename} with status {resp.status}")
+            logger.info(f"Successfully uploaded {filename} with status {resp.status}")
             return resp
 
 
