@@ -203,3 +203,36 @@ export const validateContentType = (content: string | ArrayBuffer | null, filena
   
   return { isValid: true };
 };
+
+export const getLanguage = (language?: string): string => {
+  if (!language) return "javascript";
+  
+  const languageMap: Record<string, string> = {
+    "python": "python",
+    "javascript": "javascript",
+    "js": "javascript",
+    "typescript": "typescript",
+    "ts": "typescript",
+    "bash": "bash",
+    "shell": "bash",
+    "sh": "bash",
+    "php": "php",
+    "java": "java",
+    "cpp": "cpp",
+    "c++": "cpp",
+    "c": "c",
+    "go": "go",
+    "rust": "rust",
+    "ruby": "ruby",
+    "sql": "sql",
+    "html": "html",
+    "css": "css",
+    "json": "json",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "markdown": "markdown",
+    "md": "markdown"
+  };
+  
+  return languageMap[language.toLowerCase()] || "javascript";
+};

@@ -3,6 +3,7 @@ import { ChevronRight, AlertTriangle, AlertCircle } from "lucide-react";
 import { PLATFORM_MODE } from "@/lib/config";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { getLanguage } from "@/lib/utils";
 
 interface ToolErrorEventProps {
   payload?: {
@@ -38,39 +39,6 @@ const ToolErrorEvent: React.FC<ToolErrorEventProps> = ({ payload, openUpgradeMod
 
   const isExecuteScript = payload.tool_name?.toLowerCase().includes("execute script") || 
                          payload.tool_name?.toLowerCase().includes("script");
-
-  const getLanguage = (language?: string): string => {
-    if (!language) return "javascript";
-    
-    const languageMap: Record<string, string> = {
-      "python": "python",
-      "javascript": "javascript",
-      "js": "javascript",
-      "typescript": "typescript",
-      "ts": "typescript",
-      "bash": "bash",
-      "shell": "bash",
-      "sh": "bash",
-      "php": "php",
-      "java": "java",
-      "cpp": "cpp",
-      "c++": "cpp",
-      "c": "c",
-      "go": "go",
-      "rust": "rust",
-      "ruby": "ruby",
-      "sql": "sql",
-      "html": "html",
-      "css": "css",
-      "json": "json",
-      "yaml": "yaml",
-      "yml": "yaml",
-      "markdown": "markdown",
-      "md": "markdown"
-    };
-    
-    return languageMap[language.toLowerCase()] || "javascript";
-  };
 
   const renderExpandedContent = (): JSX.Element => {
     const { tool_name, input_params, error } = payload;
