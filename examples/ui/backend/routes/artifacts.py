@@ -2,6 +2,7 @@
 Artifacts routes for the PandaAGI SDK.
 """
 
+from io import BytesIO
 import aiohttp
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import Response
@@ -162,41 +163,57 @@ async def cleanup_artifact(artifact_id: str, api_key: str):
         logger.error(f"Error during creation cleanup: {cleanup_error}")
 
 
-async def upload_file_to_s3(
-    presigned_post: dict, file_bytes: bytes, relative_path: str = None
+async def upload_file_to_gcs(
+    presigned_post: dict,
+    file_bytes: bytes,
+    prefix: str,
+    relative_path: str = None,
 ):
+    """Upload a file to GCS.
+
+    Args:
+        presigned_post (dict): GCP bucket presigned credentials
+        file_bytes (bytes): file content in bytes
+        prefix (str): Artifact ID to upload to
+        relative_path (str, optional): relative path of file Defaults to None.
+    """
     upload_url = presigned_post["url"]
     fields = presigned_post["fields"].copy()
 
-    # Determine the filename or relative path to use in the S3 key
-    filename = relative_path if relative_path else "file"
-
-    # Replace ${filename} in the key field
-    if "${filename}" in fields["key"]:
-        fields["key"] = fields["key"].replace("${filename}", filename)
-
-    # Create file-like object from bytes
-    from io import BytesIO
+    filename = f"{prefix}/{(relative_path or 'file').lstrip('/')}"
+    # This is required for `starts-with` policies.
+    fields["key"] = filename
 
     file_obj = BytesIO(file_bytes)
 
     try:
+
         async with aiohttp.ClientSession() as session:
             data = aiohttp.FormData()
-            # Add fields to form data
+
             for key, value in fields.items():
                 data.add_field(key, value)
-            # Add file to form data
-            data.add_field("file", file_obj, filename=filename)
 
-            async with session.post(upload_url, data=data) as response:
-                response.raise_for_status()
-                return response
-    except aiohttp.ClientError as e:
-        logger.error(f"Error uploading file to S3: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to upload file to S3: {str(e)}"
-        )
+            data.add_field("file", file_obj)
+
+            async with session.post(upload_url, data=data) as resp:
+                if not resp.status in (200, 201, 204):
+                    body = await resp.text()
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to upload file to GCS: {resp.status} {body}",
+                    )
+
+                logger.info(
+                    f"Successfully uploaded {filename} with status {resp.status}"
+                )
+                return resp
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
 
 
 @router.post("/{conversation_id}/save")
@@ -249,8 +266,8 @@ async def save_artifact(
         )
 
         async for file_bytes, relative_path in files_generator:
-            await upload_file_to_s3(
-                response["upload_credentials"], file_bytes, relative_path
+            await upload_file_to_gcs(
+                response["upload_credentials"], file_bytes, artifact_id, relative_path
             )
 
         return {"detail": "Creations saved successfully"}
