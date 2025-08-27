@@ -7,18 +7,17 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const toolNameMap: Record<string, string> = {
-  planning: "Annie is planning...",
-  file_upload: "Annie is uploading files...",
-  shell_exec_command: "Annie is executing a command...",
-  web_search: "Annie is searching the web...",
-  web_visit_page: "Annie is visiting the web pages...",
-  file_read: "Annie is reading files...",
-  file_write: "Annie is writing files...",
-  deploy_server: "Annie is deploying a server...",
-  execute_script: "Annie is executing a script...",
-  file_replace: "Annie is modifying files...",
-  generate_image: "Annie is generating images...",
-  user_send_message: "Annie is sending message...",
+  planning: "Annie is planning",
+  shell_exec_command: "Annie is executing a command",
+  web_search: "Annie is searching the web",
+  web_visit_page: "Annie is browsing the web",
+  file_read: "Annie is reading files",
+  file_write: "Annie is writing files",
+  deploy_server: "Annie is deploying a server",
+  execute_script: "Annie is running a script",
+  file_replace: "Annie is editing files",
+  generate_image: "Annie is creating images",
+  user_send_message: "Annie is responding",
 };
 
 const upgradeRequiredErrors = [

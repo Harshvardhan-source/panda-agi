@@ -20,6 +20,7 @@ import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { PreviewData } from "@/components/content-sidebar";
+import { formatAgentMessage } from "@/lib/utils";
 
 interface RequestBody {
   query: string;
@@ -64,6 +65,7 @@ export default function ChatBox({
     error?: string;
   }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -448,13 +450,16 @@ export default function ChatBox({
 
                   // Check if tool calling is to start
                   if (eventData.data && eventData.event_type === "tool_start") {
-                    // Tool started - could update UI state here if needed
+                    // Tool started - update current activity
+                    const toolName = eventData.data.tool_name || "";
+                    setCurrentActivity(toolName);
                     continue;
                   }
 
                   // Check if tool call has ended
                   if (eventData.data && eventData.event_type === "tool_end") {
-                    // Tool ended - could update UI state here if needed
+                    // Tool ended - clear current activity after a brief delay
+                    setTimeout(() => setCurrentActivity(""), 500);
                   }
 
                   const message: Message = {
@@ -504,6 +509,7 @@ export default function ChatBox({
     } finally {
       setIsLoading(false);
       setIsConnected(false);
+      setCurrentActivity(""); // Clear activity when done
     }
   };
 
@@ -726,18 +732,37 @@ export default function ChatBox({
             </div>
           ))}
 
-          {(isLoading || uploadingFiles) && (
-            <div className="flex justify-start mb-2">
-              <div className="flex items-center space-x-3 px-4 py-2 bg-white/90 rounded-2xl">
-                <div className="text-base">🐼</div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse"></div>
-                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse [animation-delay:0.3s]"></div>
-                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse [animation-delay:0.6s]"></div>
+          {(() => {
+            // Only show "Annie is thinking..." when actively processing AND the last message
+            // wasn't from the assistant. This prevents showing the thinking indicator
+            // immediately after Annie has just responded or completed a task.
+            // 
+            // Assistant messages are identified by:
+            // - user_send_message: When Annie sends a response to the user
+            // - completed_task: When Annie indicates a task has been completed
+            const lastMessage = messages[messages.length - 1];
+            const isLastMessageFromAssistant = lastMessage?.type === 'event' && 
+              (lastMessage.event?.data?.tool_name === 'user_send_message' || 
+               lastMessage.event?.event_type === 'user_send_message' ||
+               lastMessage.event?.data?.tool_name === 'completed_task' || 
+               lastMessage.event?.event_type === 'completed_task');
+            
+            return (isLoading || uploadingFiles) && !isLastMessageFromAssistant ? (
+              <div className="flex justify-start mb-4">
+                <div className="flex items-center space-x-2 px-4 py-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
+                  <span className="text-sm text-slate-600">
+                    {currentActivity ? formatAgentMessage(currentActivity) : "Annie is thinking"}
+                    <span className="inline-flex ml-1">
+                      <span className="animate-pulse">.</span>
+                      <span className="animate-pulse [animation-delay:0.3s]">.</span>
+                      <span className="animate-pulse [animation-delay:0.6s]">.</span>
+                    </span>
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
 
           <div ref={messagesEndRef} />
         </div>
