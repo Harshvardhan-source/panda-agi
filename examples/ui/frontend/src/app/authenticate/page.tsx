@@ -74,7 +74,7 @@ export default function Authenticate() {
               
               // Redirect to the chat page
               setTimeout(() => {
-                router.push("/chat");
+                router.push("/");
               }, 1000);
             } else {
               console.error("Token validation failed");

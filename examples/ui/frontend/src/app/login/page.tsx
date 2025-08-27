@@ -15,7 +15,7 @@ export default function Login() {
   useEffect(() => {
     // Check if auth is required
     if (!isAuthRequired()) {
-      router.push("/chat");
+      router.push("/");
       return;
     }
 
@@ -32,7 +32,7 @@ export default function Login() {
     // Check if user is already authenticated
     const token = getAccessToken();
     if (token) {
-      router.push("/chat");
+      router.push("/");
     }
   }, [router]);
 

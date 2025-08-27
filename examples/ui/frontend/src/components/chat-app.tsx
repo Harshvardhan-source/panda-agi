@@ -150,11 +150,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
                   Annie
                 </h1>
                 <p className="text-xs text-slate-600 font-medium">
-                  {isInitialLoading
-                    ? "Initializing..."
-                    : isConnected
-                    ? "Thinking..."
-                    : "Ready to help"}
+                  {isConnected ? "Thinking..." : "Ready to help"}
                 </p>
               </div>
             </div>
@@ -210,23 +206,5 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
 }
 
 export default function ChatAppWithSuspense({ isInitializing = false }: ChatAppProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 relative mb-4 mx-auto">
-              <span className="text-4xl select-none absolute inset-0 flex items-center justify-center">
-                🐼
-              </span>
-            </div>
-            <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
-            <p className="text-muted-foreground">Loading chat interface</p>
-          </div>
-        </div>
-      }
-    >
-      <ChatApp isInitializing={isInitializing} />
-    </Suspense>
-  );
+  return <ChatApp isInitializing={isInitializing} />;
 }

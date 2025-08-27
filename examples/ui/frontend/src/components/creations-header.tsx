@@ -32,7 +32,7 @@ const CreationsHeader: React.FC<CreationsHeaderProps> = ({ onUpgradeClick }) => 
           {/* Back to Chat Button */}
           <Button
             variant="outline"
-            onClick={() => router.push('/chat')}
+            onClick={() => router.push('/')}
             className="flex items-center space-x-2 px-4 py-2 text-sm bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <ArrowLeft className="w-4 h-4" />
