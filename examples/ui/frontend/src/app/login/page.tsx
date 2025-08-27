@@ -38,7 +38,7 @@ export default function Login() {
 
   const handleGitHubLogin = async () => {
     try {
-      const authUrl = await getAuthUrl('google');
+      const authUrl = await getAuthUrl('github');
       if (authUrl) {
         window.location.href = authUrl;
       }
