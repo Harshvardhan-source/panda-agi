@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Dict
 
 import httpx
@@ -6,16 +7,18 @@ from markdownify import markdownify as md
 import cloudscraper
 
 
-def visit_page(url: str):
-    try:
+async def visit_page(url: str):
+    """
+    Run cloudscraper synchronously inside a thread for async compatibility.
+    """
+
+    def _get():
         scraper = cloudscraper.create_scraper(
             browser={"browser": "chrome", "platform": "windows", "mobile": False}
         )
-        response = scraper.get(url, timeout=30)
-        response.raise_for_status()
-        return response
-    except Exception as e:
-        raise e
+        return scraper.get(url, timeout=30)
+
+    return await asyncio.to_thread(_get)
 
 
 async def beautiful_soup_navigation(url: str) -> Dict[str, Any]:
@@ -23,7 +26,7 @@ async def beautiful_soup_navigation(url: str) -> Dict[str, Any]:
     Visit a webpage and extract its content using httpx for better error handling.
     """
     try:
-        response = visit_page(url)
+        response = await visit_page(url)
         soup = BeautifulSoup(response.text, "html.parser")
         content = md(str(soup))
 
