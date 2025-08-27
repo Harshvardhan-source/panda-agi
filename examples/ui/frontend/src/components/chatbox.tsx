@@ -9,7 +9,6 @@ import {
   File,
   Code,
   Archive,
-  FileCode,
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
@@ -17,7 +16,6 @@ import { Message } from "@/lib/types/event-message";
 import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
-import { GridView } from "@/components/ui/grid-view";
 import { formatAgentMessage } from "@/lib/utils";
 import { PreviewData } from "@/components/content-sidebar";
 
@@ -52,7 +50,9 @@ export default function ChatBox({
   isInitialLoading = false,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [agentMessage, setAgentMessage] = useState<string>("Panda is thinking...");
+  const [agentMessage, setAgentMessage] = useState<string>(
+    "Panda is thinking..."
+  );
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -122,7 +122,9 @@ export default function ChatBox({
 
           if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+            throw new Error(
+              errorData?.detail || `HTTP error! status: ${response.status}`
+            );
           }
 
           const result: FileUploadResult = await response.json();
@@ -134,7 +136,7 @@ export default function ChatBox({
             size: result.size,
             path: result.path,
           };
-          
+
           if (result.conversation_id) {
             setConversationId(result.conversation_id);
           }
@@ -149,7 +151,8 @@ export default function ChatBox({
         if (error instanceof Error) {
           errorText = error.message;
           if (errorText === "Failed to fetch") {
-            errorText = "Server is not responding. Please try again in a few minutes.";
+            errorText =
+              "Server is not responding. Please try again in a few minutes.";
           }
         }
         const errorMessage: Message = {
@@ -168,7 +171,13 @@ export default function ChatBox({
         }
       }
     },
-    [conversationId, setConversationId, setMessages, setPendingFiles, setUploadingFiles]
+    [
+      conversationId,
+      setConversationId,
+      setMessages,
+      setPendingFiles,
+      setUploadingFiles,
+    ]
   );
 
   useEffect(() => {
@@ -275,7 +284,7 @@ export default function ChatBox({
 
     try {
       const apiUrl = getBackendServerURL("/agent/run");
-      
+
       const requestBody: RequestBody = {
         query: messageContent,
       };
@@ -295,7 +304,11 @@ export default function ChatBox({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData?.detail || errorData?.error || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData?.detail ||
+            errorData?.error ||
+            `HTTP error! status: ${response.status}`
+        );
       }
 
       const reader = response.body?.getReader();
@@ -309,22 +322,22 @@ export default function ChatBox({
       if (!reader) {
         throw new Error("Reader is not available");
       }
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        
+
         // Process the chunk to find and collect events
         let currentPosition = 0;
-        
+
         while (currentPosition < chunk.length) {
           // Look for event start if not already collecting
           if (!isCollectingEvent) {
             const startTag = "<event>";
             const startPos = chunk.indexOf(startTag, currentPosition);
-            
+
             if (startPos !== -1) {
               // Found the start of an event
               isCollectingEvent = true;
@@ -338,13 +351,13 @@ export default function ChatBox({
             // Already collecting an event, look for the end tag
             const endTag = "</event>";
             const endPos = chunk.indexOf(endTag, currentPosition);
-            
+
             if (endPos !== -1) {
               // Found the end of the event
               eventBuffer += chunk.substring(currentPosition, endPos);
               currentPosition = endPos + endTag.length;
               isCollectingEvent = false;
-              
+
               // Process the complete event
               try {
                 const eventData = JSON.parse(eventBuffer);
@@ -376,7 +389,9 @@ export default function ChatBox({
 
                   // Check if tool calling is to start
                   if (eventData.data && eventData.event_type === "tool_start") {
-                    setAgentMessage(formatAgentMessage(eventData.data.tool_name));
+                    setAgentMessage(
+                      formatAgentMessage(eventData.data.tool_name)
+                    );
                     continue;
                   }
 
@@ -391,14 +406,18 @@ export default function ChatBox({
                     event: eventData,
                     timestamp: new Date().toISOString(),
                   };
-                  
-                  setMessages((prev) => [...prev, message]);
 
+                  setMessages((prev) => [...prev, message]);
                 } else {
                   console.warn("Received malformed event data:", eventData);
                 }
               } catch (e) {
-                console.error("Error parsing event data:", e, "Data:", eventBuffer);
+                console.error(
+                  "Error parsing event data:",
+                  e,
+                  "Data:",
+                  eventBuffer
+                );
               }
             } else {
               // Event continues beyond this chunk
@@ -409,10 +428,10 @@ export default function ChatBox({
         }
       }
     } catch (error) {
-      let errorText: string = "Unable to process request, try again!"
-      
+      let errorText: string = "Unable to process request, try again!";
+
       if (error instanceof Error) {
-        errorText = error.message
+        errorText = error.message;
         if (errorText === "Failed to fetch") {
           errorText = "Server is not responding, try again later";
         }
@@ -429,18 +448,6 @@ export default function ChatBox({
       setIsLoading(false);
       setIsConnected(false);
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const startNewConversation = () => {
-    setMessages([]);
-    setConversationId(undefined);
   };
 
   // Trigger file input click
@@ -480,7 +487,9 @@ export default function ChatBox({
     if (
       ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension)
     ) {
-      return <Image className={`${iconClass} text-green-500`} />;
+      return (
+        <Image className={`${iconClass} text-green-500`} aria-hidden="true" />
+      );
     }
     if (
       [
@@ -516,12 +525,31 @@ export default function ChatBox({
 
   return (
     <div
-      className="relative transition-all duration-300 w-full bg-gradient-to-br from-blue-50 to-indigo-100"
+      className="relative transition-all duration-300 w-full bg-gradient-to-br from-slate-50/90 via-white/60 to-slate-100/80 overflow-hidden"
       style={{
         width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
         height: "100vh",
       }}
     >
+      {/* Unique Annie Pattern Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Subtle design elements */}
+        <div className="absolute top-20 left-[8%] w-0.5 h-8 bg-slate-300/20 rounded-full rotate-12"></div>
+        <div className="absolute top-40 right-[12%] w-0.5 h-6 bg-slate-300/25 rounded-full -rotate-12"></div>
+        <div className="absolute bottom-32 left-[15%] w-0.5 h-10 bg-slate-300/20 rounded-full rotate-45"></div>
+        <div className="absolute bottom-48 right-[20%] w-0.5 h-4 bg-slate-300/30 rounded-full -rotate-45"></div>
+
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `
+              radial-gradient(circle at 2px 2px, #1e293b 1px, transparent 0)
+            `,
+            backgroundSize: "40px 40px",
+          }}
+        ></div>
+      </div>
       {/* Messages - full height with top padding for header */}
       <div
         ref={dropZoneRef}
@@ -531,7 +559,7 @@ export default function ChatBox({
             : ""
         }`}
         style={{
-          paddingTop: "100px",
+          paddingTop: "140px",
           paddingBottom: "140px",
           paddingLeft: "1rem",
           paddingRight: "1rem",
@@ -539,79 +567,78 @@ export default function ChatBox({
       >
         {/* Drag overlay */}
         {isDragging && (
-          <div className="absolute inset-0 flex items-center justify-center bg-blue-50/70 backdrop-blur-sm z-10">
-            <div className="text-center p-6 rounded-xl bg-white/80 shadow-lg border border-blue-200">
-              <Paperclip className="w-12 h-12 text-blue-500 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-gray-900 mb-1">
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-xl z-10">
+            <div className="text-center p-8 rounded-2xl bg-white/90 shadow-2xl border border-slate-200/50 backdrop-blur-sm">
+              <Paperclip className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
                 Drop files here
               </h3>
-              <p className="text-sm text-gray-500">Release to upload</p>
+              <p className="text-sm text-slate-600">
+                Release to upload your files
+              </p>
             </div>
           </div>
         )}
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-3xl mx-auto space-y-4">
           {messages.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-6 transition-transform duration-300 hover:scale-110 animate-bounce">
-                🐼
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                Welcome to PandaAGI
-              </h3>
-              <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-                I can help you with coding, research, and much more. What
-                would you like to work on today?
-              </p>
+            <div className="flex flex-col items-center justify-center min-h-[65vh] px-4">
+              {/* Clean Welcome */}
+              <div className="text-center mb-16">
+                <h3 className="text-5xl font-bold text-slate-900 mb-4 tracking-tight">
+                  {(() => {
+                    const hour = new Date().getHours();
+                    const greeting =
+                      hour < 12
+                        ? "Morning"
+                        : hour < 18
+                        ? "Afternoon"
+                        : "Evening";
+                    return `${greeting} 👋`;
+                  })()}
+                </h3>
+                <p className="text-slate-500 text-lg font-light mb-10">
+                  What do you want to see?
+                </p>
 
-              {/* Suggestion cards with example prompts */}
-              <GridView
-                items={[
-                  {
-                    icon: <FileText className="w-5 h-5 mr-2" />,
-                    title: "Data Analysis",
-                    description:
-                      "Analyze this CSV data and create a visualization of the monthly sales trends",
-                    onClick: () =>
-                      setInputValue(
-                        "Analyze this CSV data and create a visualization of the monthly sales trends"
-                      ),
-                    titleClassName: "font-medium text-blue-600 mb-2 flex items-center",
-                  },
-                  {
-                    icon: <Code className="w-5 h-5 mr-2" />,
-                    title: "Landing Page",
-                    description:
-                      "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation",
-                    onClick: () =>
-                      setInputValue(
-                        "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"
-                      ),
-                    titleClassName: "font-medium text-green-600 mb-2 flex items-center",
-                  },
-                  {
-                    icon: <FileCode className="w-5 h-5 mr-2" />,
-                    title: "Research Reports",
-                    description:
-                      "Create a comprehensive report on the latest trends in renewable energy based on online research",
-                    onClick: () =>
-                      setInputValue(
-                        "Create a comprehensive report on the latest trends in renewable energy based on online research"
-                      ),
-                    titleClassName: "font-medium text-orange-600 mb-2 flex items-center",
-                  },
-                  {
-                    icon: <Image className="w-5 h-5 mr-2" />,
-                    title: "Dashboard Design",
-                    description:
-                      "Build a dashboard that visualizes market data for my product's performance across different regions",
-                    onClick: () =>
-                      setInputValue(
-                        "Build a dashboard that visualizes market data for my product's performance across different regions"
-                      ),
-                    titleClassName: "font-medium text-purple-600 mb-2 flex items-center",
-                  },
-                ]}
-              />
+                {/* Clean Dashboard Options */}
+                <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
+                  {[
+                    {
+                      title: "Sales",
+                      prompt:
+                        "Show me sales performance this month vs last month with revenue trends and top deals",
+                    },
+                    {
+                      title: "Marketing",
+                      prompt:
+                        "Create a marketing dashboard showing campaign ROI, ad spend, and conversion rates",
+                    },
+                    {
+                      title: "Team",
+                      prompt:
+                        "Build a team dashboard tracking productivity, goal completion, and performance metrics",
+                    },
+                    {
+                      title: "Finance",
+                      prompt:
+                        "Show me financial overview with cash flow, monthly expenses, and profit margins",
+                    },
+                    {
+                      title: "Customers",
+                      prompt:
+                        "Create customer analytics showing acquisition trends, retention rates, and lifetime value",
+                    },
+                  ].map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setInputValue(item.prompt)}
+                      className="px-4 py-2 bg-white/60 hover:bg-white/90 border border-slate-200/60 hover:border-slate-300/80 rounded-xl text-center transition-all duration-200 hover:shadow-sm text-sm font-medium text-slate-700 hover:text-slate-900"
+                    >
+                      {item.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -634,16 +661,14 @@ export default function ChatBox({
           ))}
 
           {(isLoading || uploadingFiles) && (
-            <div className="flex justify-start">
-              <div className="flex items-center space-x-2 px-3 py-2">
+            <div className="flex justify-start mb-2">
+              <div className="flex items-center space-x-3 px-4 py-2 bg-white/90 rounded-2xl">
+                <div className="text-base">🐼</div>
                 <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse"></div>
+                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse [animation-delay:0.3s]"></div>
+                  <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse [animation-delay:0.6s]"></div>
                 </div>
-                <span className="text-xs text-gray-500">
-                  {agentMessage}
-                </span>
               </div>
             </div>
           )}
@@ -654,51 +679,57 @@ export default function ChatBox({
 
       {/* Input - positioned absolutely at bottom */}
       <div
-        className="absolute bottom-0 left-0 right-0 p-4"
+        className="absolute bottom-0 left-0 right-0 p-8"
         style={{
           width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
         }}
       >
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white/90 backdrop-blur-2xl border border-white/30 rounded-2xl p-3 shadow-2xl">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white/98 backdrop-blur-3xl border border-slate-200/40 rounded-[2rem] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.08)] ring-1 ring-slate-900/2 relative overflow-hidden transition-all duration-500 hover:shadow-[0_25px_50px_rgba(0,0,0,0.12)]">
+            {/* Subtle activity indicator */}
+            {(isLoading || uploadingFiles) && (
+              <div className="absolute top-0 left-0 right-0 h-0.5">
+                <div className="h-full bg-gradient-to-r from-blue-500/30 via-purple-500/50 to-emerald-500/30 animate-pulse"></div>
+              </div>
+            )}
             {/* Pending Files Display - Integrated inside input container */}
             {pendingFiles.length > 0 && (
-              <div className="mb-3 p-2 bg-gray-50/50 rounded-xl border border-gray-200/30">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-600 flex items-center">
-                    <Paperclip className="w-3 h-3 mr-1" />
+              <div className="mb-4 p-3 bg-slate-50/80 rounded-2xl border border-slate-200/50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-slate-700 flex items-center">
+                    <Paperclip className="w-4 h-4 mr-2" />
                     {pendingFiles.length} attachment
                     {pendingFiles.length !== 1 ? "s" : ""}
                   </span>
                   <button
                     onClick={() => setPendingFiles([])}
-                    className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center"
+                    className="text-sm text-slate-500 hover:text-red-600 transition-colors flex items-center font-medium"
                   >
-                    <X className="w-3 h-3 mr-1" />
+                    <X className="w-4 h-4 mr-1" />
                     Clear
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {pendingFiles.map((file) => (
                     <div
                       key={file.id}
-                      className="group flex items-center space-x-2 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-lg px-2.5 py-1.5 text-xs hover:bg-white transition-all duration-200 hover:shadow-sm"
+                      className="group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm hover:bg-white transition-all duration-200 hover:shadow-md"
                     >
                       {getFileIcon(file.filename)}
                       <div className="flex flex-col min-w-0">
-                        <span className="text-gray-800 font-medium truncate max-w-[120px]">
+                        <span className="text-slate-800 font-semibold truncate max-w-[140px]">
                           {file.filename}
                         </span>
-                        <span className="text-gray-400 text-[10px]">
+                        <span className="text-slate-500 text-xs">
                           {formatFileSize(file.size)}
                         </span>
                       </div>
                       <button
                         onClick={() => removePendingFile(file.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all duration-200 p-0.5"
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all duration-200 p-1 rounded-lg hover:bg-red-50"
                         title="Remove"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -706,7 +737,7 @@ export default function ChatBox({
               </div>
             )}
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-5">
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
@@ -721,10 +752,11 @@ export default function ChatBox({
               <button
                 onClick={handleFileUpload}
                 disabled={uploadingFiles || isInitialLoading}
-                className="p-2 text-gray-900 hover:text-gray-600 hover:bg-white/20 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-3.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 rounded-2xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed group relative overflow-hidden"
                 title={uploadingFiles ? "Uploading..." : "Upload files"}
               >
-                <Paperclip className="w-5 h-5" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+                <Paperclip className="w-5 h-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />
               </button>
 
               {/* Text input */}
@@ -737,12 +769,21 @@ export default function ChatBox({
                     // Trigger resize on next frame to ensure content is updated
                     setTimeout(resizeTextarea, 0);
                   }}
-                  onKeyPress={handleKeyPress}
-                  placeholder={isInitialLoading ? "Initializing..." : "Ask the panda anything..."}
-                  className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none border-none outline-none text-md leading-relaxed"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder={
+                    isInitialLoading
+                      ? "Annie is waking up..."
+                      : "What would you like to see?"
+                  }
+                  className="w-full bg-transparent text-slate-900 placeholder-slate-500/70 resize-none border-none outline-none text-base leading-relaxed font-medium py-1 selection:bg-blue-100/50"
                   rows={1}
                   disabled={isLoading || isInitialLoading}
-                  style={{ minHeight: "24px", maxHeight: "120px" }}
+                  style={{ minHeight: "32px", maxHeight: "120px" }}
                 />
               </div>
 
@@ -750,10 +791,11 @@ export default function ChatBox({
               <button
                 onClick={sendMessage}
                 disabled={!inputValue.trim() || isLoading || isInitialLoading}
-                className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white rounded-xl transition-all duration-200 disabled:cursor-not-allowed"
+                className="p-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-2xl transition-all duration-300 disabled:cursor-not-allowed shadow-lg hover:shadow-2xl transform hover:scale-[1.03] active:scale-[0.97] group relative overflow-hidden"
                 title="Send message"
               >
-                <Send className="w-5 h-5" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <Send className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300 relative z-10" />
               </button>
             </div>
           </div>
@@ -761,4 +803,4 @@ export default function ChatBox({
       </div>
     </div>
   );
-} 
+}

@@ -34,20 +34,20 @@ const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({
   const { toolName, truncatedError } = getDisplayContent();
 
   return (
-    <div className="flex justify-start">
-      <div className="flex items-center space-x-2 px-3 py-2">
+    <div className="flex justify-start mb-2">
+      <div className="flex items-center space-x-2 px-3 py-2 bg-red-50/90 rounded-xl border border-red-200/50">
         {isUpgradeErrorMessage ? (
           <AlertCircle className="w-3 h-3 text-orange-600" />
         ) : (
           <BadgeAlert className="w-3 h-3 text-red-600" />
         )}
-        <span className="text-xs text-gray-500 truncate max-w-md">
+        <span className="text-xs text-red-700 font-medium truncate max-w-md">
           {toolName} failed: <strong>{truncatedError}</strong>
         </span>
         {showExpandButton && (
           <button
             onClick={onToggleExpanded}
-            className="flex items-center py-0.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div

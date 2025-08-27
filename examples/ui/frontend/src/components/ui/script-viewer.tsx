@@ -40,7 +40,7 @@ const ScriptViewer: React.FC<ScriptViewerProps> = ({
     const detectedLanguage = getLanguage(language);
     
     return (
-      <div className={`mx-3 mb-4 bg-gray-900 text-white rounded-md overflow-hidden ${className}`}>
+      <div className={`mx-3 mb-4 bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm border border-slate-200/20 ${className}`}>
         {showHeader && (
           <div className="flex items-center px-3 py-2 bg-gray-800 border-b border-gray-700">
             <Code className="w-4 h-4 mr-2 text-blue-400" />
@@ -92,15 +92,15 @@ const ScriptViewer: React.FC<ScriptViewerProps> = ({
 
   return (
     <>
-      <div className="flex justify-start">
-        <div className="flex items-center space-x-2 px-3 py-2">
+      <div className="flex justify-start mb-2">
+        <div className="flex items-center space-x-2 px-3 py-2 bg-white/90 rounded-xl">
           <Code className="w-3 h-3 text-blue-600" />
-          <span className="text-xs text-gray-500 truncate max-w-md">
-            {title || `Executing ${language || "script"}`} <strong>{getDisplayContent()}</strong>
+          <span className="text-xs text-slate-600 font-medium">
+            {title || `Executing ${language || "script"}`} <strong className="text-slate-800">{getDisplayContent()}</strong>
           </span>
           <button
             onClick={toggleExpanded}
-            className="flex items-center py-0.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div

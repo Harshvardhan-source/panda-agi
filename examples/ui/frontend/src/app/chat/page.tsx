@@ -127,31 +127,36 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
       >
         {/* Header - positioned absolutely over content */}
         <div
-          className="glass-header p-4 fixed top-0 left-0 right-0 z-10 backdrop-blur-xl bg-white/80"
+          className="glass-header p-6 fixed top-0 left-0 right-0 z-10 backdrop-blur-3xl bg-white/60"
           style={{
             width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
           }}
         >
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                <span className="text-2xl select-none">🐼</span>
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div className="w-11 h-11 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-xl select-none">🐼</span>
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+                  {isInitialLoading ? (
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                  ) : isConnected ? (
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                  ) : (
+                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                  )}
+                </div>
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  PandaAGI
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                  Annie
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs text-slate-600 font-medium">
                   {isInitialLoading ? (
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-                      Initializing...
-                    </span>
+                    "Initializing..."
                   ) : isConnected ? (
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                      Connected
-                    </span>
+                    "Thinking..."
                   ) : (
                     "Ready to help"
                   )}
@@ -163,7 +168,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
               {/* New Conversation Button */}
               <button
                 onClick={startNewConversation}
-                className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                className="flex items-center space-x-2 px-5 py-2.5 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] font-medium"
               >
                 <Plus className="w-4 h-4" />
                 <span>New Chat</span>

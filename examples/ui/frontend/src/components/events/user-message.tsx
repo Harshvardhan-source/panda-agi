@@ -205,11 +205,6 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
             }
           </div>
         </div>
-        {timestamp && (
-          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-            {formatTimestamp(timestamp)}
-          </p>
-        )}
       </div>
     );
   };
@@ -222,18 +217,13 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
           {replacedContent as string}
         </MarkdownRenderer>
 
-        {timestamp && (
-          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-            {formatTimestamp(timestamp)}
-          </p> 
-        )}
       </div>
     );
   };
 
   const cardColor = isError
-    ? "bg-red-50 border-red-200/60"
-    : "bg-white border-gray-200";
+    ? "bg-red-50/80 border-red-200/50"
+    : "bg-white/90 border-slate-200/50";
   const content = isError ? renderErrorContent() : renderStandardContent();
 
   // Detect hosted URLs in the notification text
@@ -249,8 +239,8 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   return (
     <>
       {/* Main Card */}
-      <div className="flex justify-start">
-        <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
+      <div className="flex justify-start mb-2">
+        <div className={`px-4 py-3 rounded-2xl shadow-sm min-w-80 max-w-2xl ${cardColor} relative`}>
           {content}
         </div>
       </div>
