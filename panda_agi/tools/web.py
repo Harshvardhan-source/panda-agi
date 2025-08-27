@@ -75,15 +75,24 @@ class WebNavigationHandler(ToolHandler):
             return "Missing required parameter: url"
         return None
 
-    async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        await self.add_event(EventType.WEB_NAVIGATION, params)
-        result = await beautiful_soup_navigation(**params)
-        await self.add_event(EventType.WEB_NAVIGATION_RESULT, result)
+    try:
 
-        success = result.pop("success", True)
+        async def execute(self, params: Dict[str, Any]) -> ToolResult:
+            await self.add_event(EventType.WEB_NAVIGATION, params)
+            result = await beautiful_soup_navigation(**params)
+            await self.add_event(EventType.WEB_NAVIGATION_RESULT, result)
 
-        result = ToolResult(
-            success=success,
-            data=result,
-        )
-        return result
+            success = result.pop("success", True)
+
+            result = ToolResult(
+                success=success,
+                data=result,
+                error=result.get("content") if not result.get("success") else None,
+            )
+            return result
+
+    except Exception as e:
+        import traceback
+
+        print(traceback.format_exc())
+        raise e
