@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
-import ChatApp from "./chat/page";
+import ChatApp from "@/components/chat-app";
 
 // Client Component with authentication routing
 export default function Home() {
