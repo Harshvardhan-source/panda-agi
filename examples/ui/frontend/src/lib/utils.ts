@@ -22,7 +22,7 @@ const toolNameMap: Record<string, string> = {
 
 const upgradeRequiredErrors = [
   "Insufficient credits to process request",
-  "Insufficient credits. You have no tokens left to continue the conversation.",
+  "Insufficient credits. You have no credits left to continue the conversation.",
 ];
 
 export function formatAgentMessage(toolName: string) {
