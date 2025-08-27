@@ -9,6 +9,9 @@ import {
   File,
   Code,
   Archive,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
@@ -16,7 +19,6 @@ import { Message } from "@/lib/types/event-message";
 import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
-import { formatAgentMessage } from "@/lib/utils";
 import { PreviewData } from "@/components/content-sidebar";
 
 interface RequestBody {
@@ -43,20 +45,24 @@ export default function ChatBox({
   onPreviewClick,
   onFileClick,
   openUpgradeModal,
-  isConnected,
   setIsConnected,
   sidebarOpen,
   sidebarWidth,
   isInitialLoading = false,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [agentMessage, setAgentMessage] = useState<string>(
-    "Panda is thinking..."
-  );
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
+  const [uploadingFilesPreviews, setUploadingFilesPreviews] = useState<{
+    id: number;
+    name: string;
+    size: number;
+    progress: number;
+    status: 'uploading' | 'completed' | 'error';
+    error?: string;
+  }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,9 +93,9 @@ export default function ChatBox({
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
-      setAgentMessage("Panda is thinking...");
       setInputValue("");
       setPendingFiles([]);
+      setUploadingFilesPreviews([]);
     }
   }, [conversationId]);
 
@@ -98,56 +104,106 @@ export default function ChatBox({
     async (files: File[]) => {
       if (files.length === 0) return;
 
+      // Create new file previews to add to existing ones (cumulative)
+      const baseId = Date.now();
+      const newFilePreviews = Array.from(files).map((file, index) => ({
+        id: baseId + index + Math.random() * 1000, // Ensure unique IDs
+        name: file.name,
+        size: file.size,
+        progress: 0,
+        status: 'uploading' as const,
+      }));
+      
+      // Add new files to existing previews (cumulative)
+      setUploadingFilesPreviews(prev => [...prev, ...newFilePreviews]);
       setUploadingFiles(true);
-      setAgentMessage(formatAgentMessage("file_upload"));
 
       try {
-        for (const file of files) {
-          const formData = new FormData();
-          formData.append("file", file);
+        const uploadPromises = Array.from(files).map(async (file, index) => {
+          const filePreviewId = newFilePreviews[index].id;
+          
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
 
-          if (conversationId) {
-            formData.append("conversation_id", conversationId);
+            if (conversationId) {
+              formData.append("conversation_id", conversationId);
+            }
+
+            const apiUrl = getBackendServerURL("/files/upload");
+            const apiHeaders = await getApiHeaders(false);
+
+            // Simulate progress updates (since we can't get real progress from fetch)
+            const progressInterval = setInterval(() => {
+              setUploadingFilesPreviews(prev => prev.map(f => 
+                f.id === filePreviewId && f.progress < 90 
+                  ? { ...f, progress: Math.min(90, f.progress + Math.random() * 20) }
+                  : f
+              ));
+            }, 200);
+
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: apiHeaders,
+              body: formData,
+            });
+
+            clearInterval(progressInterval);
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(
+                errorData?.detail || `HTTP error! status: ${response.status}`
+              );
+            }
+
+            const result: FileUploadResult = await response.json();
+            
+            // Update preview to completed
+            setUploadingFilesPreviews(prev => prev.map(f => 
+              f.id === filePreviewId 
+                ? { ...f, progress: 100, status: 'completed' as const }
+                : f
+            ));
+
+            // Add to pending files
+            const uploadedFile: UploadedFile = {
+              id: filePreviewId,
+              filename: result.filename,
+              original_filename: result.original_filename,
+              size: result.size,
+              path: result.path,
+            };
+
+            if (result.conversation_id) {
+              setConversationId(result.conversation_id);
+            }
+
+            // Add to pending files cumulatively
+            setPendingFiles((prev) => [...prev, uploadedFile]);
+            
+            return uploadedFile;
+          } catch (error) {
+            // Mark this file as errored
+            const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+            setUploadingFilesPreviews(prev => prev.map(f => 
+              f.id === filePreviewId 
+                ? { ...f, status: 'error' as const, error: errorMessage }
+                : f
+            ));
+            throw error;
           }
+        });
 
-          const apiUrl = getBackendServerURL("/files/upload");
-
-          const apiHeaders = await getApiHeaders(false);
-
-          const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: apiHeaders,
-            body: formData,
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(
-              errorData?.detail || `HTTP error! status: ${response.status}`
-            );
-          }
-
-          const result: FileUploadResult = await response.json();
-          // Add file to pending files instead of immediately showing as event
-          const uploadedFile: UploadedFile = {
-            id: Date.now() + Math.random(),
-            filename: result.filename,
-            original_filename: result.original_filename,
-            size: result.size,
-            path: result.path,
-          };
-
-          if (result.conversation_id) {
-            setConversationId(result.conversation_id);
-          }
-
-          setPendingFiles((prev) => [...prev, uploadedFile]);
-        }
+        await Promise.allSettled(uploadPromises);
+        
+        // Keep completed uploads visible - they'll be cleared when message is sent
+        // Don't automatically clear uploading previews
+        
       } catch (error) {
         console.error("Upload error:", error);
 
-        let errorText = "Error: Unable to upload file";
-
+        let errorText = "Error: Unable to upload files";
         if (error instanceof Error) {
           errorText = error.message;
           if (errorText === "Failed to fetch") {
@@ -155,6 +211,7 @@ export default function ChatBox({
               "Server is not responding. Please try again in a few minutes.";
           }
         }
+        
         const errorMessage: Message = {
           id: Date.now(),
           type: "error",
@@ -177,6 +234,7 @@ export default function ChatBox({
       setMessages,
       setPendingFiles,
       setUploadingFiles,
+      setUploadingFilesPreviews,
     ]
   );
 
@@ -185,22 +243,22 @@ export default function ChatBox({
   }, [messages]);
 
   // Drag and drop event handlers
-  const handleDragOver = (e: DragEvent) => {
+  const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
-  };
+  }, []);
 
-  const handleDragEnter = (e: DragEvent) => {
+  const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
-  };
+  }, []);
 
-  const handleDragLeave = (e: DragEvent) => {
+  const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-  };
+  }, []);
 
-  const handleDrop = async (e: DragEvent) => {
+  const handleDrop = useCallback(async (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -208,7 +266,7 @@ export default function ChatBox({
       const files = Array.from(e.dataTransfer.files);
       await handleFilesUpload(files);
     }
-  };
+  }, [handleFilesUpload]);
 
   // Set up drag and drop event listeners
   useEffect(() => {
@@ -229,10 +287,10 @@ export default function ChatBox({
         dropZone.removeEventListener("drop", handleDrop);
       }
     };
-  }, []);
+  }, [handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
 
   const sendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || uploadingFilesPreviews.length > 0) return;
 
     // Create file references for pending files
     const fileReferences = pendingFiles
@@ -280,6 +338,7 @@ export default function ChatBox({
     setMessages((prev) => [...prev, ...newMessages]);
     setInputValue("");
     setPendingFiles([]); // Clear pending files
+    setUploadingFilesPreviews([]); // Clear upload previews when message is sent
     setIsLoading(true);
 
     try {
@@ -389,15 +448,13 @@ export default function ChatBox({
 
                   // Check if tool calling is to start
                   if (eventData.data && eventData.event_type === "tool_start") {
-                    setAgentMessage(
-                      formatAgentMessage(eventData.data.tool_name)
-                    );
+                    // Tool started - could update UI state here if needed
                     continue;
                   }
 
                   // Check if tool call has ended
                   if (eventData.data && eventData.event_type === "tool_end") {
-                    setAgentMessage("Panda is thinking...");
+                    // Tool ended - could update UI state here if needed
                   }
 
                   const message: Message = {
@@ -465,6 +522,15 @@ export default function ChatBox({
 
   const removePendingFile = (fileId: number) => {
     setPendingFiles((prev) => prev.filter((file) => file.id !== fileId));
+  };
+
+  const clearAllFiles = () => {
+    // Only clear if no files are currently uploading
+    const hasUploadingFiles = uploadingFilesPreviews.some(f => f.status === 'uploading');
+    if (!hasUploadingFiles) {
+      setPendingFiles([]);
+      setUploadingFilesPreviews([]);
+    }
   };
 
   // ...
@@ -689,30 +755,122 @@ export default function ChatBox({
             {/* Subtle activity indicator */}
             {(isLoading || uploadingFiles) && (
               <div className="absolute top-0 left-0 right-0 h-0.5">
-                <div className="h-full bg-gradient-to-r from-blue-500/30 via-purple-500/50 to-emerald-500/30 animate-pulse"></div>
+                <div className="h-full bg-gradient-to-r from-blue-400/30 via-indigo-400/30 to-blue-500/30 animate-pulse"></div>
               </div>
             )}
-            {/* Pending Files Display - Integrated inside input container */}
-            {pendingFiles.length > 0 && (
+            {/* Files Display - Show all files (uploading, completed, and attached) */}
+            {(uploadingFilesPreviews.length > 0 || pendingFiles.length > 0) && (
               <div className="mb-4 p-3 bg-slate-50/80 rounded-2xl border border-slate-200/50">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-slate-700 flex items-center">
                     <Paperclip className="w-4 h-4 mr-2" />
-                    {pendingFiles.length} attachment
-                    {pendingFiles.length !== 1 ? "s" : ""}
+                    {(() => {
+                      // Count unique files by avoiding duplicates between uploadingFilesPreviews and pendingFiles
+                      const uniqueFiles = new Set([
+                        ...uploadingFilesPreviews.map(f => f.id),
+                        ...pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map(f => f.id)
+                      ]);
+                      return uniqueFiles.size;
+                    })()} attachment
+                    {(() => {
+                      const uniqueFiles = new Set([
+                        ...uploadingFilesPreviews.map(f => f.id),
+                        ...pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map(f => f.id)
+                      ]);
+                      return uniqueFiles.size !== 1 ? "s" : "";
+                    })()}
+                    {uploadingFilesPreviews.some(f => f.status === 'uploading') && (
+                      <span className="ml-2 text-slate-600">
+                        <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
+                        Uploading...
+                      </span>
+                    )}
                   </span>
                   <button
-                    onClick={() => setPendingFiles([])}
-                    className="text-sm text-slate-500 hover:text-red-600 transition-colors flex items-center font-medium"
+                    onClick={clearAllFiles}
+                    className="text-sm text-slate-500 hover:text-slate-700 transition-colors flex items-center font-medium"
+                    disabled={uploadingFilesPreviews.some(f => f.status === 'uploading')}
+                    title={uploadingFilesPreviews.some(f => f.status === 'uploading') ? "Wait for uploads to complete" : "Clear all files"}
                   >
                     <X className="w-4 h-4 mr-1" />
                     Clear
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {pendingFiles.map((file) => (
+                  {/* Show uploading/completed files from preview */}
+                  {uploadingFilesPreviews.map((file) => {
+                    return (
+                      <div
+                        key={`preview-${file.id}`}
+                        className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
+                      >
+                        {/* Progress background for uploading files */}
+                        {file.status === 'uploading' && (
+                          <div 
+                            className="absolute inset-0 bg-slate-100/40 transition-all duration-300"
+                            style={{ width: `${file.progress}%` }}
+                          />
+                        )}
+                        {/* Completed background */}
+                        {file.status === 'completed' && (
+                          <div className="absolute inset-0 bg-slate-50/60" />
+                        )}
+                        
+                        <div className="relative z-10 flex items-center space-x-2">
+                          {file.status === 'uploading' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
+                          {file.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-slate-600" />}
+                          {file.status === 'error' && <AlertCircle className="w-4 h-4 text-slate-500" />}
+                          
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-slate-800 font-semibold truncate max-w-[140px]">
+                              {file.name}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-slate-500 text-xs">
+                                {formatFileSize(file.size)}
+                              </span>
+                              {file.status === 'uploading' && (
+                                <span className="text-slate-600 text-xs font-medium">
+                                  {Math.round(file.progress)}%
+                                </span>
+                              )}
+                              {file.status === 'completed' && (
+                                <span className="text-slate-600 text-xs font-medium">
+                                  Ready
+                                </span>
+                              )}
+                              {file.status === 'error' && (
+                                <span className="text-slate-500 text-xs font-medium" title={file.error}>
+                                  Failed
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Only show remove button if not uploading */}
+                          {file.status !== 'uploading' && (
+                            <button
+                              onClick={() => {
+                                // Remove from upload previews
+                                setUploadingFilesPreviews(prev => prev.filter(f => f.id !== file.id));
+                                // Also remove from pending files if it exists there
+                                setPendingFiles(prev => prev.filter(f => f.id !== file.id));
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1 rounded-lg hover:bg-slate-100"
+                              title="Remove"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show pending files that are not in upload previews */}
+                  {pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map((file) => (
                     <div
-                      key={file.id}
+                      key={`pending-${file.id}`}
                       className="group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm hover:bg-white transition-all duration-200 hover:shadow-md"
                     >
                       {getFileIcon(file.filename)}
@@ -726,7 +884,7 @@ export default function ChatBox({
                       </div>
                       <button
                         onClick={() => removePendingFile(file.id)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all duration-200 p-1 rounded-lg hover:bg-red-50"
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1 rounded-lg hover:bg-slate-100"
                         title="Remove"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -755,7 +913,7 @@ export default function ChatBox({
                 className="p-3.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 rounded-2xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed group relative overflow-hidden"
                 title={uploadingFiles ? "Uploading..." : "Upload files"}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
                 <Paperclip className="w-5 h-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />
               </button>
 
@@ -790,11 +948,11 @@ export default function ChatBox({
               {/* Send button */}
               <button
                 onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading || isInitialLoading}
+                disabled={!inputValue.trim() || isLoading || isInitialLoading || uploadingFilesPreviews.length > 0}
                 className="p-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-2xl transition-all duration-300 disabled:cursor-not-allowed shadow-lg hover:shadow-2xl transform hover:scale-[1.03] active:scale-[0.97] group relative overflow-hidden"
-                title="Send message"
+                title={uploadingFilesPreviews.length > 0 ? "Wait for files to finish uploading" : "Send message"}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 to-slate-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <Send className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300 relative z-10" />
               </button>
             </div>
