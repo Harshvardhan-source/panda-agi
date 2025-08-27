@@ -13,10 +13,14 @@ import { PLATFORM_MODE } from "@/lib/config";
 import ChatBox from "@/components/chatbox";
 import { getFileType } from "@/lib/utils";
 
-function ChatApp() {
+interface ChatAppProps {
+  isInitializing?: boolean;
+}
+
+function ChatApp({ isInitializing = false }: ChatAppProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(!isInitializing);
   const [isConnected, setIsConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(900); // Default sidebar width (match initial in ContentSidebar)
@@ -62,6 +66,11 @@ function ChatApp() {
 
   // Authentication check - placed after all hooks to follow Rules of Hooks
   useEffect(() => {
+    // If we're initializing from parent, wait for parent to finish
+    if (isInitializing) {
+      return;
+    }
+    
     // Check if authentication is required
     if (isAuthRequired()) {
       // Check if user is authenticated
@@ -76,7 +85,14 @@ function ChatApp() {
     
     // User is authenticated or auth is not required
     setIsAuthenticating(false);
-  }, [router]);
+  }, [router, isInitializing]);
+
+  // Update authentication state when parent finishes initializing
+  useEffect(() => {
+    if (!isInitializing && isAuthenticating) {
+      setIsAuthenticating(false);
+    }
+  }, [isInitializing, isAuthenticating]);
 
   // Listen for messages from iframe content to open URLs in sidebar
   useEffect(() => {
@@ -97,22 +113,8 @@ function ChatApp() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Don't render the chat if still checking authentication
-  if (isAuthenticating) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 relative mb-4 mx-auto">
-            <span className="text-4xl select-none absolute inset-0 flex items-center justify-center">
-              🐼
-            </span>
-          </div>
-          <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
-          <p className="text-muted-foreground">Checking authentication status</p>
-        </div>
-      </div>
-    );
-  }
+  // Calculate if we should show loading state
+  const isInitialLoading = isAuthenticating || isInitializing;
 
   return (
     <div className="flex h-screen">
@@ -140,7 +142,12 @@ function ChatApp() {
                   PandaAGI
                 </h1>
                 <p className="text-sm text-gray-500">
-                  {isConnected ? (
+                  {isInitialLoading ? (
+                    <span className="flex items-center">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
+                      Initializing...
+                    </span>
+                  ) : isConnected ? (
                     <span className="flex items-center">
                       <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                       Connected
@@ -179,6 +186,7 @@ function ChatApp() {
           setIsConnected={setIsConnected}
           sidebarOpen={sidebarOpen}
           sidebarWidth={sidebarWidth}
+          isInitialLoading={isInitialLoading}
         />
       </div>
 
@@ -201,7 +209,7 @@ function ChatApp() {
   );
 }
 
-export default function App() {
+export default function App({ isInitializing }: ChatAppProps = {}) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
@@ -216,7 +224,7 @@ export default function App() {
         </div>
       </div>
     }>
-      <ChatApp />
+      <ChatApp isInitializing={isInitializing} />
     </Suspense>
   );
 }

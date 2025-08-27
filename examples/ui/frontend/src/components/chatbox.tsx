@@ -36,6 +36,7 @@ interface ChatBoxProps {
   setIsConnected: (connected: boolean) => void;
   sidebarOpen: boolean;
   sidebarWidth: number;
+  isInitialLoading?: boolean;
 }
 
 export default function ChatBox({
@@ -48,6 +49,7 @@ export default function ChatBox({
   setIsConnected,
   sidebarOpen,
   sidebarWidth,
+  isInitialLoading = false,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentMessage, setAgentMessage] = useState<string>("Panda is thinking...");
@@ -718,7 +720,7 @@ export default function ChatBox({
               {/* Upload button */}
               <button
                 onClick={handleFileUpload}
-                disabled={uploadingFiles}
+                disabled={uploadingFiles || isInitialLoading}
                 className="p-2 text-gray-900 hover:text-gray-600 hover:bg-white/20 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={uploadingFiles ? "Uploading..." : "Upload files"}
               >
@@ -736,10 +738,10 @@ export default function ChatBox({
                     setTimeout(resizeTextarea, 0);
                   }}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask the panda anything..."
+                  placeholder={isInitialLoading ? "Initializing..." : "Ask the panda anything..."}
                   className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none border-none outline-none text-md leading-relaxed"
                   rows={1}
-                  disabled={isLoading}
+                  disabled={isLoading || isInitialLoading}
                   style={{ minHeight: "24px", maxHeight: "120px" }}
                 />
               </div>
@@ -747,7 +749,7 @@ export default function ChatBox({
               {/* Send button */}
               <button
                 onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || isInitialLoading}
                 className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white rounded-xl transition-all duration-200 disabled:cursor-not-allowed"
                 title="Send message"
               >
