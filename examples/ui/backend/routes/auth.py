@@ -5,7 +5,7 @@ Authentication routes for the PandaAGI API.
 import aiohttp
 import json
 from typing import Optional
-from fastapi import APIRouter, Query, Depends, HTTPException, Response
+from fastapi import APIRouter, Query, Depends, HTTPException, Response, Path
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 import os
@@ -24,9 +24,22 @@ router = APIRouter(prefix="/public/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
-@router.get("/github")
-async def github_auth(redirect_uri: Optional[str] = Query(None)):
-    """GitHub auth endpoint with optional redirect_uri"""
+@router.get("/provider/{provider}")
+async def auth_provider(
+    provider: str = Path(
+        ..., description="Authentication provider (e.g., github, google, etc.)"
+    ),
+    redirect_uri: Optional[str] = Query(None),
+):
+    """Generic auth endpoint with provider as path parameter"""
+    # Validate provider (you can extend this list as needed)
+    valid_providers = ["github", "google"]
+    if provider.lower() not in valid_providers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported provider '{provider}'. Supported providers: {', '.join(valid_providers)}",
+        )
+
     async with aiohttp.ClientSession() as session:
         payload = {}
         # Use the provided redirect_uri or fall back to production URL
@@ -35,11 +48,12 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
         )
 
         async with session.post(
-            f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
+            f"{PANDA_AGI_SERVER_URL}/public/auth/{provider}", json=payload
         ) as resp:
             if resp.status != 200:
                 raise HTTPException(
-                    status_code=resp.status, detail="GitHub authentication failed"
+                    status_code=resp.status,
+                    detail=f"{provider.title()} authentication failed",
                 )
 
             response = await resp.json()
