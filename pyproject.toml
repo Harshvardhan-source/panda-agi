@@ -23,6 +23,7 @@ dependencies = [
     "httpx",
     "tavily-python",
     "e2b-code-interpreter>=1.0.0,<2.0.0",
+    "cloudscraper"
 ]
 
 [project.optional-dependencies]

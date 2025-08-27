@@ -1,8 +1,24 @@
+import asyncio
 from typing import Any, Dict
 
 import httpx
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+import cloudscraper
+
+
+async def visit_page(url: str):
+    """
+    Run cloudscraper synchronously inside a thread for async compatibility.
+    """
+
+    def _get():
+        scraper = cloudscraper.create_scraper(
+            browser={"browser": "chrome", "platform": "windows", "mobile": False}
+        )
+        return scraper.get(url, timeout=30)
+
+    return await asyncio.to_thread(_get)
 
 
 async def beautiful_soup_navigation(url: str) -> Dict[str, Any]:
@@ -10,14 +26,7 @@ async def beautiful_soup_navigation(url: str) -> Dict[str, Any]:
     Visit a webpage and extract its content using httpx for better error handling.
     """
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-
+        response = await visit_page(url)
         soup = BeautifulSoup(response.text, "html.parser")
         content = md(str(soup))
 
@@ -42,10 +51,10 @@ async def beautiful_soup_navigation(url: str) -> Dict[str, Any]:
             "content": "Failed to connect to the website",
             "status_code": 503,
         }
-    except Exception as e:
+    except Exception:
         return {
             "success": False,
             "url": url,
-            "content": f"Error: {str(e)}",
+            "content": "The webpage cannot be read",
             "status_code": 500,
         }
