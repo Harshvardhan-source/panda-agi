@@ -74,7 +74,8 @@ export default function ChatBox({
   const [isDragging, setIsDragging] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] = useState(false);
+  const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] =
+    useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -120,7 +121,12 @@ export default function ChatBox({
 
   // Auto-submit initial query once input value is set
   useEffect(() => {
-    if (initialQuery && inputValue === initialQuery && !isInitialLoading && !hasSubmittedInitialQuery) {
+    if (
+      initialQuery &&
+      inputValue === initialQuery &&
+      !isInitialLoading &&
+      !hasSubmittedInitialQuery
+    ) {
       // sendMessage already handles authentication checks and login modal
       setHasSubmittedInitialQuery(true);
       sendMessage();
@@ -131,6 +137,15 @@ export default function ChatBox({
   const handleFilesUpload = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
+
+      // Check if authentication is required and user is not authenticated
+      if (isAuthRequired()) {
+        const token = getAccessToken();
+        if (!token) {
+          setShowLoginModal(true);
+          return;
+        }
+      }
 
       // Create new file previews to add to existing ones (cumulative)
       const baseId = Date.now();
@@ -301,6 +316,15 @@ export default function ChatBox({
       setIsDragging(false);
 
       if (e.dataTransfer?.files) {
+        // Check authentication before processing files
+        if (isAuthRequired()) {
+          const token = getAccessToken();
+          if (!token) {
+            setShowLoginModal(true);
+            return;
+          }
+        }
+        
         const files = Array.from(e.dataTransfer.files);
         await handleFilesUpload(files);
       }
@@ -562,6 +586,15 @@ export default function ChatBox({
 
   // Trigger file input click
   const handleFileUpload = () => {
+    // Check authentication before opening file dialog
+    if (isAuthRequired()) {
+      const token = getAccessToken();
+      if (!token) {
+        setShowLoginModal(true);
+        return;
+      }
+    }
+    
     fileInputRef.current?.click();
   };
 
@@ -886,7 +919,6 @@ export default function ChatBox({
                     ) && (
                       <span className="ml-2 text-slate-600">
                         <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
-                        Uploading...
                       </span>
                     )}
                   </span>
