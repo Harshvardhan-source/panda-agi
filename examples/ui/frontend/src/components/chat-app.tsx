@@ -1,10 +1,9 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import UpgradeModal from "@/components/upgrade-modal";
-import { useSearchParams } from "next/navigation";
 import ChatBox from "@/components/chatbox";
 import ChatHeader from "@/components/chat-header";
 import LoginModal from "@/components/login-modal";
@@ -16,7 +15,6 @@ interface ChatAppProps {
 
 function ChatApp({ isInitializing = false }: ChatAppProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isAuthenticating, setIsAuthenticating] = useState(!isInitializing);
   const [isConnected, setIsConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,13 +24,6 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // Handle URL parameters for upgrade modal
-  useEffect(() => {
-    const upgradeParam = searchParams.get("upgrade");
-    if (upgradeParam === "open") {
-      setShowUpgradeModal(true);
-    }
-  }, [searchParams]);
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -157,20 +148,12 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
       />
 
       {/* Login Modal */}
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
       />
     </div>
   );
 }
 
-export default function ChatAppWithSuspense({
-  isInitializing = false,
-}: ChatAppProps) {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ChatApp isInitializing={isInitializing} />
-    </Suspense>
-  );
-}
+export default ChatApp;
