@@ -8,7 +8,7 @@ interface MarkdownRendererProps {
   children: string;
   baseUrl?: string | null;
   className?: string;
-  linkCss?: string;
+  linkStyle?: string;
   onPreviewClick?: (previewData: {
     url: string;
     content: string;
@@ -41,7 +41,7 @@ function truncateMiddle(text: string, maxLength: number): string {
 }
 
 // Function to manually detect and convert plain URLs to links as a fallback
-const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkCss?: string): string | React.ReactNode => {
+const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkStyle?: string): string | React.ReactNode => {
   if (typeof text !== "string") return text;
 
   // Comprehensive URL regex that properly captures full URLs
@@ -77,7 +77,7 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
               type: "iframe",
             })
           }
-          className={`${linkCss} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
+          className={`${linkStyle} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
         >
           {displayUrl}
         </button>
@@ -89,7 +89,7 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className={`${linkCss} hover:underline break-all whitespace-pre-wrap`}
+          className={`${linkStyle} hover:underline break-all whitespace-pre-wrap`}
         >
           {displayUrl}
         </a>
@@ -108,16 +108,16 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
 };
 
 // Helper function to process children and linkify text
-const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkCss?: string): React.ReactNode => {
+const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkStyle?: string): React.ReactNode => {
   if (typeof children === "string") {
-    return linkifyText(children, onPreviewClick, linkCss);
+    return linkifyText(children, onPreviewClick, linkStyle);
   }
   if (Array.isArray(children)) {
     return children.map((child, index) => {
       if (typeof child === "string") {
         return (
           <React.Fragment key={index}>
-            {linkifyText(child, onPreviewClick, linkCss)}
+            {linkifyText(child, onPreviewClick, linkStyle)}
           </React.Fragment>
         );
       }
@@ -133,7 +133,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   children,
   baseUrl = null,
   className = "", 
-  linkCss = "text-blue-600",
+  linkStyle = "text-blue-600",
   onPreviewClick
 }) => {
 
@@ -162,7 +162,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         components={{
           // Add manual URL detection for text nodes
           text: ({ children }) => {
-            return linkifyText(children, onPreviewClick, linkCss);
+            return linkifyText(children, onPreviewClick, linkStyle);
           },
           table: ({ children }) => (
             <table className="w-full border border-gray-300 border-collapse my-4">
@@ -188,22 +188,22 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           ),
           p: ({ children }) => (
             <p className="mb-2 last:mb-0">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </p>
           ),
           h1: ({ children }) => (
             <h1 className="text-lg font-bold mb-2">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </h1>
           ),
           h2: ({ children }) => (
             <h2 className="text-base font-bold mb-2">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </h2>
           ),
           h3: ({ children }) => (
             <h3 className="text-sm font-bold mb-1">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </h3>
           ),
           code: ({ children }) => (
@@ -224,12 +224,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           ),
           li: ({ children }) => (
             <li className="mb-1">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </li>
           ),
           blockquote: ({ children }) => (
             <blockquote className="border-l-4 border-gray-300 pl-3 italic">
-              {processChildren(children, onPreviewClick, linkCss)}
+              {processChildren(children, onPreviewClick, linkStyle)}
             </blockquote>
           ),
           img: ({ node, ...props }) => {
@@ -263,7 +263,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                       })
                       }
                     }}
-                    className={`${linkCss} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
+                    className={`${linkStyle} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
                   >
                     {displayHref}
                   </button>
@@ -287,7 +287,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                         window.open(transformedHref, '_blank');
                       }
                     }}
-                    className={`${linkCss} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
+                    className={`${linkStyle} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
                   >
                     {displayHref}
                   </button>
