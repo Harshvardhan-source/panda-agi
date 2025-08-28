@@ -33,6 +33,9 @@ export default function UpgradePage() {
         onNewConversation={handleNewConversation}
         onUpgradeClick={() => {}} // Already on upgrade page
         onShowLogin={handleShowLogin}
+        userCredits={null}
+        creditsLoading={false}
+        creditsError={null}
       />
 
       {/* Main content with top padding for fixed header */}

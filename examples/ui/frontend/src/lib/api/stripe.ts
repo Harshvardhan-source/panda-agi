@@ -35,6 +35,15 @@ export interface UserSubscriptionResponse {
   subscription?: SubscriptionInfo
 }
 
+export interface UserCreditsResponse {
+  id: string;
+  user_id: string;
+  total_credits: number;
+  credits_left: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Creates a Stripe payment session for subscription
  */
@@ -134,3 +143,18 @@ export async function createCustomerPortal(
 
   return response.json()
 }
+
+export const getUserCredits = async (): Promise<UserCreditsResponse> => {
+  const options = await getApiOptions();
+  
+  const response = await fetch(`${API_URL}/payment/stripe/user/credits`, {
+    method: "GET",
+    ...options,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user credits: ${response.statusText}`);
+  }
+
+  return response.json();
+};
