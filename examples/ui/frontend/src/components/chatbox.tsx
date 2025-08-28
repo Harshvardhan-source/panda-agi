@@ -354,7 +354,8 @@ export default function ChatBox({
   }, [handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
 
   const sendMessage = async () => {
-    if (!inputValue.trim() || uploadingFilesPreviews.length > 0) return;
+    const hasUploadingFiles = uploadingFilesPreviews.some(f => f.status === "uploading");
+    if (!inputValue.trim() || hasUploadingFiles) return;
 
     // Check if authentication is required and user is not authenticated
     if (isAuthRequired()) {
@@ -1114,12 +1115,12 @@ export default function ChatBox({
                   !inputValue.trim() ||
                   isLoading ||
                   isInitialLoading ||
-                  uploadingFilesPreviews.length > 0
+                  uploadingFilesPreviews.some(f => f.status === "uploading")
                 }
                 variant="send"
                 size="send"
                 title={
-                  uploadingFilesPreviews.length > 0
+                  uploadingFilesPreviews.some(f => f.status === "uploading")
                     ? "Wait for files to finish uploading"
                     : "Send message"
                 }
