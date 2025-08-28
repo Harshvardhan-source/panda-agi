@@ -136,9 +136,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isPublic = artifact?.is_public || false
-
-  const fileBaseUrl = `${window.location.origin}/creations/${isPublic ? "share" : "private"}/${artifact?.id}/`
+  const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`
 
   // Fetch file content when artifact changes
   useEffect(() => {
