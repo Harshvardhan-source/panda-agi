@@ -16,7 +16,6 @@ import {
   Edit,
   Share2,
   Search,
-  BarChart3,
   Eye,
   Grid3x3,
   List,
@@ -26,6 +25,7 @@ import ArtifactViewer from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
 import EditNameDialog from "@/components/edit-name-dialog";
 import ShareModal from "@/components/share-modal";
+import FileIcon from "@/components/ui/file-icon";
 import Header from "@/components/header";
 import { useRouter } from "next/navigation";
 import UpgradeModal from "@/components/upgrade-modal";
@@ -311,7 +311,7 @@ export default function CreationsPage() {
               {[...Array(8)].map((_, index) => (
                 <div key={index} className="space-y-3">
                   <div className="aspect-video bg-muted rounded-lg animate-pulse flex items-center justify-center">
-                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                    <FileIcon filepath="loading" className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
                     <div className="h-4 bg-muted rounded animate-pulse" />
@@ -431,7 +431,7 @@ export default function CreationsPage() {
             {filteredAndSortedArtifacts.length === 0 ? (
               <div className="text-center py-16">
                 <div className="h-16 w-16 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
+                  <FileIcon filepath="empty" className="h-8 w-8 text-muted-foreground/50" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">
                   No creations found
@@ -455,7 +455,7 @@ export default function CreationsPage() {
                             className="aspect-video bg-gradient-to-br from-muted/50 to-muted rounded-lg mb-4 flex items-center justify-center cursor-pointer group-hover:from-muted/70 group-hover:to-muted/90 transition-all duration-200"
                             onClick={() => handleViewArtifact(artifact)}
                           >
-                            <BarChart3 className="h-10 w-10 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors duration-200" />
+                            <FileIcon filepath={artifact.filepath} className="h-10 w-10 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors duration-200" />
                           </div>
 
                           {/* Content */}
@@ -548,7 +548,7 @@ export default function CreationsPage() {
                       >
                         <div className="flex items-center space-x-4">
                           <div className="h-12 w-12 bg-gradient-to-br from-muted/50 to-muted rounded-lg flex items-center justify-center">
-                            <BarChart3 className="h-6 w-6 text-muted-foreground/70" />
+                            <FileIcon filepath={artifact.filepath} className="h-6 w-6 text-muted-foreground/70" />
                           </div>
                           <div className="space-y-1">
                             <div className="font-semibold text-foreground">

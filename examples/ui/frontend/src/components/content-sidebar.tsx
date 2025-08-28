@@ -1,24 +1,22 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  X,
-  ExternalLink,
-  FileCode,
-  FileText,
-  FileImage,
-  File,
-  Globe,
-  Download,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Download, FileImage, File } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import SaveArtifactButton from "./save-artifact-button";
+import ResizableSidebar from "./ui/resizable-sidebar";
+import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
 import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
-import { downloadWithCheck, getFileExtension, isExcelFile, validateContentType } from "@/lib/utils";
+import {
+  downloadWithCheck,
+  getFileExtension,
+  isExcelFile,
+  validateContentType,
+} from "@/lib/utils";
 
 export interface PreviewData {
   title?: string;
@@ -45,105 +43,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   onResize,
   conversationId,
 }) => {
-  // State for sidebar width - use props if provided, otherwise default to 900
-  const [sidebarWidth, setSidebarWidth] = useState(width || 900);
-
-  // Update internal state when width prop changes
-  useEffect(() => {
-    if (width && width !== sidebarWidth) {
-      setSidebarWidth(width);
-    }
-  }, [width, sidebarWidth]);
-  
-  const [isResizing, setIsResizing] = useState(false);
-  const minWidth = 400;
-  const maxWidth = 1050;
-  const resizeRef = useRef<HTMLDivElement>(null);
-
-  // Add resize event listeners with improved handling
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      // Calculate new width based on mouse position
-      let newWidth = window.innerWidth - e.clientX;
-
-      // Apply constraints with smoothing
-      newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-
-      // Always update width when resizing for smoother experience
-      setSidebarWidth(newWidth);
-
-      // Notify parent component about width changes if callback is provided
-      if (onResize) {
-        onResize(newWidth);
-      }
-
-      // Prevent text selection during resize
-      e.preventDefault();
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = "default";
-      document.body.style.userSelect = "auto";
-    };
-
-    // Handle cases where mouse moves outside the window
-    const handleMouseLeave = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.style.cursor = "default";
-        document.body.style.userSelect = "auto";
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.addEventListener("mouseleave", handleMouseLeave);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, [isResizing, minWidth, maxWidth, onResize]);
-
-  // Start resizing
-  const startResizing = () => {
-    setIsResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
-
-  // Apply sidebar open class to body for main content shrinking
-  useEffect(() => {
-    if (isOpen) {
-      document.body.classList.add("sidebar-open");
-      // Add specific class to app container element for better targeting
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.add("content-shrink");
-      }
-    } else {
-      document.body.classList.remove("sidebar-open");
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.remove("content-shrink");
-      }
-    }
-
-    return () => {
-      document.body.classList.remove("sidebar-open");
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.remove("content-shrink");
-      }
-    };
-  }, [isOpen]);
-  
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
     if (!filename) return "";
@@ -158,11 +57,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
   // State for normalized filename and content
   const [normalizedFilename, setNormalizedFilename] = useState("");
-  const [fileContent, setFileContent] = useState<string | ArrayBuffer | null>(null);
+  const [fileContent, setFileContent] = useState<string | ArrayBuffer | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -209,7 +108,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       if (!response.ok) {
         const errorMessage = await response.json();
-        throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}!`);
+        throw new Error(
+          errorMessage?.detail || `Failed to fetch file: ${response.status}!`
+        );
       }
 
       let content: string | ArrayBuffer;
@@ -218,10 +119,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         const excelContent = await response.arrayBuffer();
         content = excelContent;
       } else {
-        content = await response.text()
+        content = await response.text();
       }
 
-      
       setFileContent(content);
     } catch (err) {
       console.error("Error fetching file content:", err);
@@ -231,7 +131,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  if (!isOpen || !previewData) return null;
+  if (!previewData) return null;
 
   // Get language for syntax highlighting
   const getLanguage = (filename: string): string => {
@@ -348,35 +248,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     if (!validation.isValid) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="text-center text-red-500">
-            <div className="text-4xl mb-4">⚠️</div>
-            <p className="font-medium">Content type validation failed</p>
-            <p className="text-sm mt-2">{validation.error}</p>
-          </div>
-        </div>
-      );
-    }
-
-    // Show loading state
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <div className="flex flex-col text-center items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-            <p className="text-gray-600">Loading file content...</p>
-          </div>
-        </div>
-      );
-    }
-
-    // Show error state
-    if (error) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-red-500">
-            <div className="text-4xl mb-4">⚠️</div>
-            <p className="font-medium">Error loading file</p>
-            <p className="text-sm mt-2">{error}</p>
+          <div className="text-center">
+            <div className="text-2xl mb-3">⚠️</div>
+            <p className="font-medium text-destructive">
+              Content validation failed
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {validation.error}
+            </p>
           </div>
         </div>
       );
@@ -385,10 +264,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     switch (type) {
       case "iframe":
         return (
-          <div className="h-full">
+          <div className="h-full rounded-md overflow-hidden border">
             <iframe
               src={previewData.url}
-              className="w-full h-full border-0"
+              className="w-full h-full"
               title={previewData.title}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
@@ -399,9 +278,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
         );
         return (
-          <div className="prose prose-sm max-w-none">
-            
-            <MarkdownRenderer baseUrl={fileAbsUrl}>{content as string}</MarkdownRenderer>
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <MarkdownRenderer baseUrl={fileAbsUrl}>
+              {content as string}
+            </MarkdownRenderer>
           </div>
         );
       case "table":
@@ -414,11 +294,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             />
           );
         }
-        
+
         // Handle CSV files with the existing logic
         const tableData = parseCSV(content as string);
         const fileExtension = getFileExtension(currentFilename);
-        
+
         return (
           <div className="h-full flex flex-col">
             {/* Table Header */}
@@ -685,37 +565,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Get file type icon
-  const getFileIcon = () => {
-    const type = previewData.type || "text";
-
-    switch (type) {
-      case "code":
-        return <FileCode className="w-4 h-4 text-blue-500 mr-1" />;
-      case "table":
-        return <FileText className="w-4 h-4 text-green-600 mr-1" />;
-      case "image":
-        return <FileImage className="w-4 h-4 text-green-500 mr-1" />;
-      case "pdf":
-        return <File className="w-4 h-4 text-red-500 mr-1" />;
-      case "markdown":
-        return <FileText className="w-4 h-4 text-purple-500 mr-1" />;
-      case "html":
-        return <FileCode className="w-4 h-4 text-orange-500 mr-1" />;
-      case "iframe":
-        return <Globe className="w-4 h-4 text-blue-500 mr-1" />;
-      default:
-        return <FileText className="w-4 h-4 text-gray-500 mr-1" />;
-    }
-  };
-
   // Handle file download
   const handleFileDownload = async () => {
     if (!normalizedFilename || !conversationId) {
       toast.error("Missing file information");
       return;
     }
-    
+
     try {
       const filename = previewData.filename || normalizedFilename;
       const downloadUrl = getBackendServerURL(
@@ -724,7 +580,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         )}`
       );
       try {
-        let fileName = filename.split("/").pop()
+        let fileName = filename.split("/").pop();
 
         if (fileName && fileName.endsWith(".md")) {
           fileName = fileName.replace(".md", ".pdf");
@@ -732,10 +588,12 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
         await downloadWithCheck(downloadUrl, fileName || "download");
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Download failed: File not found or access denied";
         toast.error(errorMessage);
       }
-
     } catch (error) {
       console.error("Download error:", error);
       if (error instanceof Error) {
@@ -746,99 +604,81 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Handle artifact save
+  // Create header actions
+  const headerActions = (
+    <>
+      {/* Save button - only show for markdown files */}
+      {(previewData.type === "markdown" || previewData.type === "iframe") && (
+        <SaveArtifactButton
+          conversationId={conversationId}
+          previewData={previewData}
+        />
+      )}
+      {/* Download button - only show for actual files, not iframes */}
+      {(normalizedFilename || previewData.url) &&
+        previewData.type !== "iframe" && (
+          <button
+            onClick={handleFileDownload}
+            className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center"
+            title={`Download as ${(
+              (normalizedFilename || previewData.url || "").split(".").pop() ||
+              ""
+            )
+              .replace("md", "pdf")
+              .toUpperCase()}`}
+          >
+            <Download className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+    </>
+  );
+
+  const subtitleHref =
+    previewData.url ||
+    (normalizedFilename && conversationId
+      ? getBackendServerURL(
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
+        )
+      : undefined);
+
   return (
-    <div
-      className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
-      style={{
-        width: `${sidebarWidth}px`,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ["--sidebar-width" as any]: `${sidebarWidth}px`,
-      }}
-    >
-      {/* Resize handle */}
-      <div
-        ref={resizeRef}
-        className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:opacity-50 z-50"
-        onMouseDown={startResizing}
-      />
-      {/* Inject custom styles */}
+    <>
+      {/* Inject custom styles for syntax highlighter */}
       <style dangerouslySetInnerHTML={{ __html: customSyntaxStyles }} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-gray-900 truncate flex items-center">
-            {getFileIcon()}
-            {previewData.title}
-          </h3>
-          {(normalizedFilename || previewData.url) && (
-            <a
-              href={
-                previewData.url ||
-                getBackendServerURL(
-                  `/${conversationId}/files/${encodeURIComponent(
-                    normalizedFilename
-                  )}`
-                )
+      <ResizableSidebar
+        isOpen={isOpen}
+        onClose={onClose}
+        title={previewData.title}
+        subtitle={
+          normalizedFilename || previewData.url
+            ? {
+                text: normalizedFilename || previewData.url || "",
+                href: subtitleHref,
               }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
-            >
-              <span className="truncate">
-                {normalizedFilename || previewData.url}
-              </span>
-              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-            </a>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          {/* Save button - only show for markdown files */}
-          {(previewData.type === "markdown" || previewData.type === "iframe") && (
-            <SaveArtifactButton
-              conversationId={conversationId}
-              previewData={previewData}
-            />
-          )}
-          {/* Download button - only show for actual files, not iframes */}
-          {(normalizedFilename || previewData.url) &&
-            previewData.type !== "iframe" && (
-              <button
-                onClick={handleFileDownload}
-                className="p-1 hover:bg-gray-200 rounded transition-colors"
-                title={`Download as ${((normalizedFilename || previewData.url || "")
-                  .split(".")
-                  .pop() || "")
-                  .replace("md", "pdf")
-                  .toUpperCase()}`}
-              >
-                <Download className="w-4 h-4 text-gray-500" />
-              </button>
-            )}
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="Close preview"
-          >
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div
-        className={`flex-1 min-h-0 ${
-          isFullHeightContent() ? "" : "overflow-y-auto p-4"
-        }`}
+            : undefined
+        }
+        icon={
+          <FileIcon
+            type={previewData.type}
+            filepath={normalizedFilename}
+            className="w-4 h-4 text-blue-500 mr-2"
+          />
+        }
+        actions={headerActions}
+        width={width}
+        onResize={onResize}
+        loading={isLoading}
+        error={error}
+        className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
       >
         {isFullHeightContent() ? (
-          <div className="h-full p-4">{renderContent()}</div>
+          <div className="h-full p-6">{renderContent()}</div>
         ) : (
           renderContent()
         )}
-      </div>
-    </div>
+      </ResizableSidebar>
+    </>
   );
 };
 
@@ -878,7 +718,6 @@ const globalStyles = `
 // Inject the global styles
 if (typeof document !== "undefined") {
   const styleEl = document.createElement("style");
-  styleEl.type = "text/css";
   styleEl.innerHTML = globalStyles;
   document.head.appendChild(styleEl);
 }
