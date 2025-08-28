@@ -3,7 +3,7 @@
 import UpgradeModal from "@/components/upgrade-modal";
 import ChatHeader from "@/components/chat-header";
 import LoginModal from "@/components/login-modal";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 
 export default function UpgradePage() {
@@ -19,7 +19,7 @@ export default function UpgradePage() {
   };
 
   const handleNewConversation = () => {
-    router.push('/');
+    router.push("/");
   };
 
   return (
@@ -38,12 +38,14 @@ export default function UpgradePage() {
       {/* Main content with top padding for fixed header */}
       <main className="pt-24 pb-16">
         <div className="container max-w-6xl mx-auto px-4">
-          <UpgradeModal
-            isOpen={true}
-            onClose={handleClose}
-            onShowLogin={handleShowLogin}
-            standalone={true}
-          />
+          <Suspense>
+            <UpgradeModal
+              isOpen={true}
+              onClose={handleClose}
+              onShowLogin={handleShowLogin}
+              standalone={true}
+            />
+          </Suspense>
         </div>
       </main>
 

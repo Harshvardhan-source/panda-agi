@@ -1,8 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
-import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
 import ChatHeader from "@/components/chat-header";
@@ -14,7 +13,10 @@ interface ChatAppProps {
   initialQuery?: string | null;
 }
 
-function ChatApp({ isInitializing = false, initialQuery = null }: ChatAppProps) {
+function ChatApp({
+  isInitializing = false,
+  initialQuery = null,
+}: ChatAppProps) {
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(!isInitializing);
   const [isConnected, setIsConnected] = useState(false);
@@ -24,7 +26,6 @@ function ChatApp({ isInitializing = false, initialQuery = null }: ChatAppProps) 
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -140,14 +141,16 @@ function ChatApp({ isInitializing = false, initialQuery = null }: ChatAppProps) 
       />
 
       {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        onShowLogin={() => {
-          setShowUpgradeModal(false);
-          setShowLoginModal(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          onShowLogin={() => {
+            setShowUpgradeModal(false);
+            setShowLoginModal(true);
+          }}
+        />
+      </Suspense>
 
       {/* Login Modal */}
       <LoginModal
