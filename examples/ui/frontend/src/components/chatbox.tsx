@@ -22,6 +22,8 @@ import { getApiHeaders } from "@/lib/api/common";
 import { PreviewData } from "@/components/content-sidebar";
 import { formatAgentMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
+import LoginModal from "@/components/login-modal";
 
 interface RequestBody {
   query: string;
@@ -69,6 +71,7 @@ export default function ChatBox({
   >([]);
   const [isDragging, setIsDragging] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<string>("");
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -308,6 +311,15 @@ export default function ChatBox({
 
   const sendMessage = async () => {
     if (!inputValue.trim() || uploadingFilesPreviews.length > 0) return;
+
+    // Check if authentication is required and user is not authenticated
+    if (isAuthRequired()) {
+      const token = getAccessToken();
+      if (!token) {
+        setShowLoginModal(true);
+        return;
+      }
+    }
 
     // Create file references for pending files
     const fileReferences = pendingFiles
@@ -610,6 +622,10 @@ export default function ChatBox({
       return <Archive className={`${iconClass} text-purple-500`} />;
     }
     return <File className={`${iconClass} text-gray-500`} />;
+  };
+
+  const handleCloseLoginModal = () => {
+    setShowLoginModal(false);
   };
 
   return (
@@ -1063,6 +1079,9 @@ export default function ChatBox({
           </div>
         </div>
       </div>
+
+      {/* Login Modal */}
+      <LoginModal isOpen={showLoginModal} onClose={handleCloseLoginModal} />
     </div>
   );
 }

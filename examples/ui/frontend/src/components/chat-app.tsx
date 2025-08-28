@@ -7,6 +7,7 @@ import UpgradeModal from "@/components/upgrade-modal";
 import { useSearchParams } from "next/navigation";
 import ChatBox from "@/components/chatbox";
 import ChatHeader from "@/components/chat-header";
+import LoginModal from "@/components/login-modal";
 import { getFileType } from "@/lib/utils";
 
 interface ChatAppProps {
@@ -23,6 +24,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
   const [previewData, setPreviewData] = useState<PreviewData>();
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Handle URL parameters for upgrade modal
   useEffect(() => {
@@ -67,19 +69,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
       return;
     }
 
-    // Check if authentication is required
-    if (isAuthRequired()) {
-      // Check if user is authenticated
-      const token = getAccessToken();
-
-      if (!token) {
-        // User is not authenticated, redirect to login
-        router.push("/login");
-        return;
-      }
-    }
-
-    // User is authenticated or auth is not required
+    // Always allow chat to load - authentication will be handled by login modal
     setIsAuthenticating(false);
   }, [router, isInitializing]);
 
@@ -128,6 +118,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
           sidebarWidth={sidebarWidth}
           onNewConversation={startNewConversation}
           onUpgradeClick={() => setShowUpgradeModal(true)}
+          onShowLogin={() => setShowLoginModal(true)}
         />
 
         {/* ChatBox Component */}
@@ -159,6 +150,16 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
+        onShowLogin={() => {
+          setShowUpgradeModal(false);
+          setShowLoginModal(true);
+        }}
+      />
+
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
       />
     </div>
   );

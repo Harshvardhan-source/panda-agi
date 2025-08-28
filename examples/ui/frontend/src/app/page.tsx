@@ -2,41 +2,89 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import ChatApp from "@/components/chat-app";
+import { getServerURL } from "@/lib/server";
+import { storeAuthToken, removeAuthToken } from "@/lib/api/auth";
+import { notifyAuthChange } from "@/hooks/useAuth";
 
 // Client Component with authentication routing
 export default function Home() {
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const [shouldShowLogin, setShouldShowLogin] = useState(false);
 
   useEffect(() => {
-    // Check if authentication is required
-    if (!isAuthRequired()) {
-      // If auth is not required, show chat immediately
-      setIsAuthenticating(false);
-      return;
-    }
+    const handleAuthentication = async () => {
+      try {
+        // Check if we have a hash fragment (OAuth callback)
+        const hash = window.location.hash.substring(1);
+        
+        if (hash) {
+          // Parse the hash fragment into key-value pairs
+          const params = hash.split("&").reduce<Record<string, string>>((result, item) => {
+            const [key, value] = item.split("=");
+            result[key] = decodeURIComponent(value);
+            return result;
+          }, {});
 
-    // Check if user is already authenticated
-    const token = getAccessToken();
-    
-    if (token) {
-      // User is authenticated, show chat
-      setIsAuthenticating(false);
-    } else {
-      // User is not authenticated, redirect to login
-      setShouldShowLogin(true);
-      router.push("/login");
-    }
+          // Check if we have an access token
+          if (params.access_token) {
+            // Create an auth object with all parameters
+            const authData = {
+              access_token: params.access_token,
+              expires_at: params.expires_at || null,
+              expires_in: params.expires_in || null,
+              refresh_token: params.refresh_token || null,
+              token_type: params.token_type || null,
+              provider_token: params.provider_token || null
+            };
+            
+            // Clear the hash from URL
+            window.history.replaceState({}, document.title, "/");
+            
+            // Validate the token with our backend
+            try {
+              const response = await fetch(`${getServerURL()}/public/auth/validate`, {
+                headers: {
+                  Authorization: `Bearer ${params.access_token}`,
+                },
+                credentials: 'include',
+              });
+
+              if (response.ok) {
+                const userData = await response.json();
+                console.log("Token validation successful:", userData);
+
+                // Store token in localStorage
+                storeAuthToken(authData);
+
+                // Store any user data if needed
+                if (userData.user && typeof window !== 'undefined') {
+                  localStorage.setItem("user_data", JSON.stringify(userData.user));
+                }
+                
+                // Notify all components about the auth change
+                notifyAuthChange();
+              } else {
+                console.error("Token validation failed");
+                removeAuthToken();
+              }
+            } catch (validationError) {
+              console.error("Token validation error:", validationError);
+              removeAuthToken();
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error during authentication:", error);
+      } finally {
+        // Always show chat regardless of authentication status
+        setIsAuthenticating(false);
+      }
+    };
+
+    handleAuthentication();
   }, [router]);
 
-  // If we need to redirect to login, don't render anything
-  if (shouldShowLogin) {
-    return null;
-  }
-
-  // Show chat app immediately with loading state
+  // Always show chat app - login modal will handle authentication when needed
   return <ChatApp isInitializing={isAuthenticating} />;
 }

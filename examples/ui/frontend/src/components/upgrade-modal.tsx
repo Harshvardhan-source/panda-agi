@@ -35,9 +35,10 @@ interface UserSubscriptionResponse {
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onShowLogin?: () => void;
 }
 
-function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
+function UpgradeModalContent({ isOpen, onClose, onShowLogin }: UpgradeModalProps) {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [userSubscription, setUserSubscription] = useState<UserSubscriptionResponse | null>(null);
@@ -133,7 +134,12 @@ function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
 
   const handleUpgrade = async (planId: string) => {
     if (!isAuthenticated) {
-      window.location.href = "/login";
+      if (onShowLogin) {
+        onShowLogin();
+      } else {
+        // Fallback to home page where login modal will be shown
+        window.location.href = "/";
+      }
       return;
     }
 
@@ -225,7 +231,14 @@ function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={() => window.location.href = "/login"} className="w-full">
+                  <Button onClick={() => {
+                    if (onShowLogin) {
+                      onShowLogin();
+                    } else {
+                      // Fallback to home page where login modal will be shown
+                      window.location.href = "/";
+                    }
+                  }} className="w-full">
                     Go to Login
                   </Button>
                 </CardContent>

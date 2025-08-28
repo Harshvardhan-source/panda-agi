@@ -69,7 +69,7 @@ export async function getAuthUrl(provider: string): Promise<string | null> {
   try {
     // Get the current host and construct the redirect URI
     const currentHost = window.location.origin;
-    const redirectUri = `${currentHost}/authenticate`;
+    const redirectUri = `${currentHost}/`;
     
     // Pass the redirect URI as a query parameter
     const response = await fetch(`${getServerURL()}/public/auth/provider/${provider.toLowerCase()}?redirect_uri=${encodeURIComponent(redirectUri)}`, {
@@ -129,8 +129,16 @@ export function storeAuthToken(token: string | AuthToken): void {
     tokenData = token;
   }
   
-  // Store in localStorage
-  localStorage.setItem("auth_token", JSON.stringify(tokenData));
+  // Only access localStorage in browser environment
+  if (typeof window !== 'undefined') {
+    // Store in localStorage
+    localStorage.setItem("auth_token", JSON.stringify(tokenData));
+    
+    // Notify auth state change
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('authChange'));
+    }
+  }
   
   // Store in cookies
   setCookie(COOKIE_NAME, JSON.stringify(tokenData), COOKIE_EXPIRY_DAYS);
@@ -141,8 +149,14 @@ export function storeAuthToken(token: string | AuthToken): void {
  * @returns The authentication token if it exists
  */
 export function getAuthToken(): AuthToken | null {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
   // Try localStorage first
   const authTokenStr = localStorage?.getItem("auth_token");
+  console.log('getAuthToken: localStorage token:', authTokenStr ? 'exists' : 'null');
   if (authTokenStr) {
     try {
       return JSON.parse(authTokenStr) as AuthToken;
@@ -153,10 +167,12 @@ export function getAuthToken(): AuthToken | null {
   
   // Fall back to cookies
   const cookieTokenStr = getCookie(COOKIE_NAME);
+  console.log('getAuthToken: cookie token:', cookieTokenStr ? 'exists' : 'null');
   if (cookieTokenStr) {
     try {
       const tokenData = JSON.parse(cookieTokenStr) as AuthToken;
       // Sync back to localStorage
+      console.log('getAuthToken: syncing cookie back to localStorage');
       localStorage.setItem("auth_token", cookieTokenStr);
       return tokenData;
     } catch (e) {
@@ -173,16 +189,31 @@ export function getAuthToken(): AuthToken | null {
  */
 export function getAccessToken(): string | null {
   const authToken = getAuthToken();
-  return authToken?.access_token || null;
+  const token = authToken?.access_token || null;
+  console.log('getAccessToken called, token:', token ? 'exists' : 'null');
+  return token;
 }
 
 /**
  * Removes the authentication token from both local storage and cookies
  */
 export function removeAuthToken(): void {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("user_data");
+  console.log('removeAuthToken called');
+  
+  // Delete cookie FIRST to prevent it from being synced back
+  console.log('Deleting cookie first');
   deleteCookie(COOKIE_NAME);
+  
+  // Only access localStorage in browser environment
+  if (typeof window !== 'undefined') {
+    console.log('Removing tokens from localStorage');
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user_data");
+    
+    // Notify auth state change AFTER both are cleared
+    console.log('Dispatching authChange from removeAuthToken');
+    window.dispatchEvent(new Event('authChange'));
+  }
 }
 
 /**
@@ -299,14 +330,22 @@ export async function ensureValidToken(): Promise<boolean> {
 }
 
 /**
- * Logs out the user by clearing authentication data and redirecting to login
+ * Logs out the user by clearing authentication data
  */
 export function logout(): void {
+  console.log('Logout called');
+  
   // Clear authentication data from localStorage
   removeAuthToken();
   
-  // Redirect to login page
+  // Explicitly dispatch auth change event to ensure all components update
   if (typeof window !== 'undefined') {
-    window.location.href = '/login';
+    console.log('Dispatching authChange event');
+    window.dispatchEvent(new Event('authChange'));
+    
+    // Small delay to ensure event is processed
+    setTimeout(() => {
+      window.dispatchEvent(new Event('authChange'));
+    }, 10);
   }
 }

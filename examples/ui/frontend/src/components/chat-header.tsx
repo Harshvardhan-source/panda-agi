@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import UserMenu from "@/components/user-menu";
 import Avatar from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ChatHeaderProps {
   isInitialLoading: boolean;
@@ -12,6 +13,7 @@ interface ChatHeaderProps {
   sidebarWidth: number;
   onNewConversation: () => void;
   onUpgradeClick: () => void;
+  onShowLogin?: () => void;
 }
 
 export default function ChatHeader({
@@ -21,7 +23,9 @@ export default function ChatHeader({
   sidebarWidth,
   onNewConversation,
   onUpgradeClick,
+  onShowLogin,
 }: ChatHeaderProps) {
+  const { isAuthenticated } = useAuth();
   return (
     <div
       className="glass-header p-6 fixed top-0 left-0 right-0 z-10 backdrop-blur-3xl bg-white/60"
@@ -50,12 +54,14 @@ export default function ChatHeader({
         </div>
 
         <div className="flex items-center space-x-3">
-          <Button onClick={onNewConversation} variant="default" size="action">
-            <Plus className="w-4 h-4" />
-            <span>New Chat</span>
-          </Button>
+          {isAuthenticated && (
+            <Button onClick={onNewConversation} variant="default" size="action">
+              <Plus className="w-4 h-4" />
+              <span>New Chat</span>
+            </Button>
+          )}
 
-          <UserMenu onUpgradeClick={onUpgradeClick} />
+          <UserMenu onUpgradeClick={onUpgradeClick} onShowLogin={onShowLogin} />
         </div>
       </div>
     </div>

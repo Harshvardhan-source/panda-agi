@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { LogOut, Crown, Settings, Menu, CreditCard } from "lucide-react";
+import { LogOut, Crown, Menu, CreditCard, LogIn } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   DropdownMenu,
@@ -10,34 +9,50 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { logout } from "@/lib/api/auth";
+import { logout, isAuthRequired } from "@/lib/api/auth";
 import { createCustomerPortal, getUserSubscription } from "@/lib/api/stripe";
 import { PLATFORM_MODE, EXTERNAL_URLS } from "@/lib/config";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UserMenuProps {
   onUpgradeClick: () => void;
+  onShowLogin?: () => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
-  const router = useRouter();
+const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
   const [hasInvoices, setHasInvoices] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
+
+  // Reset logging out state and close dropdown when auth changes
+  useEffect(() => {
+    setIsLoggingOut(false);
+    setDropdownOpen(false);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const checkInvoicesAvailability = async () => {
-      if (PLATFORM_MODE) {
+      // Only check subscription if authenticated and in platform mode
+      if (PLATFORM_MODE && isAuthenticated) {
         try {
           const subscription = await getUserSubscription();
           setHasInvoices(subscription.has_subscription);
         } catch (error) {
           console.error("Failed to check subscription:", error);
           setHasInvoices(false);
-          toast.error("Failed to check subscription status");
+          // Only show toast if user is authenticated (avoid showing errors for unauthenticated users)
+          if (isAuthenticated) {
+            toast.error("Failed to check subscription status");
+          }
         }
+      } else {
+        setHasInvoices(false);
       }
     };
 
     checkInvoicesAvailability();
-  }, []);
+  }, [isAuthenticated]); // Re-run when authentication status changes
 
   const handleUpgradeClick = () => {
     if (PLATFORM_MODE) {
@@ -51,13 +66,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
 
   const handleInvoicesClick = async () => {
     try {
-      // First check availability
-      const availabilityCheck = await createCustomerPortal({
-        return_url: window.location.href,
-        check_availability: true,
-      });
-      
-      // If availability check passes, get the actual portal URL
+      // Get the actual portal URL
       const portalResponse = await createCustomerPortal({
         return_url: window.location.href,
       });
@@ -69,13 +78,8 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
     }
   };
 
-  const handleManagePlanClick = () => {
-    // Redirect to manage plan page (you can customize this URL)
-    window.open(EXTERNAL_URLS.DASHBOARD, "_blank");
-  };
-
   return (
-    <DropdownMenu>
+    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -85,27 +89,58 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        {/* Manage Plan option - always show */}
-        <DropdownMenuItem onClick={handleUpgradeClick}>
-          <Crown className="w-4 h-4 mr-2" />
-          <span>Manage Plan</span>
-        </DropdownMenuItem>
-
-        {/* Platform mode specific options */}
-        {PLATFORM_MODE && (
+        {!isAuthenticated && isAuthRequired() ? (
+          // Show only login option when not authenticated
+          <DropdownMenuItem onClick={onShowLogin}>
+            <LogIn className="w-4 h-4 mr-2" />
+            <span>Login</span>
+          </DropdownMenuItem>
+        ) : (
           <>
-            {/* Invoices and Billing - only show if user has subscription */}
-            {hasInvoices && (
-              <DropdownMenuItem onClick={handleInvoicesClick}>
-                <CreditCard className="w-4 h-4 mr-2" />
-                <span>Invoices & Billing</span>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              <span>Logout</span>
+            {/* Manage Plan option - show when authenticated or auth not required */}
+            <DropdownMenuItem onClick={handleUpgradeClick}>
+              <Crown className="w-4 h-4 mr-2" />
+              <span>Manage Plan</span>
             </DropdownMenuItem>
+
+            {/* Platform mode specific options */}
+            {PLATFORM_MODE && isAuthenticated && (
+              <>
+                {/* Invoices and Billing - only show if user has subscription */}
+                {hasInvoices && (
+                  <DropdownMenuItem onClick={handleInvoicesClick}>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    <span>Invoices & Billing</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  if (isLoggingOut) {
+                    console.log('Already logging out, ignoring click');
+                    return;
+                  }
+                  
+                  console.log('Logout clicked');
+                  setIsLoggingOut(true);
+                  
+                  // Close dropdown immediately and logout
+                  setDropdownOpen(false);
+                  
+                  // Add small delay to ensure state update
+                  setTimeout(() => {
+                    logout();
+                    // Reset flag after logout
+                    setTimeout(() => setIsLoggingOut(false), 100);
+                  }, 10);
+                }}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
+                </DropdownMenuItem>
+              </>
+            )}
           </>
         )}
       </DropdownMenuContent>
