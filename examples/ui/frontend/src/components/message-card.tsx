@@ -14,7 +14,7 @@ const MessageCard: React.FC<MessageCardProps> = ({ message }) => {
       <div className="flex justify-end mb-2">
         <div className="bg-slate-900 text-white px-4 py-2 rounded-2xl max-w-xs lg:max-w-md">
           <div className="text-sm font-medium">
-            <MarkdownRenderer className="text-white" linkColor="text-white">
+            <MarkdownRenderer className="text-white" linkStyle="text-white underline">
               {message.content || ""}
             </MarkdownRenderer>
           </div>
