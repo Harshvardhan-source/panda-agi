@@ -21,7 +21,7 @@ import {
   List,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import ArtifactViewer from "@/components/artifact-viewer";
+import ArtifactViewer, { ArtifactData } from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
 import EditNameDialog from "@/components/edit-name-dialog";
 import ShareModal from "@/components/share-modal";
@@ -64,6 +64,7 @@ export default function CreationsPage() {
   const [selectedArtifact, setSelectedArtifact] =
     useState<ArtifactResponse | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerWidth, setViewerWidth] = useState(900);
 
   // Upgrade modal state
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -278,6 +279,23 @@ export default function CreationsPage() {
   const handleCloseViewer = () => {
     setIsViewerOpen(false);
     setSelectedArtifact(null);
+  };
+
+  const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
+    const artifactResponse: ArtifactResponse = updatedArtifact;
+    setArtifacts(prev => prev.map(artifact => 
+      artifact.id === artifactResponse.id ? artifactResponse : artifact
+    ));
+    setSelectedArtifact(artifactResponse);
+  };
+
+  const handleArtifactDeleted = (artifactId: string) => {
+    setArtifacts(prev => prev.filter(artifact => artifact.id !== artifactId));
+    fetchArtifacts(); // Refresh the list
+  };
+
+  const handleViewerResize = (width: number) => {
+    setViewerWidth(width);
   };
 
   if (loading) {
@@ -657,7 +675,11 @@ export default function CreationsPage() {
       <ArtifactViewer
         isOpen={isViewerOpen}
         onClose={handleCloseViewer}
-        artifact={selectedArtifact || undefined}
+        artifact={selectedArtifact as ArtifactData || undefined}
+        onArtifactUpdated={handleArtifactUpdated}
+        onArtifactDeleted={handleArtifactDeleted}
+        width={viewerWidth}
+        onResize={handleViewerResize}
       />
 
       {/* Delete Confirmation Dialog */}

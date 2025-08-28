@@ -2,19 +2,19 @@ import React, { useState, useEffect } from "react";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
+import ShareModal from "./share-modal";
+import DeleteConfirmationDialog from "./delete-confirmation-dialog";
 import { getApiHeaders } from "@/lib/api/common";
+import { updateArtifact, deleteArtifact, ArtifactResponse } from "@/lib/api/artifacts";
+import { toast } from "react-hot-toast";
+import { useFullScreenToggle } from "@/hooks/useFullScreenToggle";
+import { useModalState } from "@/hooks/useModalState";
+import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 
-export interface ArtifactData {
-  id: string;
-  name: string;
-  filepath: string;
-  conversation_id: string;
-  created_at: string;
-  is_public: boolean;
-  metadata: Record<string, unknown>;
-}
+// Re-export from types for backward compatibility
+export type { ArtifactData };
 
-interface ArtifactViewerProps {
+interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   isOpen: boolean;
   onClose: () => void;
   artifact?: ArtifactData;
@@ -28,14 +28,34 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   artifact,
   width,
   onResize,
+  onArtifactUpdated,
+  onArtifactDeleted,
 }) => {
 
   // State for file content
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Custom hooks for cleaner state management
+  const shareModal = useModalState();
+  const deleteModal = useModalState();
+  const fullScreen = useFullScreenToggle({ 
+    initialWidth: width, 
+    onResize 
+  });
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
+
+  // Clean up modals on component unmount
+  useEffect(() => {
+    return () => {
+      shareModal.close();
+      deleteModal.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch file content when artifact changes
   useEffect(() => {
@@ -46,41 +66,120 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       return;
     }
 
-    fetchArtifactContent();
-  }, [artifact]);
+    // Function to fetch artifact content
+    const fetchArtifactContent = async () => {
+      if (!artifact) return;
 
-  // Function to fetch artifact content
-  const fetchArtifactContent = async () => {
-    if (!artifact) return;
+      setIsLoading(true);
+      setError(null);
 
-    setIsLoading(true);
-    setError(null);
+      try {
+        const fileUrl = `${fileBaseUrl}${encodeURIComponent(
+          artifact.filepath
+        )}?raw=true`;
 
-    try {
-      const fileUrl = `${fileBaseUrl}${encodeURIComponent(
-        artifact.filepath
-      )}?raw=true`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const apiHeaders: any = await getApiHeaders();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiHeaders: any = await getApiHeaders();
+        const response = await fetch(fileUrl, { headers: apiHeaders });
 
-      const response = await fetch(fileUrl, { headers: apiHeaders });
+        if (!response.ok) {
+          const errorMessage = await response.json();
+          throw new Error(
+            errorMessage?.detail ||
+              `Failed to fetch artifact: ${response.status}!`
+          );
+        }
 
-      if (!response.ok) {
-        const errorMessage = await response.json();
-        throw new Error(
-          errorMessage?.detail ||
-            `Failed to fetch artifact: ${response.status}!`
-        );
+        const content = await response.text();
+        setFileContent(content);
+      } catch (err) {
+        console.error("Error fetching artifact content:", err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const content = await response.text();
-      setFileContent(content);
-    } catch (err) {
-      console.error("Error fetching artifact content:", err);
-      setError(err instanceof Error ? err.message : String(err));
+    fetchArtifactContent();
+  }, [artifact?.id, artifact?.filepath, fileBaseUrl]);
+
+  // Handle title change
+  const handleTitleChange = async (newTitle: string) => {
+    if (!artifact) return;
+    
+    try {
+      const updatedArtifact = await updateArtifact(artifact.id, { name: newTitle });
+      const newArtifactData: ArtifactData = {
+        ...artifact,
+        name: updatedArtifact.name,
+      };
+      
+      if (onArtifactUpdated) {
+        onArtifactUpdated(newArtifactData);
+      }
+    } catch (error) {
+      console.error('Failed to update artifact title:', error);
+      throw error;
+    }
+  };
+
+  // Handle share
+  const handleShare = () => {
+    shareModal.open();
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    deleteModal.open();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!artifact) return;
+    
+    deleteModal.setLoading(true);
+    try {
+      await deleteArtifact(artifact.id);
+      toast.success('Artifact deleted successfully');
+      deleteModal.close();
+      
+      if (onArtifactDeleted) {
+        onArtifactDeleted(artifact.id);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete artifact:', error);
+      toast.error('Failed to delete artifact');
     } finally {
-      setIsLoading(false);
+      deleteModal.setLoading(false);
+    }
+  };
+
+  // Full mode toggle is now handled by the custom hook
+
+  // Handle artifact privacy toggle
+  const handleTogglePublic = async (artifactToUpdate: ArtifactData) => {
+    if (!artifactToUpdate) return;
+    
+    setIsUpdating(true);
+    try {
+      const updatedArtifact = await updateArtifact(artifactToUpdate.id, { 
+        is_public: !artifactToUpdate.is_public 
+      });
+      
+      const newArtifactData: ArtifactData = {
+        ...artifactToUpdate,
+        is_public: updatedArtifact.is_public,
+      };
+      
+      if (onArtifactUpdated) {
+        onArtifactUpdated(newArtifactData);
+      }
+    } catch (error) {
+      console.error('Failed to update artifact privacy:', error);
+      throw error;
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -136,22 +235,52 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   };
 
   return (
-    <ResizableSidebar
-      isOpen={isOpen}
-      onClose={onClose}
-      title={artifact.name}
-      subtitle={{
-        text: artifact.filepath,
-        href: `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
-      }}
-      icon={<FileIcon filepath={artifact.filepath} className="w-4 h-4 text-blue-500 mr-2" />}
-      width={width}
-      onResize={onResize}
-      loading={isLoading}
-      error={error}
-    >
-      {renderContent()}
-    </ResizableSidebar>
+    <>
+      <ResizableSidebar
+        isOpen={isOpen}
+        onClose={onClose}
+        title={artifact.name}
+        subtitle={{
+          text: artifact.filepath,
+          href: `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
+        }}
+        icon={<FileIcon filepath={artifact.filepath} className="w-4 h-4 text-blue-500 mr-2" />}
+        width={width}
+        onResize={onResize}
+        loading={isLoading}
+        error={error}
+        editableTitle={true}
+        onTitleChange={handleTitleChange}
+        onShare={handleShare}
+        onDelete={handleDelete}
+        enableFullMode={true}
+        isFullMode={fullScreen.isFullMode}
+        onToggleFullMode={fullScreen.toggleFullMode}
+      >
+        {renderContent()}
+      </ResizableSidebar>
+      
+      <ShareModal
+        isOpen={shareModal.isOpen}
+        onClose={shareModal.close}
+        artifact={artifact as ArtifactResponse}
+        onTogglePublic={handleTogglePublic}
+        isUpdating={isUpdating}
+      />
+      
+      {deleteModal.isOpen && (
+        <DeleteConfirmationDialog
+          key={`delete-${artifact?.id}`}
+          isOpen={deleteModal.isOpen}
+          onClose={deleteModal.close}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Artifact"
+          description="Are you sure you want to delete this artifact? This action cannot be undone."
+          itemName={artifact?.name}
+          isLoading={deleteModal.isLoading}
+        />
+      )}
+    </>
   );
 };
 

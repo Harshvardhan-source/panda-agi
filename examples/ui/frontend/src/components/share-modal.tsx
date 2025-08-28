@@ -83,9 +83,9 @@ export default function ShareModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Share Creation</DialogTitle>
+          <DialogTitle>Share creation</DialogTitle>
           <DialogDescription>
-            Share "{artifact.name}" with others
+            Share &quot;{artifact.name}&quot; with others
           </DialogDescription>
         </DialogHeader>
 
@@ -96,7 +96,9 @@ export default function ShareModal({
               {artifact.is_public ? (
                 <>
                   <Globe className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-700">Public</span>
+                  <span className="text-sm font-medium text-green-700">
+                    Public
+                  </span>
                 </>
               ) : (
                 <>

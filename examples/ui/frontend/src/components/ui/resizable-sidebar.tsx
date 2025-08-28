@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
-import { X, ExternalLink, Loader2 } from "lucide-react";
+import {
+  X,
+  ExternalLink,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  Share2,
+  MoreVertical,
+  Trash2,
+  Pencil,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "react-hot-toast";
 
 interface ResizableSidebarProps {
   isOpen: boolean;
@@ -20,6 +37,14 @@ interface ResizableSidebarProps {
   loading?: boolean;
   error?: string | null;
   className?: string;
+  // New props for enhanced functionality
+  editableTitle?: boolean;
+  onTitleChange?: (newTitle: string) => Promise<void>;
+  onShare?: () => void;
+  onDelete?: () => void;
+  enableFullMode?: boolean;
+  isFullMode?: boolean;
+  onToggleFullMode?: () => void;
 }
 
 const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
@@ -37,22 +62,111 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   loading = false,
   error = null,
   className,
+  // New props
+  editableTitle = false,
+  onTitleChange,
+  onShare,
+  onDelete,
+  enableFullMode = false,
+  isFullMode = false,
+  onToggleFullMode,
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return width || 900;
-    
+
     // On mobile (screen width < 768px), always use full width
     const isMobile = window.innerWidth < 768;
     if (isMobile) return window.innerWidth;
-    
+
     return width || 900;
   });
   const [isResizing, setIsResizing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(
+    typeof title === "string" ? title : ""
+  );
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
-  
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   // Check if we're on mobile
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  // Update title value when title prop changes
+  useEffect(() => {
+    if (typeof title === "string") {
+      setTitleValue(title);
+    }
+  }, [title]);
+
+  // Handle title editing
+  const handleTitleClick = () => {
+    if (editableTitle && !isEditingTitle) {
+      setIsEditingTitle(true);
+      setTimeout(() => {
+        titleInputRef.current?.focus();
+        titleInputRef.current?.select();
+      }, 0);
+    }
+  };
+
+  const handleTitleBlur = async () => {
+    if (!isEditingTitle || isSavingTitle) return;
+
+    const newTitle = titleValue.trim();
+    if (newTitle !== title && newTitle !== "") {
+      setIsSavingTitle(true);
+      try {
+        if (onTitleChange) {
+          await onTitleChange(newTitle);
+          toast.success("Creation updated successfully");
+        }
+      } catch (error) {
+        console.error("Failed to update title:", error);
+        toast.error("Failed to update title");
+        setTitleValue(typeof title === "string" ? title : "");
+      } finally {
+        setIsSavingTitle(false);
+      }
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      titleInputRef.current?.blur();
+    } else if (e.key === "Escape") {
+      setTitleValue(typeof title === "string" ? title : "");
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleShareClick = () => {
+    if (onShare) {
+      onShare();
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      onDelete();
+    }
+  };
+
+  const handleFullModeClick = () => {
+    if (onToggleFullMode) {
+      onToggleFullMode();
+    } else {
+      // Fallback: Toggle full mode directly if no handler provided
+      const newWidth = isFullMode ? width || 900 : window.innerWidth;
+      setSidebarWidth(newWidth);
+      if (onResize) {
+        onResize(newWidth);
+      }
+    }
+  };
 
   // Handle mount animation
   useEffect(() => {
@@ -68,7 +182,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       setSidebarWidth(window.innerWidth);
       return;
     }
-    
+
     if (width && width !== sidebarWidth) {
       setSidebarWidth(width);
     }
@@ -123,7 +237,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   useEffect(() => {
     const handleWindowResize = () => {
       const isCurrentlyMobile = window.innerWidth < 768;
-      
+
       if (isCurrentlyMobile) {
         // On mobile, always use full width
         setSidebarWidth(window.innerWidth);
@@ -212,7 +326,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ["--sidebar-width" as any]: `${sidebarWidth}px`,
         transform: mounted ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms ease-out",
+        transition:
+          "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms ease-out",
       }}
     >
       {/* Resize handle - only show on desktop */}
@@ -228,43 +343,127 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       )}
 
       {/* Header */}
-      <div 
+      <div
         className="flex items-center justify-between p-6 border-b bg-muted/30"
         style={{
           opacity: mounted ? 1 : 0,
           transition: "opacity 200ms ease-out 150ms",
         }}
       >
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate flex items-center">
-            {icon}
-            {title}
-          </h3>
-          {subtitle && (
-            <div className="mt-1">
-              {subtitle.href ? (
-                <a
-                  href={subtitle.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "text-sm text-muted-foreground hover:text-primary",
-                    "flex items-center gap-1 transition-colors"
-                  )}
-                >
-                  <span className="truncate">{subtitle.text}</span>
-                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                </a>
-              ) : (
-                <p className="text-sm text-muted-foreground truncate">
-                  {subtitle.text}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
         <div className="flex items-center gap-2">
+          {/* Full mode toggle - only show on desktop */}
+          {enableFullMode && !isMobile && (
+            <button
+              onClick={handleFullModeClick}
+              className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
+              title={isFullMode ? "Exit full mode" : "Enter full mode"}
+            >
+              {isFullMode ? (
+                <Minimize2 className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Maximize2 className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-foreground flex items-center gap-2">
+              {icon}
+              <div className="flex-1 min-w-0">
+                {editableTitle && isEditingTitle ? (
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={titleValue}
+                    onChange={(e) => setTitleValue(e.target.value)}
+                    onBlur={handleTitleBlur}
+                    onKeyDown={handleTitleKeyDown}
+                    disabled={isSavingTitle}
+                    className="bg-transparent border-none outline-none font-semibold text-foreground w-full px-2 py-1 -mx-2 -my-1 rounded focus:bg-accent"
+                  />
+                ) : (
+                  <div
+                    onClick={handleTitleClick}
+                    className={cn(
+                      "inline-flex items-center gap-2 group",
+                      editableTitle
+                        ? "cursor-pointer hover:bg-accent/50 px-2 py-1 -mx-2 -my-1 rounded transition-colors"
+                        : ""
+                    )}
+                    title={editableTitle ? "Click to edit" : undefined}
+                  >
+                    <span className="whitespace-nowrap">
+                      {typeof title === "string" ? title : title}
+                    </span>
+                    {editableTitle && (
+                      <Pencil className="h-4 w-4 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {subtitle && (
+              <div className="mt-1">
+                {subtitle.href ? (
+                  <a
+                    href={subtitle.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "text-sm text-muted-foreground hover:text-primary",
+                      "flex items-center gap-1 transition-colors"
+                    )}
+                  >
+                    <span className="truncate">{subtitle.text}</span>
+                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted-foreground truncate">
+                    {subtitle.text}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 flex-shrink-0">
           {actions}
+
+          {/* Share button */}
+          {onShare && (
+            <button
+              onClick={handleShareClick}
+              className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
+              title="Share"
+            >
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+
+          {/* More options dropdown */}
+          {onDelete && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
+                  title="More options"
+                >
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={handleDeleteClick}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <button
             onClick={onClose}
             className={cn(
@@ -279,7 +478,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       </div>
 
       {/* Content */}
-      <div 
+      <div
         className="flex-1 min-h-0 overflow-y-auto p-6"
         style={{
           opacity: mounted ? 1 : 0,
