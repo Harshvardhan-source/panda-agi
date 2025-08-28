@@ -41,6 +41,7 @@ interface ChatBoxProps {
   sidebarOpen: boolean;
   sidebarWidth: number;
   isInitialLoading?: boolean;
+  initialQuery?: string | null;
 }
 
 export default function ChatBox({
@@ -53,6 +54,7 @@ export default function ChatBox({
   sidebarOpen,
   sidebarWidth,
   isInitialLoading = false,
+  initialQuery = null,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -72,6 +74,7 @@ export default function ChatBox({
   const [isDragging, setIsDragging] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -104,8 +107,25 @@ export default function ChatBox({
       setInputValue("");
       setPendingFiles([]);
       setUploadingFilesPreviews([]);
+      setHasSubmittedInitialQuery(false);
     }
   }, [conversationId]);
+
+  // Handle initial query from URL parameter
+  useEffect(() => {
+    if (initialQuery && !isInitialLoading) {
+      setInputValue(initialQuery);
+    }
+  }, [initialQuery, isInitialLoading]);
+
+  // Auto-submit initial query once input value is set
+  useEffect(() => {
+    if (initialQuery && inputValue === initialQuery && !isInitialLoading && !hasSubmittedInitialQuery) {
+      // sendMessage already handles authentication checks and login modal
+      setHasSubmittedInitialQuery(true);
+      sendMessage();
+    }
+  }, [initialQuery, inputValue, isInitialLoading, hasSubmittedInitialQuery]);
 
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(

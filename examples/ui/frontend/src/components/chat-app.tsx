@@ -11,9 +11,10 @@ import { getFileType } from "@/lib/utils";
 
 interface ChatAppProps {
   isInitializing?: boolean;
+  initialQuery?: string | null;
 }
 
-function ChatApp({ isInitializing = false }: ChatAppProps) {
+function ChatApp({ isInitializing = false, initialQuery = null }: ChatAppProps) {
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(!isInitializing);
   const [isConnected, setIsConnected] = useState(false);
@@ -124,6 +125,7 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
           sidebarOpen={sidebarOpen}
           sidebarWidth={sidebarWidth}
           isInitialLoading={isInitialLoading}
+          initialQuery={initialQuery}
         />
       </div>
 

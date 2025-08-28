@@ -11,8 +11,18 @@ import { notifyAuthChange } from "@/hooks/useAuth";
 export default function Home() {
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [initialQuery, setInitialQuery] = useState<string | null>(null);
 
   useEffect(() => {
+    // Extract query parameter directly from window.location
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const query = urlParams.get('query');
+      if (query) {
+        setInitialQuery(decodeURIComponent(query));
+      }
+    }
+
     const handleAuthentication = async () => {
       try {
         // Check if we have a hash fragment (OAuth callback)
@@ -93,5 +103,5 @@ export default function Home() {
   }, [router]);
 
   // Always show chat app - login modal will handle authentication when needed
-  return <ChatApp isInitializing={isAuthenticating} />;
+  return <ChatApp isInitializing={isAuthenticating} initialQuery={initialQuery} />;
 }
