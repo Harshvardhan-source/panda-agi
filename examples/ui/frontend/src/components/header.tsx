@@ -1,0 +1,254 @@
+"use client";
+import React, { forwardRef, useImperativeHandle } from "react";
+import { Plus, Coins } from "lucide-react";
+import UserMenu from "@/components/user-menu";
+import Avatar from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { getUserCredits, UserCreditsResponse } from "@/lib/api/stripe";
+import { PLATFORM_MODE } from "@/lib/config";
+import { useState, useEffect, useCallback } from "react";
+
+export interface HeaderRef {
+  refreshCredits: () => void;
+  clearCredits: () => void;
+}
+
+interface HeaderProps {
+  isInitialLoading?: boolean;
+  isConnected?: boolean;
+  sidebarOpen?: boolean;
+  sidebarWidth?: number;
+  onNewConversation?: () => void;
+  onUpgradeClick: () => void;
+  onShowLogin?: () => void;
+  onShowLogout?: () => void;
+  // Custom content props
+  title?: string;
+  subtitle?: string;
+}
+
+const Header = forwardRef<HeaderRef, HeaderProps>(({
+  isInitialLoading = false,
+  isConnected = false,
+  sidebarOpen = false,
+  sidebarWidth = 0,
+  onNewConversation,
+  onUpgradeClick,
+  onShowLogin,
+  onShowLogout,
+  title,
+  subtitle,
+}, ref) => {
+  const { isAuthenticated } = useAuth();
+  
+  // Credits state - managed internally with localStorage caching
+  const [userCredits, setUserCredits] = useState<UserCreditsResponse | null>(() => {
+    // Initialize with cached credits from localStorage if available
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('user_credits');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          // If parsing fails, remove the corrupted data
+          localStorage.removeItem('user_credits');
+        }
+      }
+    }
+    return null;
+  });
+  const [creditsLoading, setCreditsLoading] = useState(false);
+  const [creditsError, setCreditsError] = useState<string | null>(null);
+
+  // Function to fetch user credits with localStorage caching
+  const fetchUserCredits = async (forceRefresh = false) => {
+    // Only fetch credits if authenticated and in platform mode
+    if (!PLATFORM_MODE) {
+      return;
+    }
+    
+    if (!isAuthenticated && !forceRefresh) {
+      // Don't clear credits immediately on auth state change
+      // They might be temporarily unauthenticated during token refresh
+      return;
+    }
+
+    setCreditsLoading(true);
+    setCreditsError(null);
+
+    try {
+      const creditsData = await getUserCredits();
+      
+      // Ensure we have valid credits data before setting
+      if (creditsData && typeof creditsData.credits_left !== 'undefined') {
+        setUserCredits(creditsData);
+        
+        // Cache the fresh credits data in localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('user_credits', JSON.stringify(creditsData));
+        }
+        
+        setCreditsError(null);
+      } else {
+        setCreditsError('Invalid credits data received');
+      }
+    } catch (err) {
+      console.error("Failed to fetch credits:", err);
+      setCreditsError(err instanceof Error ? err.message : "Failed to fetch credits");
+      
+      // Keep existing userCredits from cache even if refresh fails
+    } finally {
+      setCreditsLoading(false);
+    }
+  };
+
+  // Fetch credits when authentication status changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Only fetch when becoming authenticated
+      fetchUserCredits();
+    }
+    // Don't immediately clear on logout - let the logout handler do that explicitly
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Function to explicitly clear credits (for when user actually logs out)
+  const clearCredits = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user_credits');
+    }
+    setUserCredits(null);
+    setCreditsError(null);
+  }, []);
+
+  // Function to manually refresh credits (useful for after purchases/usage)
+  const refreshCredits = useCallback(() => {
+    fetchUserCredits(true); // Force refresh even if temporarily not authenticated
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Expose refresh and clear functions via ref for parent components
+  useImperativeHandle(ref, () => ({
+    refreshCredits,
+    clearCredits,
+  }), [refreshCredits, clearCredits]);
+
+  // Expose refresh function via window object for external access if needed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as typeof window & { refreshCredits?: () => void }).refreshCredits = refreshCredits;
+    }
+  }, [refreshCredits]);
+
+  return (
+    <TooltipProvider>
+      <div
+        className="glass-header p-6 fixed top-0 left-0 right-0 z-10 backdrop-blur-3xl bg-white/60"
+        style={{
+          width:
+            sidebarOpen && sidebarWidth > 0
+              ? `calc(100vw - ${sidebarWidth}px)`
+              : "100vw",
+        }}
+      >
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Avatar
+              showStatus={!title}
+              status={
+                isInitialLoading ? "loading" : isConnected ? "active" : "idle"
+              }
+            >
+              <span className="text-xl select-none">🐼</span>
+            </Avatar>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                {title || "Annie"}
+              </h1>
+              <p className="text-xs text-slate-600 font-medium">
+                {subtitle || (isConnected ? "Thinking..." : "Ready to help")}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {/* Credits Display */}
+            {PLATFORM_MODE && isAuthenticated && userCredits && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-md transition-all duration-300 cursor-pointer ${
+                      creditsError 
+                        ? "bg-destructive/10 hover:bg-destructive/20" 
+                        : creditsLoading
+                        ? "bg-muted/70 scale-[0.98] opacity-80"
+                        : "bg-muted/50 hover:bg-muted"
+                    }`}
+                    onClick={onUpgradeClick}
+                  >
+                    <Coins
+                      className={`w-3.5 h-3.5 transition-all duration-500 ${
+                        creditsError 
+                          ? "text-destructive" 
+                          : creditsLoading 
+                          ? "text-amber-500 animate-spin" 
+                          : "text-amber-500"
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-medium transition-all duration-300 ${
+                        creditsError 
+                          ? "text-destructive" 
+                          : creditsLoading 
+                          ? "opacity-75" 
+                          : ""
+                      }`}
+                    >
+                      {userCredits.credits_left}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {creditsError 
+                      ? 'Error refreshing credits - Click to manage plan' 
+                      : creditsLoading 
+                      ? 'Refreshing credits...' 
+                      : 'Credits - Click to manage plan'
+                    }
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {isAuthenticated && onNewConversation && (
+              <Button
+                onClick={onNewConversation}
+                variant="default"
+                size="action"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Chat</span>
+              </Button>
+            )}
+
+            <UserMenu
+              onUpgradeClick={onUpgradeClick}
+              onShowLogin={onShowLogin}
+              onShowLogout={onShowLogout}
+            />
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+});
+
+Header.displayName = 'Header';
+
+export default Header;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LogOut, Crown, Menu, CreditCard, LogIn } from "lucide-react";
+import { LogOut, Crown, Menu, CreditCard, LogIn, Sparkles } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   DropdownMenu,
@@ -20,7 +20,11 @@ interface UserMenuProps {
   onShowLogout?: () => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin, onShowLogout }) => {
+const UserMenu: React.FC<UserMenuProps> = ({
+  onUpgradeClick,
+  onShowLogin,
+  onShowLogout,
+}) => {
   const [hasInvoices, setHasInvoices] = useState(false);
   const { isAuthenticated } = useAuth();
 
@@ -90,6 +94,14 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin, onShow
           </DropdownMenuItem>
         ) : (
           <>
+            {/* Creations link - show as first option */}
+            <DropdownMenuItem
+              onClick={() => (window.location.href = "/creations")}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              <span>My creations</span>
+            </DropdownMenuItem>
+
             {/* Manage Plan option - show when authenticated or auth not required */}
             <DropdownMenuItem onClick={handleUpgradeClick}>
               <Crown className="w-4 h-4 mr-2" />

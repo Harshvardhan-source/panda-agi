@@ -1,17 +1,14 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
-import ChatHeader from "@/components/chat-header";
+import Header, { HeaderRef } from "@/components/header";
 import LoginModal from "@/components/login-modal";
 import LogoutModal from "@/components/logout-modal";
 import { logout } from "@/lib/api/auth";
 import { getFileType } from "@/lib/utils";
-import { getUserCredits, UserCreditsResponse } from "@/lib/api/stripe";
-import { useAuth } from "@/hooks/useAuth";
-import { PLATFORM_MODE } from "@/lib/config";
 
 interface ChatAppProps {
   isInitializing?: boolean;
@@ -23,7 +20,7 @@ function ChatApp({
   initialQuery = null,
 }: ChatAppProps) {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const headerRef = useRef<HeaderRef>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(!isInitializing);
   const [isConnected, setIsConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,37 +30,8 @@ function ChatApp({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  
-  // User credits state
-  const [userCredits, setUserCredits] = useState<UserCreditsResponse | null>(null);
-  const [creditsLoading, setCreditsLoading] = useState(false);
-  const [creditsError, setCreditsError] = useState<string | null>(null);
 
-  // Function to fetch user credits
-  const fetchUserCredits = async () => {
-    // Only fetch credits if authenticated and in platform mode
-    if (!PLATFORM_MODE || !isAuthenticated) {
-      return;
-    }
 
-    setCreditsLoading(true);
-    setCreditsError(null);
-
-    try {
-      const creditsData = await getUserCredits();
-      setUserCredits(creditsData);
-    } catch (err) {
-      console.error("Failed to fetch credits:", err);
-      setCreditsError(err instanceof Error ? err.message : "Failed to fetch credits");
-    } finally {
-      setCreditsLoading(false);
-    }
-  };
-
-  // Fetch credits when authentication status changes
-  useEffect(() => {
-    fetchUserCredits();
-  }, [isAuthenticated]);
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -150,7 +118,8 @@ function ChatApp({
           width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
         }}
       >
-        <ChatHeader
+        <Header
+          ref={headerRef}
           isInitialLoading={isInitialLoading}
           isConnected={isConnected}
           sidebarOpen={sidebarOpen}
@@ -158,9 +127,6 @@ function ChatApp({
           onNewConversation={startNewConversation}
           onUpgradeClick={() => setShowUpgradeModal(true)}
           onShowLogin={() => setShowLoginModal(true)}
-          userCredits={userCredits}
-          creditsLoading={creditsLoading}
-          creditsError={creditsError}
           onShowLogout={() => setShowLogoutModal(true)}
         />
 
@@ -177,7 +143,9 @@ function ChatApp({
           sidebarWidth={sidebarWidth}
           isInitialLoading={isInitialLoading}
           initialQuery={initialQuery}
-          onCreditsRefetch={fetchUserCredits}
+          onCreditsRefetch={async () => {
+            headerRef.current?.refreshCredits();
+          }}
         />
       </div>
 

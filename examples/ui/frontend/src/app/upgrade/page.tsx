@@ -1,7 +1,7 @@
 "use client";
 
 import UpgradeModal from "@/components/upgrade-modal";
-import ChatHeader from "@/components/chat-header";
+import Header from "@/components/header";
 import LoginModal from "@/components/login-modal";
 import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ export default function UpgradePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Use the main app header */}
-      <ChatHeader
+      <Header
         isInitialLoading={false}
         isConnected={false}
         sidebarOpen={false}
