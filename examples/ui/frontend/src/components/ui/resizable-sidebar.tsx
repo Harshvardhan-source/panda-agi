@@ -38,24 +38,50 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   error = null,
   className,
 }) => {
-  const [sidebarWidth, setSidebarWidth] = useState(width || 900);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") return width || 900;
+    
+    // On mobile (screen width < 768px), always use full width
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) return window.innerWidth;
+    
+    return width || 900;
+  });
   const [isResizing, setIsResizing] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+  
+  // Check if we're on mobile
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  // Handle mount animation
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      setMounted(true);
+    });
+  }, []);
 
   // Update internal state when width prop changes
   useEffect(() => {
+    if (isMobile) {
+      setSidebarWidth(window.innerWidth);
+      return;
+    }
+    
     if (width && width !== sidebarWidth) {
       setSidebarWidth(width);
     }
-  }, [width, sidebarWidth]);
+  }, [width, sidebarWidth, isMobile]);
 
   // Add resize event listeners
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+      if (!isResizing || isMobile) return; // Don't resize on mobile
 
       let newWidth = window.innerWidth - e.clientX;
-      newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      const maxAllowedWidth = Math.min(maxWidth, window.innerWidth);
+      newWidth = Math.max(minWidth, Math.min(maxAllowedWidth, newWidth));
 
       setSidebarWidth(newWidth);
 
@@ -92,6 +118,33 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       document.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, [isResizing, minWidth, maxWidth, onResize]);
+
+  // Handle window resize to keep sidebar within bounds
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const isCurrentlyMobile = window.innerWidth < 768;
+      
+      if (isCurrentlyMobile) {
+        // On mobile, always use full width
+        setSidebarWidth(window.innerWidth);
+        if (onResize) {
+          onResize(window.innerWidth);
+        }
+      } else {
+        // On desktop, constrain to maxWidth
+        const maxAllowedWidth = Math.min(maxWidth, window.innerWidth);
+        if (sidebarWidth > maxAllowedWidth) {
+          setSidebarWidth(maxAllowedWidth);
+          if (onResize) {
+            onResize(maxAllowedWidth);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, [sidebarWidth, maxWidth, onResize]);
 
   const startResizing = () => {
     setIsResizing(true);
@@ -158,20 +211,30 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
         width: `${sidebarWidth}px`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ["--sidebar-width" as any]: `${sidebarWidth}px`,
+        transform: mounted ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms ease-out",
       }}
     >
-      {/* Resize handle */}
-      <div
-        ref={resizeRef}
-        className={cn(
-          "absolute left-0 top-0 w-1 h-full cursor-col-resize z-50",
-          "hover:bg-primary/50 transition-colors duration-200"
-        )}
-        onMouseDown={startResizing}
-      />
+      {/* Resize handle - only show on desktop */}
+      {!isMobile && (
+        <div
+          ref={resizeRef}
+          className={cn(
+            "absolute left-0 top-0 w-1 h-full cursor-col-resize z-50",
+            "hover:bg-primary/50 transition-colors duration-200"
+          )}
+          onMouseDown={startResizing}
+        />
+      )}
 
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b bg-muted/30">
+      <div 
+        className="flex items-center justify-between p-6 border-b bg-muted/30"
+        style={{
+          opacity: mounted ? 1 : 0,
+          transition: "opacity 200ms ease-out 150ms",
+        }}
+      >
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground truncate flex items-center">
             {icon}
@@ -216,7 +279,13 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-6">
+      <div 
+        className="flex-1 min-h-0 overflow-y-auto p-6"
+        style={{
+          opacity: mounted ? 1 : 0,
+          transition: "opacity 200ms ease-out 300ms",
+        }}
+      >
         {loading ? renderLoadingState() : error ? renderErrorState() : children}
       </div>
     </div>
