@@ -184,6 +184,51 @@
   }
 }
 
+/* Gradient wave animation for thinking text */
+@keyframes gradientWave {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-gradient-wave {
+  animation: gradientWave 2s linear infinite;
+}
+
+/* Slower, more elegant gradient wave animation */
+@keyframes gradientWaveSlow {
+  0% {
+    background-position: -300% center;
+  }
+  100% {
+    background-position: 300% center;
+  }
+}
+
+.animate-gradient-wave-slow {
+  animation: gradientWaveSlow 4s ease-in-out infinite;
+}
+
+/* Optimized text wave animation using opacity - much smoother */
+@keyframes textWave {
+  0%, 100% {
+    opacity: 0.4;
+    color: rgb(148 163 184); /* slate-400 */
+  }
+  50% {
+    opacity: 1;
+    color: rgb(71 85 105); /* slate-600 */
+  }
+}
+
+.animate-text-wave {
+  animation: textWave 3s ease-in-out infinite;
+  will-change: opacity, color;
+}
+
 /* Unified glass morphism header effect */
 .glass-header {
   background: rgba(255, 255, 255, 0.7);

@@ -24,6 +24,7 @@ import { formatAgentMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import LoginModal from "@/components/login-modal";
+import { AnimatedText } from "@/components/ui/animated-text";
 
 interface RequestBody {
   query: string;
@@ -324,7 +325,7 @@ export default function ChatBox({
             return;
           }
         }
-        
+
         const files = Array.from(e.dataTransfer.files);
         await handleFilesUpload(files);
       }
@@ -354,7 +355,9 @@ export default function ChatBox({
   }, [handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
 
   const sendMessage = async () => {
-    const hasUploadingFiles = uploadingFilesPreviews.some(f => f.status === "uploading");
+    const hasUploadingFiles = uploadingFilesPreviews.some(
+      (f) => f.status === "uploading"
+    );
     if (!inputValue.trim() || hasUploadingFiles) return;
 
     // Check if authentication is required and user is not authenticated
@@ -595,7 +598,7 @@ export default function ChatBox({
         return;
       }
     }
-    
+
     fileInputRef.current?.click();
   };
 
@@ -841,20 +844,14 @@ export default function ChatBox({
               <div className="flex justify-start mb-4">
                 <div className="flex items-center space-x-2 px-4 py-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
-                  <span className="text-sm text-slate-600">
-                    {currentActivity
-                      ? formatAgentMessage(currentActivity)
-                      : "Annie is thinking"}
-                    <span className="inline-flex ml-1">
-                      <span className="animate-pulse">.</span>
-                      <span className="animate-pulse [animation-delay:0.3s]">
-                        .
-                      </span>
-                      <span className="animate-pulse [animation-delay:0.6s]">
-                        .
-                      </span>
-                    </span>
-                  </span>
+                  <AnimatedText
+                    text={
+                      currentActivity
+                        ? formatAgentMessage(currentActivity)
+                        : "Annie is thinking"
+                    }
+                    className="text-sm text-slate-600"
+                  />
                 </div>
               </div>
             ) : null;
@@ -1115,12 +1112,12 @@ export default function ChatBox({
                   !inputValue.trim() ||
                   isLoading ||
                   isInitialLoading ||
-                  uploadingFilesPreviews.some(f => f.status === "uploading")
+                  uploadingFilesPreviews.some((f) => f.status === "uploading")
                 }
                 variant="send"
                 size="send"
                 title={
-                  uploadingFilesPreviews.some(f => f.status === "uploading")
+                  uploadingFilesPreviews.some((f) => f.status === "uploading")
                     ? "Wait for files to finish uploading"
                     : "Send message"
                 }
