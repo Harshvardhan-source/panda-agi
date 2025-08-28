@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  getGitHubAuthUrl, 
+  getAuthUrl, 
   getAccessToken, 
   isAuthRequired 
 } from "@/lib/api/auth";
@@ -38,7 +38,7 @@ export default function Login() {
 
   const handleGitHubLogin = async () => {
     try {
-      const authUrl = await getGitHubAuthUrl();
+      const authUrl = await getAuthUrl('github');
       if (authUrl) {
         window.location.href = authUrl;
       }

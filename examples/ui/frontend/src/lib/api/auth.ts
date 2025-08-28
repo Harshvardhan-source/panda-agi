@@ -61,17 +61,18 @@ export async function validateToken(token: string): Promise<boolean> {
 }
 
 /**
- * Gets the GitHub authentication URL from the backend
- * @returns The GitHub authentication URL if successful
+ * Gets the authentication URL from the backend for a specific provider
+ * @param provider - The authentication provider (e.g., 'github', 'google', etc.)
+ * @returns The authentication URL if successful
  */
-export async function getGitHubAuthUrl(): Promise<string | null> {
+export async function getAuthUrl(provider: string): Promise<string | null> {
   try {
     // Get the current host and construct the redirect URI
     const currentHost = window.location.origin;
     const redirectUri = `${currentHost}/authenticate`;
     
     // Pass the redirect URI as a query parameter
-    const response = await fetch(`${getServerURL()}/public/auth/github?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    const response = await fetch(`${getServerURL()}/public/auth/provider/${provider.toLowerCase()}?redirect_uri=${encodeURIComponent(redirectUri)}`, {
       credentials: 'include'
     });
     const data = await response.json();
@@ -79,19 +80,28 @@ export async function getGitHubAuthUrl(): Promise<string | null> {
     if (data && data.auth_url) {
       return data.auth_url;
     } else {
-      console.error("GitHub authentication URL not found in response:", data);
-      throw new Error("GitHub authentication URL not found in response, try again later");
+      console.error(`${provider} authentication URL not found in response:`, data);
+      throw new Error(`${provider} authentication URL not found in response, try again later`);
     }
   } catch (error) {
-    console.error("Failed to fetch GitHub authentication URL:", error);
+    console.error(`Failed to fetch ${provider} authentication URL:`, error);
     if (error instanceof Error) {
       if (error.message.includes("Failed to fetch")) {
         throw new Error("Server is not responding. Please try again in a few minutes.");
       }
       throw new Error(error.message);
     }
-    throw new Error("Failed to fetch GitHub authentication URL, try again later");
+    throw new Error(`Failed to fetch ${provider} authentication URL, try again later`);
   }
+}
+
+/**
+ * Gets the GitHub authentication URL from the backend
+ * @returns The GitHub authentication URL if successful
+ * @deprecated Use getAuthUrl('github') instead
+ */
+export async function getGitHubAuthUrl(): Promise<string | null> {
+  return getAuthUrl('github');
 }
 
 /**
