@@ -48,7 +48,8 @@ async def auth_provider(
         )
 
         async with session.post(
-            f"{PANDA_AGI_SERVER_URL}/public/auth/{provider.lower()}", json=payload
+            f"{PANDA_AGI_SERVER_URL}/public/auth/provider/{provider.lower()}",
+            json=payload,
         ) as resp:
             if resp.status != 200:
                 raise HTTPException(
