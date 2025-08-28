@@ -17,14 +17,16 @@ export default function Home() {
       try {
         // Check if we have a hash fragment (OAuth callback)
         const hash = window.location.hash.substring(1);
-        
+
         if (hash) {
           // Parse the hash fragment into key-value pairs
-          const params = hash.split("&").reduce<Record<string, string>>((result, item) => {
-            const [key, value] = item.split("=");
-            result[key] = decodeURIComponent(value);
-            return result;
-          }, {});
+          const params = hash
+            .split("&")
+            .reduce<Record<string, string>>((result, item) => {
+              const [key, value] = item.split("=");
+              result[key] = decodeURIComponent(value);
+              return result;
+            }, {});
 
           // Check if we have an access token
           if (params.access_token) {
@@ -35,33 +37,38 @@ export default function Home() {
               expires_in: params.expires_in || null,
               refresh_token: params.refresh_token || null,
               token_type: params.token_type || null,
-              provider_token: params.provider_token || null
+              provider_token: params.provider_token || null,
             };
-            
+
             // Clear the hash from URL
             window.history.replaceState({}, document.title, "/");
-            
+
             // Validate the token with our backend
             try {
-              const response = await fetch(`${getServerURL()}/public/auth/validate`, {
-                headers: {
-                  Authorization: `Bearer ${params.access_token}`,
-                },
-                credentials: 'include',
-              });
+              const response = await fetch(
+                `${getServerURL()}/public/auth/validate`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${params.access_token}`,
+                  },
+                  credentials: "include",
+                }
+              );
 
               if (response.ok) {
                 const userData = await response.json();
-                console.log("Token validation successful:", userData);
 
                 // Store token in localStorage
                 storeAuthToken(authData);
 
                 // Store any user data if needed
-                if (userData.user && typeof window !== 'undefined') {
-                  localStorage.setItem("user_data", JSON.stringify(userData.user));
+                if (userData.user && typeof window !== "undefined") {
+                  localStorage.setItem(
+                    "user_data",
+                    JSON.stringify(userData.user)
+                  );
                 }
-                
+
                 // Notify all components about the auth change
                 notifyAuthChange();
               } else {

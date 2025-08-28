@@ -21,15 +21,7 @@ interface UserMenuProps {
 
 const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
   const [hasInvoices, setHasInvoices] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { isAuthenticated } = useAuth();
-
-  // Reset logging out state and close dropdown when auth changes
-  useEffect(() => {
-    setIsLoggingOut(false);
-    setDropdownOpen(false);
-  }, [isAuthenticated]);
 
   useEffect(() => {
     const checkInvoicesAvailability = async () => {
@@ -70,7 +62,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
       const portalResponse = await createCustomerPortal({
         return_url: window.location.href,
       });
-      
+
       window.open(portalResponse.url, "_blank");
     } catch (error) {
       console.error("Failed to open customer portal:", error);
@@ -79,7 +71,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
   };
 
   return (
-    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -114,30 +106,13 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  
-                  if (isLoggingOut) {
-                    console.log('Already logging out, ignoring click');
-                    return;
-                  }
-                  
-                  console.log('Logout clicked');
-                  setIsLoggingOut(true);
-                  
-                  // Close dropdown immediately and logout
-                  setDropdownOpen(false);
-                  
-                  // Add small delay to ensure state update
-                  setTimeout(() => {
+                <DropdownMenuItem
+                  onClick={() => {
                     logout();
-                    // Reset flag after logout
-                    setTimeout(() => setIsLoggingOut(false), 100);
-                  }, 10);
-                }}>
+                  }}
+                >
                   <LogOut className="w-4 h-4 mr-2" />
-                  <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
+                  <span>Logout</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -148,4 +123,4 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
   );
 };
 
-export default UserMenu; 
+export default UserMenu;

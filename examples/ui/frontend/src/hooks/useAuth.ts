@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { getAccessToken, isAuthRequired } from '@/lib/api/auth';
+import { useState, useEffect, useCallback } from "react";
+import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 
 // Custom hook for managing authentication state
 export function useAuth() {
@@ -10,7 +10,6 @@ export function useAuth() {
 
   const checkAuth = useCallback(() => {
     const authenticated = !isAuthRequired() || !!getAccessToken();
-    console.log('useAuth checkAuth called, authenticated:', authenticated);
     setIsAuthenticated(authenticated);
     setIsLoading(false);
     return authenticated;
@@ -21,17 +20,16 @@ export function useAuth() {
 
     // Listen for auth changes
     const handleAuthChange = () => {
-      console.log('useAuth received authChange event');
       checkAuth();
     };
 
     // Add global listener
-    if (typeof window !== 'undefined') {
-      window.addEventListener('authChange', handleAuthChange);
-      
+    if (typeof window !== "undefined") {
+      window.addEventListener("authChange", handleAuthChange);
+
       // Cleanup
       return () => {
-        window.removeEventListener('authChange', handleAuthChange);
+        window.removeEventListener("authChange", handleAuthChange);
       };
     }
   }, [checkAuth]);
@@ -44,13 +42,13 @@ export function useAuth() {
   return {
     isAuthenticated,
     isLoading,
-    refreshAuth
+    refreshAuth,
   };
 }
 
 // Function to notify all components about auth changes
 export function notifyAuthChange() {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('authChange'));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("authChange"));
   }
 }
