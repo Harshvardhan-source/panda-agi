@@ -11,7 +11,6 @@ import os
 import logging
 import traceback
 import mimetypes
-from uuid import UUID
 from typing import Optional
 
 from services.artifacts import ArtifactsService
@@ -35,26 +34,6 @@ PANDA_CHAT_CLIENT_URL = (
 
 # Create router
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
-
-
-def get_base_artifact_url(artifact_id: str, is_public: bool = False) -> str:
-    """
-    Get the base artifact URL constructed from the source domain.
-
-    Args:
-        artifact_id: The artifact ID
-        is_public: Whether this is a public artifact
-
-    Returns:
-        str: The base artifact URL in format source/artifact_id or source/public/artifact_id
-    """
-    # Construct base URL
-    if is_public:
-        base_artifact_url = f"{PANDA_CHAT_CLIENT_URL}/creations/share/{artifact_id}"
-    else:
-        base_artifact_url = f"{PANDA_CHAT_CLIENT_URL}/creations/private/{artifact_id}"
-
-    return base_artifact_url
 
 
 async def process_artifact_markdown_to_pdf(
@@ -336,127 +315,32 @@ async def get_user_artifacts(
         raise HTTPException(status_code=500, detail="internal server error")
 
 
-async def _get_public_artifact_file(
-    artifact_id: UUID,
-    file_path: str = "index.html",
-    raw: bool = False,
-    base_source_url: str = None,
-    request: Request = None,
-) -> Response:
-    """Helper function to get public artifact file content"""
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/{file_path}"
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    logger.error(f"Error getting creation file: {resp.status}")
-                    response = await resp.json()
-                    error_detail = (
-                        response["detail"]
-                        if "detail" in response
-                        else f"HTTP {resp.status}"
-                    )
-
-                    # Check if client accepts HTML
-                    if request and should_return_html(request.headers.get("accept")):
-                        html_content = generate_error_page_html(
-                            resp.status, error_detail
-                        )
-                        return Response(
-                            content=html_content,
-                            media_type="text/html",
-                            status_code=resp.status,
-                        )
-
-                    raise HTTPException(
-                        status_code=resp.status,
-                        detail=error_detail,
-                    )
-
-                # Get content as bytes
-                content_bytes = await resp.read()
-
-                # Check if it's a markdown file and raw mode is not requested
-                if file_path.lower().endswith((".md", ".markdown")) and not raw:
-                    pdf_response = await process_artifact_markdown_to_pdf(
-                        file_path,
-                        content_bytes,
-                        str(artifact_id),
-                        session,
-                        None,
-                        is_public=True,
-                        base_source_url=base_source_url,
-                    )
-                    if pdf_response:
-                        return pdf_response
-
-                # Determine MIME type for non-markdown files or when conversion fails
-                mime_type, _ = mimetypes.guess_type(file_path)
-                if not mime_type:
-                    mime_type = "application/octet-stream"
-
-                return Response(content=content_bytes, media_type=mime_type)
-
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error getting creation file: {traceback.format_exc()}")
-        # Check if client accepts HTML
-        if request and should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                500,
-                "We're experiencing technical difficulties. Please try again later.",
-            )
-            return Response(
-                content=html_content, media_type="text/html", status_code=500
-            )
-        raise HTTPException(status_code=500, detail="internal server error")
-
-
-@router.get("/public/{artifact_id}/{file_path:path}")
-async def get_artifact_file_public(
-    request: Request,
-    artifact_id: UUID,
-    file_path: str,
-    raw: bool = Query(False, alias="raw"),
-) -> Response:
-    """Get artifact file content (public route, no authentication required)"""
-    # Get base artifact URL
-    base_source_url = get_base_artifact_url(str(artifact_id), is_public=True)
-    return await _get_public_artifact_file(
-        artifact_id, file_path, raw, base_source_url, request
-    )
-
-
-@router.get("/{artifact_id}/{file_path:path}")
-async def get_artifact_file(
+@router.get("/serve/{artifact_id}/{file_path:path}")
+async def serve_artifact_file(
     request: Request,
     artifact_id: str,
     file_path: str,
     raw: bool = Query(False, alias="raw"),
 ):
-    """Get artifact file content"""
+    """Get artifact file content - handles both authenticated and public access"""
     # Get API key from request state (set by AuthMiddleware)
     api_key = getattr(request.state, "api_key", None)
 
-    if not api_key:
-        # Check if client accepts HTML
-        if should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                401, "Please log in to access this resource"
-            )
-            return Response(
-                content=html_content, media_type="text/html", status_code=401
-            )
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    # Determine if this is a public or private artifact based on API key presence
+    is_public = api_key is None
 
-    # Get base artifact URL
-    base_source_url = get_base_artifact_url(artifact_id, is_public=False)
+    # Get base artifact URL for setting the path in the markdown HTML response
+    base_source_url = f"{PANDA_CHAT_CLIENT_URL}/creations/{artifact_id}"
 
     try:
         async with aiohttp.ClientSession() as session:
-            headers = {"X-API-KEY": f"{api_key}"}
-            url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/{file_path}"
+            # Set up headers - only include API key if available
+            headers = {}
+            if api_key:
+                headers["X-API-KEY"] = f"{api_key}"
+
+            url = f"{PANDA_AGI_SERVER_URL}/artifacts/serve/{artifact_id}/{file_path}"
+
             async with session.get(url, headers=headers) as resp:
                 if resp.status != 200:
                     logger.error(f"Error getting creation file: {resp.status}")
@@ -494,7 +378,7 @@ async def get_artifact_file(
                         artifact_id,
                         session,
                         headers,
-                        is_public=False,
+                        is_public=is_public,
                         base_source_url=base_source_url,
                     )
                     if pdf_response:
@@ -509,6 +393,20 @@ async def get_artifact_file(
 
     except HTTPException as e:
         raise e
+    except aiohttp.ClientConnectorError as e:
+        logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
+        if should_return_html(request.headers.get("accept")):
+            html_content = generate_error_page_html(
+                503,
+                f"Service unavailable. Please try again later.",
+            )
+            return Response(
+                content=html_content, media_type="text/html", status_code=503
+            )
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service unavailable. Please try again later.",
+        )
     except Exception as e:
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
         # Check if client accepts HTML

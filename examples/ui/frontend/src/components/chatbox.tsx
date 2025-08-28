@@ -24,6 +24,7 @@ import { formatAgentMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import LoginModal from "@/components/login-modal";
+import { AnimatedText } from "@/components/ui/animated-text";
 
 interface RequestBody {
   query: string;
@@ -76,7 +77,8 @@ export default function ChatBox({
   const [isDragging, setIsDragging] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] = useState(false);
+  const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] =
+    useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -122,7 +124,12 @@ export default function ChatBox({
 
   // Auto-submit initial query once input value is set
   useEffect(() => {
-    if (initialQuery && inputValue === initialQuery && !isInitialLoading && !hasSubmittedInitialQuery) {
+    if (
+      initialQuery &&
+      inputValue === initialQuery &&
+      !isInitialLoading &&
+      !hasSubmittedInitialQuery
+    ) {
       // sendMessage already handles authentication checks and login modal
       setHasSubmittedInitialQuery(true);
       sendMessage();
@@ -133,6 +140,15 @@ export default function ChatBox({
   const handleFilesUpload = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
+
+      // Check if authentication is required and user is not authenticated
+      if (isAuthRequired()) {
+        const token = getAccessToken();
+        if (!token) {
+          setShowLoginModal(true);
+          return;
+        }
+      }
 
       // Create new file previews to add to existing ones (cumulative)
       const baseId = Date.now();
@@ -303,6 +319,15 @@ export default function ChatBox({
       setIsDragging(false);
 
       if (e.dataTransfer?.files) {
+        // Check authentication before processing files
+        if (isAuthRequired()) {
+          const token = getAccessToken();
+          if (!token) {
+            setShowLoginModal(true);
+            return;
+          }
+        }
+
         const files = Array.from(e.dataTransfer.files);
         await handleFilesUpload(files);
       }
@@ -332,7 +357,10 @@ export default function ChatBox({
   }, [handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
 
   const sendMessage = async () => {
-    if (!inputValue.trim() || uploadingFilesPreviews.length > 0) return;
+    const hasUploadingFiles = uploadingFilesPreviews.some(
+      (f) => f.status === "uploading"
+    );
+    if (!inputValue.trim() || hasUploadingFiles) return;
 
     // Check if authentication is required and user is not authenticated
     if (isAuthRequired()) {
@@ -579,6 +607,15 @@ export default function ChatBox({
 
   // Trigger file input click
   const handleFileUpload = () => {
+    // Check authentication before opening file dialog
+    if (isAuthRequired()) {
+      const token = getAccessToken();
+      if (!token) {
+        setShowLoginModal(true);
+        return;
+      }
+    }
+
     fileInputRef.current?.click();
   };
 
@@ -824,20 +861,14 @@ export default function ChatBox({
               <div className="flex justify-start mb-4">
                 <div className="flex items-center space-x-2 px-4 py-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
-                  <span className="text-sm text-slate-600">
-                    {currentActivity
-                      ? formatAgentMessage(currentActivity)
-                      : "Annie is thinking"}
-                    <span className="inline-flex ml-1">
-                      <span className="animate-pulse">.</span>
-                      <span className="animate-pulse [animation-delay:0.3s]">
-                        .
-                      </span>
-                      <span className="animate-pulse [animation-delay:0.6s]">
-                        .
-                      </span>
-                    </span>
-                  </span>
+                  <AnimatedText
+                    text={
+                      currentActivity
+                        ? formatAgentMessage(currentActivity)
+                        : "Annie is thinking"
+                    }
+                    className="text-sm text-slate-600"
+                  />
                 </div>
               </div>
             ) : null;
@@ -903,7 +934,6 @@ export default function ChatBox({
                     ) && (
                       <span className="ml-2 text-slate-600">
                         <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
-                        Uploading...
                       </span>
                     )}
                   </span>
@@ -1099,12 +1129,12 @@ export default function ChatBox({
                   !inputValue.trim() ||
                   isLoading ||
                   isInitialLoading ||
-                  uploadingFilesPreviews.length > 0
+                  uploadingFilesPreviews.some((f) => f.status === "uploading")
                 }
                 variant="send"
                 size="send"
                 title={
-                  uploadingFilesPreviews.length > 0
+                  uploadingFilesPreviews.some((f) => f.status === "uploading")
                     ? "Wait for files to finish uploading"
                     : "Send message"
                 }

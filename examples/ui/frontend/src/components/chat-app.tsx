@@ -6,6 +6,8 @@ import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
 import ChatHeader from "@/components/chat-header";
 import LoginModal from "@/components/login-modal";
+import LogoutModal from "@/components/logout-modal";
+import { logout } from "@/lib/api/auth";
 import { getFileType } from "@/lib/utils";
 import { getUserCredits, UserCreditsResponse } from "@/lib/api/stripe";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +32,7 @@ function ChatApp({
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   // User credits state
   const [userCredits, setUserCredits] = useState<UserCreditsResponse | null>(null);
@@ -88,6 +91,14 @@ function ChatApp({
     setConversationId(undefined);
     setSidebarOpen(false);
     setPreviewData(undefined);
+  };
+
+  const handleLogoutConfirm = () => {
+    logout();
+    // Reset chat state to empty chat
+    startNewConversation();
+    // Show login modal
+    setShowLoginModal(true);
   };
 
   // Authentication check - placed after all hooks to follow Rules of Hooks
@@ -150,6 +161,7 @@ function ChatApp({
           userCredits={userCredits}
           creditsLoading={creditsLoading}
           creditsError={creditsError}
+          onShowLogout={() => setShowLogoutModal(true)}
         />
 
         {/* ChatBox Component */}
@@ -195,6 +207,13 @@ function ChatApp({
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+      />
+
+      {/* Logout Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogoutConfirm}
       />
     </div>
   );

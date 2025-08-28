@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { logout, isAuthRequired } from "@/lib/api/auth";
+import { isAuthRequired } from "@/lib/api/auth";
 import { createCustomerPortal, getUserSubscription } from "@/lib/api/stripe";
 import { PLATFORM_MODE, EXTERNAL_URLS } from "@/lib/config";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,9 +17,10 @@ import { useAuth } from "@/hooks/useAuth";
 interface UserMenuProps {
   onUpgradeClick: () => void;
   onShowLogin?: () => void;
+  onShowLogout?: () => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin, onShowLogout }) => {
   const [hasInvoices, setHasInvoices] = useState(false);
   const { isAuthenticated } = useAuth();
 
@@ -108,7 +109,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick, onShowLogin }) => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    logout();
+                    if (onShowLogout) {
+                      onShowLogout();
+                    }
                   }}
                 >
                   <LogOut className="w-4 h-4 mr-2" />

@@ -19,6 +19,7 @@ interface ChatHeaderProps {
   userCredits: UserCreditsResponse | null;
   creditsLoading: boolean;
   creditsError: string | null;
+  onShowLogout?: () => void;
 }
 
 export default function ChatHeader({
@@ -32,6 +33,7 @@ export default function ChatHeader({
   userCredits,
   creditsLoading,
   creditsError,
+  onShowLogout,
 }: ChatHeaderProps) {
   const { isAuthenticated } = useAuth();
 
@@ -94,7 +96,7 @@ export default function ChatHeader({
             </Button>
           )}
 
-          <UserMenu onUpgradeClick={onUpgradeClick} onShowLogin={onShowLogin} />
+          <UserMenu onUpgradeClick={onUpgradeClick} onShowLogin={onShowLogin} onShowLogout={onShowLogout} />
         </div>
       </div>
     </div>
