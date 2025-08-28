@@ -6,6 +6,8 @@ import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
 import ChatHeader from "@/components/chat-header";
 import LoginModal from "@/components/login-modal";
+import LogoutModal from "@/components/logout-modal";
+import { logout } from "@/lib/api/auth";
 import { getFileType } from "@/lib/utils";
 
 interface ChatAppProps {
@@ -26,6 +28,7 @@ function ChatApp({
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -53,6 +56,14 @@ function ChatApp({
     setConversationId(undefined);
     setSidebarOpen(false);
     setPreviewData(undefined);
+  };
+
+  const handleLogoutConfirm = () => {
+    logout();
+    // Reset chat state to empty chat
+    startNewConversation();
+    // Show login modal
+    setShowLoginModal(true);
   };
 
   // Authentication check - placed after all hooks to follow Rules of Hooks
@@ -112,6 +123,7 @@ function ChatApp({
           onNewConversation={startNewConversation}
           onUpgradeClick={() => setShowUpgradeModal(true)}
           onShowLogin={() => setShowLoginModal(true)}
+          onShowLogout={() => setShowLogoutModal(true)}
         />
 
         {/* ChatBox Component */}
@@ -156,6 +168,13 @@ function ChatApp({
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+      />
+
+      {/* Logout Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogoutConfirm}
       />
     </div>
   );

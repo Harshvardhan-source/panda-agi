@@ -14,6 +14,7 @@ interface ChatHeaderProps {
   onNewConversation: () => void;
   onUpgradeClick: () => void;
   onShowLogin?: () => void;
+  onShowLogout?: () => void;
 }
 
 export default function ChatHeader({
@@ -24,6 +25,7 @@ export default function ChatHeader({
   onNewConversation,
   onUpgradeClick,
   onShowLogin,
+  onShowLogout,
 }: ChatHeaderProps) {
   const { isAuthenticated } = useAuth();
   return (
@@ -61,7 +63,7 @@ export default function ChatHeader({
             </Button>
           )}
 
-          <UserMenu onUpgradeClick={onUpgradeClick} onShowLogin={onShowLogin} />
+          <UserMenu onUpgradeClick={onUpgradeClick} onShowLogin={onShowLogin} onShowLogout={onShowLogout} />
         </div>
       </div>
     </div>
