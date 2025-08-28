@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
@@ -168,5 +168,9 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
 export default function ChatAppWithSuspense({
   isInitializing = false,
 }: ChatAppProps) {
-  return <ChatApp isInitializing={isInitializing} />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatApp isInitializing={isInitializing} />
+    </Suspense>
+  );
 }
