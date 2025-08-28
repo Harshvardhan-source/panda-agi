@@ -72,7 +72,7 @@ export async function getAuthUrl(provider: string): Promise<string | null> {
     const redirectUri = `${currentHost}/authenticate`;
     
     // Pass the redirect URI as a query parameter
-    const response = await fetch(`${getServerURL()}/public/auth/provider/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    const response = await fetch(`${getServerURL()}/public/auth/provider/${provider.toLowerCase()}?redirect_uri=${encodeURIComponent(redirectUri)}`, {
       credentials: 'include'
     });
     const data = await response.json();
