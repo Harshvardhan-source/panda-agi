@@ -111,7 +111,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 clipRule="evenodd"
               />
             </svg>
-            {isLoading ? "Connecting..." : "Connect with GitHub"}
+            {isLoading ? "Connecting..." : "Continue with GitHub"}
           </button>
 
           <button
@@ -141,7 +141,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 fill="#EA4335"
               />
             </svg>
-            {isLoading ? "Connecting..." : "Connect with Google"}
+            {isLoading ? "Connecting..." : "Continue with Google"}
           </button>
 
           {/* Terms and Privacy Policy */}
