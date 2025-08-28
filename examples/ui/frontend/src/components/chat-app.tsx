@@ -1,13 +1,12 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import UpgradeModal from "@/components/upgrade-modal";
-import UserMenu from "@/components/user-menu";
 import { useSearchParams } from "next/navigation";
 import ChatBox from "@/components/chatbox";
+import ChatHeader from "@/components/chat-header";
 import { getFileType } from "@/lib/utils";
 
 interface ChatAppProps {
@@ -122,54 +121,14 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
           width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
         }}
       >
-        {/* Header - positioned absolutely over content */}
-        <div
-          className="glass-header p-6 fixed top-0 left-0 right-0 z-10 backdrop-blur-3xl bg-white/60"
-          style={{
-            width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
-          }}
-        >
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-11 h-11 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-xl select-none">🐼</span>
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                  {isInitialLoading ? (
-                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                  ) : isConnected ? (
-                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                  ) : (
-                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Annie
-                </h1>
-                <p className="text-xs text-slate-600 font-medium">
-                  {isConnected ? "Thinking..." : "Ready to help"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              {/* New Conversation Button */}
-              <button
-                onClick={startNewConversation}
-                className="flex items-center space-x-2 px-5 py-2.5 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Chat</span>
-              </button>
-
-              {/* User Menu Dropdown */}
-              <UserMenu onUpgradeClick={() => setShowUpgradeModal(true)} />
-            </div>
-          </div>
-        </div>
+        <ChatHeader
+          isInitialLoading={isInitialLoading}
+          isConnected={isConnected}
+          sidebarOpen={sidebarOpen}
+          sidebarWidth={sidebarWidth}
+          onNewConversation={startNewConversation}
+          onUpgradeClick={() => setShowUpgradeModal(true)}
+        />
 
         {/* ChatBox Component */}
         <ChatBox
@@ -205,6 +164,8 @@ function ChatApp({ isInitializing = false }: ChatAppProps) {
   );
 }
 
-export default function ChatAppWithSuspense({ isInitializing = false }: ChatAppProps) {
+export default function ChatAppWithSuspense({
+  isInitializing = false,
+}: ChatAppProps) {
   return <ChatApp isInitializing={isInitializing} />;
 }

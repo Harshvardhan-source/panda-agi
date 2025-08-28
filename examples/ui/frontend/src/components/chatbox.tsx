@@ -21,6 +21,7 @@ import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { PreviewData } from "@/components/content-sidebar";
 import { formatAgentMessage } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface RequestBody {
   query: string;
@@ -56,14 +57,16 @@ export default function ChatBox({
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
-  const [uploadingFilesPreviews, setUploadingFilesPreviews] = useState<{
-    id: number;
-    name: string;
-    size: number;
-    progress: number;
-    status: 'uploading' | 'completed' | 'error';
-    error?: string;
-  }[]>([]);
+  const [uploadingFilesPreviews, setUploadingFilesPreviews] = useState<
+    {
+      id: number;
+      name: string;
+      size: number;
+      progress: number;
+      status: "uploading" | "completed" | "error";
+      error?: string;
+    }[]
+  >([]);
   const [isDragging, setIsDragging] = useState(false);
   const [currentActivity, setCurrentActivity] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -113,17 +116,17 @@ export default function ChatBox({
         name: file.name,
         size: file.size,
         progress: 0,
-        status: 'uploading' as const,
+        status: "uploading" as const,
       }));
-      
+
       // Add new files to existing previews (cumulative)
-      setUploadingFilesPreviews(prev => [...prev, ...newFilePreviews]);
+      setUploadingFilesPreviews((prev) => [...prev, ...newFilePreviews]);
       setUploadingFiles(true);
 
       try {
         const uploadPromises = Array.from(files).map(async (file, index) => {
           const filePreviewId = newFilePreviews[index].id;
-          
+
           try {
             const formData = new FormData();
             formData.append("file", file);
@@ -137,11 +140,16 @@ export default function ChatBox({
 
             // Simulate progress updates (since we can't get real progress from fetch)
             const progressInterval = setInterval(() => {
-              setUploadingFilesPreviews(prev => prev.map(f => 
-                f.id === filePreviewId && f.progress < 90 
-                  ? { ...f, progress: Math.min(90, f.progress + Math.random() * 20) }
-                  : f
-              ));
+              setUploadingFilesPreviews((prev) =>
+                prev.map((f) =>
+                  f.id === filePreviewId && f.progress < 90
+                    ? {
+                        ...f,
+                        progress: Math.min(90, f.progress + Math.random() * 20),
+                      }
+                    : f
+                )
+              );
             }, 200);
 
             const response = await fetch(apiUrl, {
@@ -160,13 +168,15 @@ export default function ChatBox({
             }
 
             const result: FileUploadResult = await response.json();
-            
+
             // Update preview to completed
-            setUploadingFilesPreviews(prev => prev.map(f => 
-              f.id === filePreviewId 
-                ? { ...f, progress: 100, status: 'completed' as const }
-                : f
-            ));
+            setUploadingFilesPreviews((prev) =>
+              prev.map((f) =>
+                f.id === filePreviewId
+                  ? { ...f, progress: 100, status: "completed" as const }
+                  : f
+              )
+            );
 
             // Add to pending files
             const uploadedFile: UploadedFile = {
@@ -183,25 +193,27 @@ export default function ChatBox({
 
             // Add to pending files cumulatively
             setPendingFiles((prev) => [...prev, uploadedFile]);
-            
+
             return uploadedFile;
           } catch (error) {
             // Mark this file as errored
-            const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-            setUploadingFilesPreviews(prev => prev.map(f => 
-              f.id === filePreviewId 
-                ? { ...f, status: 'error' as const, error: errorMessage }
-                : f
-            ));
+            const errorMessage =
+              error instanceof Error ? error.message : "Upload failed";
+            setUploadingFilesPreviews((prev) =>
+              prev.map((f) =>
+                f.id === filePreviewId
+                  ? { ...f, status: "error" as const, error: errorMessage }
+                  : f
+              )
+            );
             throw error;
           }
         });
 
         await Promise.allSettled(uploadPromises);
-        
+
         // Keep completed uploads visible - they'll be cleared when message is sent
         // Don't automatically clear uploading previews
-        
       } catch (error) {
         console.error("Upload error:", error);
 
@@ -213,7 +225,7 @@ export default function ChatBox({
               "Server is not responding. Please try again in a few minutes.";
           }
         }
-        
+
         const errorMessage: Message = {
           id: Date.now(),
           type: "error",
@@ -260,15 +272,18 @@ export default function ChatBox({
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
 
-    if (e.dataTransfer?.files) {
-      const files = Array.from(e.dataTransfer.files);
-      await handleFilesUpload(files);
-    }
-  }, [handleFilesUpload]);
+      if (e.dataTransfer?.files) {
+        const files = Array.from(e.dataTransfer.files);
+        await handleFilesUpload(files);
+      }
+    },
+    [handleFilesUpload]
+  );
 
   // Set up drag and drop event listeners
   useEffect(() => {
@@ -532,7 +547,9 @@ export default function ChatBox({
 
   const clearAllFiles = () => {
     // Only clear if no files are currently uploading
-    const hasUploadingFiles = uploadingFilesPreviews.some(f => f.status === 'uploading');
+    const hasUploadingFiles = uploadingFilesPreviews.some(
+      (f) => f.status === "uploading"
+    );
     if (!hasUploadingFiles) {
       setPendingFiles([]);
       setUploadingFilesPreviews([]);
@@ -701,13 +718,14 @@ export default function ChatBox({
                         "Create customer analytics showing acquisition trends, retention rates, and lifetime value",
                     },
                   ].map((item, index) => (
-                    <button
+                    <Button
                       key={index}
+                      variant="outline"
+                      size="dashboard"
                       onClick={() => setInputValue(item.prompt)}
-                      className="px-4 py-2 bg-white/60 hover:bg-white/90 border border-slate-200/60 hover:border-slate-300/80 rounded-xl text-center transition-all duration-200 hover:shadow-sm text-sm font-medium text-slate-700 hover:text-slate-900"
                     >
                       {item.title}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -736,27 +754,35 @@ export default function ChatBox({
             // Only show "Annie is thinking..." when actively processing AND the last message
             // wasn't from the assistant. This prevents showing the thinking indicator
             // immediately after Annie has just responded or completed a task.
-            // 
+            //
             // Assistant messages are identified by:
             // - user_send_message: When Annie sends a response to the user
             // - completed_task: When Annie indicates a task has been completed
             const lastMessage = messages[messages.length - 1];
-            const isLastMessageFromAssistant = lastMessage?.type === 'event' && 
-              (lastMessage.event?.data?.tool_name === 'user_send_message' || 
-               lastMessage.event?.event_type === 'user_send_message' ||
-               lastMessage.event?.data?.tool_name === 'completed_task' || 
-               lastMessage.event?.event_type === 'completed_task');
-            
-            return (isLoading || uploadingFiles) && !isLastMessageFromAssistant ? (
+            const isLastMessageFromAssistant =
+              lastMessage?.type === "event" &&
+              (lastMessage.event?.data?.tool_name === "user_send_message" ||
+                lastMessage.event?.event_type === "user_send_message" ||
+                lastMessage.event?.data?.tool_name === "completed_task" ||
+                lastMessage.event?.event_type === "completed_task");
+
+            return (isLoading || uploadingFiles) &&
+              !isLastMessageFromAssistant ? (
               <div className="flex justify-start mb-4">
                 <div className="flex items-center space-x-2 px-4 py-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
                   <span className="text-sm text-slate-600">
-                    {currentActivity ? formatAgentMessage(currentActivity) : "Annie is thinking"}
+                    {currentActivity
+                      ? formatAgentMessage(currentActivity)
+                      : "Annie is thinking"}
                     <span className="inline-flex ml-1">
                       <span className="animate-pulse">.</span>
-                      <span className="animate-pulse [animation-delay:0.3s]">.</span>
-                      <span className="animate-pulse [animation-delay:0.6s]">.</span>
+                      <span className="animate-pulse [animation-delay:0.3s]">
+                        .
+                      </span>
+                      <span className="animate-pulse [animation-delay:0.6s]">
+                        .
+                      </span>
                     </span>
                   </span>
                 </div>
@@ -792,19 +818,36 @@ export default function ChatBox({
                     {(() => {
                       // Count unique files by avoiding duplicates between uploadingFilesPreviews and pendingFiles
                       const uniqueFiles = new Set([
-                        ...uploadingFilesPreviews.map(f => f.id),
-                        ...pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map(f => f.id)
+                        ...uploadingFilesPreviews.map((f) => f.id),
+                        ...pendingFiles
+                          .filter(
+                            (pf) =>
+                              !uploadingFilesPreviews.some(
+                                (upf) => upf.id === pf.id
+                              )
+                          )
+                          .map((f) => f.id),
                       ]);
                       return uniqueFiles.size;
-                    })()} attachment
+                    })()}{" "}
+                    attachment
                     {(() => {
                       const uniqueFiles = new Set([
-                        ...uploadingFilesPreviews.map(f => f.id),
-                        ...pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map(f => f.id)
+                        ...uploadingFilesPreviews.map((f) => f.id),
+                        ...pendingFiles
+                          .filter(
+                            (pf) =>
+                              !uploadingFilesPreviews.some(
+                                (upf) => upf.id === pf.id
+                              )
+                          )
+                          .map((f) => f.id),
                       ]);
                       return uniqueFiles.size !== 1 ? "s" : "";
                     })()}
-                    {uploadingFilesPreviews.some(f => f.status === 'uploading') && (
+                    {uploadingFilesPreviews.some(
+                      (f) => f.status === "uploading"
+                    ) && (
                       <span className="ml-2 text-slate-600">
                         <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
                         Uploading...
@@ -814,8 +857,16 @@ export default function ChatBox({
                   <button
                     onClick={clearAllFiles}
                     className="text-sm text-slate-500 hover:text-slate-700 transition-colors flex items-center font-medium"
-                    disabled={uploadingFilesPreviews.some(f => f.status === 'uploading')}
-                    title={uploadingFilesPreviews.some(f => f.status === 'uploading') ? "Wait for uploads to complete" : "Clear all files"}
+                    disabled={uploadingFilesPreviews.some(
+                      (f) => f.status === "uploading"
+                    )}
+                    title={
+                      uploadingFilesPreviews.some(
+                        (f) => f.status === "uploading"
+                      )
+                        ? "Wait for uploads to complete"
+                        : "Clear all files"
+                    }
                   >
                     <X className="w-4 h-4 mr-1" />
                     Clear
@@ -830,22 +881,28 @@ export default function ChatBox({
                         className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
                       >
                         {/* Progress background for uploading files */}
-                        {file.status === 'uploading' && (
-                          <div 
+                        {file.status === "uploading" && (
+                          <div
                             className="absolute inset-0 bg-slate-100/40 transition-all duration-300"
                             style={{ width: `${file.progress}%` }}
                           />
                         )}
                         {/* Completed background */}
-                        {file.status === 'completed' && (
+                        {file.status === "completed" && (
                           <div className="absolute inset-0 bg-slate-50/60" />
                         )}
-                        
+
                         <div className="relative z-10 flex items-center space-x-2">
-                          {file.status === 'uploading' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
-                          {file.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-slate-600" />}
-                          {file.status === 'error' && <AlertCircle className="w-4 h-4 text-slate-500" />}
-                          
+                          {file.status === "uploading" && (
+                            <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                          )}
+                          {file.status === "completed" && (
+                            <CheckCircle2 className="w-4 h-4 text-slate-600" />
+                          )}
+                          {file.status === "error" && (
+                            <AlertCircle className="w-4 h-4 text-slate-500" />
+                          )}
+
                           <div className="flex flex-col min-w-0">
                             <span className="text-slate-800 font-semibold truncate max-w-[140px]">
                               {file.name}
@@ -854,32 +911,39 @@ export default function ChatBox({
                               <span className="text-slate-500 text-xs">
                                 {formatFileSize(file.size)}
                               </span>
-                              {file.status === 'uploading' && (
+                              {file.status === "uploading" && (
                                 <span className="text-slate-600 text-xs font-medium">
                                   {Math.round(file.progress)}%
                                 </span>
                               )}
-                              {file.status === 'completed' && (
+                              {file.status === "completed" && (
                                 <span className="text-slate-600 text-xs font-medium">
                                   Ready
                                 </span>
                               )}
-                              {file.status === 'error' && (
-                                <span className="text-slate-500 text-xs font-medium" title={file.error}>
+                              {file.status === "error" && (
+                                <span
+                                  className="text-slate-500 text-xs font-medium"
+                                  title={file.error}
+                                >
                                   Failed
                                 </span>
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Only show remove button if not uploading */}
-                          {file.status !== 'uploading' && (
+                          {file.status !== "uploading" && (
                             <button
                               onClick={() => {
                                 // Remove from upload previews
-                                setUploadingFilesPreviews(prev => prev.filter(f => f.id !== file.id));
+                                setUploadingFilesPreviews((prev) =>
+                                  prev.filter((f) => f.id !== file.id)
+                                );
                                 // Also remove from pending files if it exists there
-                                setPendingFiles(prev => prev.filter(f => f.id !== file.id));
+                                setPendingFiles((prev) =>
+                                  prev.filter((f) => f.id !== file.id)
+                                );
                               }}
                               className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1 rounded-lg hover:bg-slate-100"
                               title="Remove"
@@ -891,31 +955,36 @@ export default function ChatBox({
                       </div>
                     );
                   })}
-                  
+
                   {/* Show pending files that are not in upload previews */}
-                  {pendingFiles.filter(pf => !uploadingFilesPreviews.some(upf => upf.id === pf.id)).map((file) => (
-                    <div
-                      key={`pending-${file.id}`}
-                      className="group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm hover:bg-white transition-all duration-200 hover:shadow-md"
-                    >
-                      {getFileIcon(file.filename)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-slate-800 font-semibold truncate max-w-[140px]">
-                          {file.filename}
-                        </span>
-                        <span className="text-slate-500 text-xs">
-                          {formatFileSize(file.size)}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => removePendingFile(file.id)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1 rounded-lg hover:bg-slate-100"
-                        title="Remove"
+                  {pendingFiles
+                    .filter(
+                      (pf) =>
+                        !uploadingFilesPreviews.some((upf) => upf.id === pf.id)
+                    )
+                    .map((file) => (
+                      <div
+                        key={`pending-${file.id}`}
+                        className="group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm hover:bg-white transition-all duration-200 hover:shadow-md"
                       >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                        {getFileIcon(file.filename)}
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-slate-800 font-semibold truncate max-w-[140px]">
+                            {file.filename}
+                          </span>
+                          <span className="text-slate-500 text-xs">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removePendingFile(file.id)}
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1 rounded-lg hover:bg-slate-100"
+                          title="Remove"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}
@@ -971,15 +1040,25 @@ export default function ChatBox({
               </div>
 
               {/* Send button */}
-              <button
+              <Button
                 onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading || isInitialLoading || uploadingFilesPreviews.length > 0}
-                className="p-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-2xl transition-all duration-300 disabled:cursor-not-allowed shadow-lg hover:shadow-2xl transform hover:scale-[1.03] active:scale-[0.97] group relative overflow-hidden"
-                title={uploadingFilesPreviews.length > 0 ? "Wait for files to finish uploading" : "Send message"}
+                disabled={
+                  !inputValue.trim() ||
+                  isLoading ||
+                  isInitialLoading ||
+                  uploadingFilesPreviews.length > 0
+                }
+                variant="send"
+                size="send"
+                title={
+                  uploadingFilesPreviews.length > 0
+                    ? "Wait for files to finish uploading"
+                    : "Send message"
+                }
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 to-slate-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <Send className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300 relative z-10" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>
