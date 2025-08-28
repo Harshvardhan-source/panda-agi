@@ -335,24 +335,20 @@ export default function ChatBox({
     [handleFilesUpload]
   );
 
-  // Set up drag and drop event listeners
+  // Set up global drag and drop event listeners
   useEffect(() => {
-    const dropZone = dropZoneRef.current;
-    if (dropZone) {
-      dropZone.addEventListener("dragover", handleDragOver);
-      dropZone.addEventListener("dragenter", handleDragEnter);
-      dropZone.addEventListener("dragleave", handleDragLeave);
-      dropZone.addEventListener("drop", handleDrop);
-    }
+    // Add event listeners to the document to handle drops anywhere on the page
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("dragenter", handleDragEnter);
+    document.addEventListener("dragleave", handleDragLeave);
+    document.addEventListener("drop", handleDrop);
 
     // Cleanup
     return () => {
-      if (dropZone) {
-        dropZone.removeEventListener("dragover", handleDragOver);
-        dropZone.removeEventListener("dragenter", handleDragEnter);
-        dropZone.removeEventListener("dragleave", handleDragLeave);
-        dropZone.removeEventListener("drop", handleDrop);
-      }
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("dragenter", handleDragEnter);
+      document.removeEventListener("dragleave", handleDragLeave);
+      document.removeEventListener("drop", handleDrop);
     };
   }, [handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
 
