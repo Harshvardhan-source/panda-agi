@@ -74,7 +74,7 @@ async def get_api_key(auth_token: str) -> str | None:
         logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
         raise HTTPException(
             status_code=503,
-            detail=f"Sservice unavailable. Please try again later.",
+            detail=f"Service unavailable. Please try again later.",
         )
     except Exception as e:
         # Other unexpected errors
