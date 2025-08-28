@@ -42,6 +42,7 @@ interface ChatBoxProps {
   sidebarWidth: number;
   isInitialLoading?: boolean;
   initialQuery?: string | null;
+  onCreditsRefetch?: () => Promise<void>;
 }
 
 export default function ChatBox({
@@ -55,6 +56,7 @@ export default function ChatBox({
   sidebarWidth,
   isInitialLoading = false,
   initialQuery = null,
+  onCreditsRefetch,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -467,59 +469,9 @@ export default function ChatBox({
               isCollectingEvent = false;
 
               // Process the complete event
+              let eventData;
               try {
-                const eventData = JSON.parse(eventBuffer);
-
-                // Validate that eventData has the expected structure
-                if (eventData && typeof eventData === "object") {
-                  // Handle conversation_started event
-                  if (
-                    eventData.data &&
-                    eventData.data.type === "conversation_started" &&
-                    eventData.data.payload &&
-                    eventData.data.payload.conversation_id
-                  ) {
-                    setConversationId(eventData.data.payload.conversation_id);
-                    continue; // Don't add this as a visible message
-                  }
-
-                  // Check for any errors in user_notification or error events
-                  if (
-                    (eventData.data &&
-                      eventData.data.type === "user_notification" &&
-                      eventData.data.payload &&
-                      eventData.data.payload.error) ||
-                    (eventData.data && eventData.data.type === "error")
-                  ) {
-                    // Set loading to false for any error event
-                    setIsLoading(false);
-                  }
-
-                  // Check if tool calling is to start
-                  if (eventData.data && eventData.event_type === "tool_start") {
-                    // Tool started - update current activity
-                    const toolName = eventData.data.tool_name || "";
-                    setCurrentActivity(toolName);
-                    continue;
-                  }
-
-                  // Check if tool call has ended
-                  if (eventData.data && eventData.event_type === "tool_end") {
-                    // Tool ended - clear current activity after a brief delay
-                    setTimeout(() => setCurrentActivity(""), 500);
-                  }
-
-                  const message: Message = {
-                    id: Date.now() + Math.random(),
-                    type: "event",
-                    event: eventData,
-                    timestamp: new Date().toISOString(),
-                  };
-
-                  setMessages((prev) => [...prev, message]);
-                } else {
-                  console.warn("Received malformed event data:", eventData);
-                }
+                eventData = JSON.parse(eventBuffer);
               } catch (e) {
                 console.error(
                   "Error parsing event data:",
@@ -527,6 +479,71 @@ export default function ChatBox({
                   "Data:",
                   eventBuffer
                 );
+                continue;
+              }
+
+              // Validate that eventData has the expected structure
+              if (eventData && typeof eventData === "object") {
+                // Handle conversation_started event
+                if (
+                  eventData.data &&
+                  eventData.data.type === "conversation_started" &&
+                  eventData.data.payload &&
+                  eventData.data.payload.conversation_id
+                ) {
+                  setConversationId(eventData.data.payload.conversation_id);
+                  continue; // Don't add this as a visible message
+                }
+
+                // Check for any errors in user_notification or error events
+                if (
+                  (eventData.data &&
+                    eventData.data.type === "user_notification" &&
+                    eventData.data.payload &&
+                    eventData.data.payload.error) ||
+                  (eventData.data && eventData.data.type === "error")
+                ) {
+                  // Set loading to false for any error event
+                  setIsLoading(false);
+                }
+
+                // Check if tool calling is to start
+                if (eventData.data && eventData.event_type === "tool_start") {
+                  // Tool started - update current activity
+                  const toolName = eventData.data.tool_name || "";
+                  setCurrentActivity(toolName);
+                  continue;
+                }
+
+                // Check if tool call has ended
+                if (eventData.data && eventData.event_type === "tool_end") {
+                  // Tool ended - clear current activity after a brief delay
+                  setTimeout(() => setCurrentActivity(""), 500);
+                }
+
+                // Check if conversation is completed
+                if (
+                  eventData.data && (eventData.data.tool_name === "completed_task" || ['exception', 'error'].includes(eventData.data.event_type) )
+                ) {
+                  // Conversation completed - refetch credits
+                  if (onCreditsRefetch) {
+                    // Call the function and handle the promise properly
+                    onCreditsRefetch().catch((error) => {
+                      console.error("Failed to refetch credits:", error);
+                    });
+                  }
+                }
+
+                const message: Message = {
+                  id: Date.now() + Math.random(),
+                  type: "event",
+                  event: eventData,
+                  timestamp: new Date().toISOString(),
+                };
+
+                setMessages((prev) => [...prev, message]);
+              } else {
+                console.warn("Received malformed event data:", eventData);
               }
             } else {
               // Event continues beyond this chunk

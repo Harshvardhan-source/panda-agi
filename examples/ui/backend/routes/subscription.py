@@ -6,6 +6,7 @@ import aiohttp
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Request
 import os
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -51,6 +52,42 @@ class PortalRequest(BaseModel):
     check_availability: Optional[bool] = Field(
         None, description="Whether to check availability of the subscription"
     )
+
+
+class UserCreditsResponse(BaseModel):
+    """Response model for user credits"""
+
+    id: str
+    user_id: str
+    total_credits: int
+    credits_left: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@router.get("/user/credits", response_model=UserCreditsResponse)
+async def get_user_credits(request: Request):
+    """Get the current user's credits"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized access")
+
+    async with aiohttp.ClientSession() as session:
+        headers = {"X-API-KEY": f"{api_key}"}
+
+        async with session.get(
+            f"{PANDA_AGI_SERVER_URL}/user/credits",
+            headers=headers,
+        ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="Failed to fetch user credits"
+                )
+
+            return await resp.json()
 
 
 @router.post("/create-customer-portal")
