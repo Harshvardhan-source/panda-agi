@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +11,21 @@ import {
   ArtifactsListResponse,
 } from "@/lib/api/artifacts";
 import { format } from "date-fns";
-import { Trash2, Edit, Globe, Share2 } from "lucide-react";
+import {
+  Trash2,
+  Edit,
+  Share2,
+  Search,
+  BarChart3,
+  Eye,
+  Grid3x3,
+  List,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import ArtifactViewer from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
 import EditNameDialog from "@/components/edit-name-dialog";
+import ShareModal from "@/components/share-modal";
 import Header from "@/components/header";
 import { useRouter } from "next/navigation";
 import UpgradeModal from "@/components/upgrade-modal";
@@ -28,7 +37,15 @@ export default function CreationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10);
+  const [limit] = useState(12);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<"name" | "created_at" | "is_public">(
+    "created_at"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "public" | "private"
+  >("all");
   const [deletingArtifact, setDeletingArtifact] = useState<string | null>(null);
   const [updatingArtifact, setUpdatingArtifact] = useState<string | null>(null);
 
@@ -51,13 +68,16 @@ export default function CreationsPage() {
   // Upgrade modal state
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  // Share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [artifactToShare, setArtifactToShare] = useState<ArtifactResponse | null>(null);
+
   // Router for navigation
   const router = useRouter();
 
   useEffect(() => {
     fetchArtifacts();
   }, [currentPage]);
-
 
   const fetchArtifacts = async () => {
     try {
@@ -170,6 +190,11 @@ export default function CreationsPage() {
         )
       );
 
+      // Update the artifact in share modal state if it's the same one
+      if (artifactToShare && artifactToShare.id === artifact.id) {
+        setArtifactToShare({ ...artifactToShare, is_public: updatedArtifact.is_public });
+      }
+
       const status = updatedArtifact.is_public ? "public" : "private";
       toast.success(`Creation made ${status} successfully!`);
     } catch (err) {
@@ -178,34 +203,20 @@ export default function CreationsPage() {
           ? err.message
           : "Failed to update creation visibility";
       toast.error(errorMessage);
+      throw err; // Re-throw for share modal to handle
     } finally {
       setUpdatingArtifact(null);
     }
   };
 
-  const handleCopyShareLink = async (artifact: ArtifactResponse) => {
-    if (!artifact.is_public) {
-      toast.error("Creation must be public to share");
-      return;
-    }
+  const handleShareClick = (artifact: ArtifactResponse) => {
+    setArtifactToShare(artifact);
+    setShareModalOpen(true);
+  };
 
-    const shareUrl = `${window.location.origin}/creations/${
-      artifact.id
-    }/${encodeURIComponent(artifact.filepath)}`;
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied to clipboard!");
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea");
-      textArea.value = shareUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      toast.success("Share link copied to clipboard!");
-    }
+  const handleShareModalClose = () => {
+    setShareModalOpen(false);
+    setArtifactToShare(null);
   };
 
   const handleEditCancel = () => {
@@ -214,9 +225,42 @@ export default function CreationsPage() {
     setUpdatingArtifact(null);
   };
 
-  const filteredArtifacts = artifacts.filter((artifact) =>
-    artifact.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedArtifacts = artifacts
+    .filter((artifact) => {
+      const matchesSearch = artifact.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        filterStatus === "all" ||
+        (filterStatus === "public" && artifact.is_public) ||
+        (filterStatus === "private" && !artifact.is_public);
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      let aValue, bValue;
+      switch (sortBy) {
+        case "name":
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case "created_at":
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case "is_public":
+          aValue = a.is_public ? 1 : 0;
+          bValue = b.is_public ? 1 : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
 
   const formatDate = (dateString: string) => {
     try {
@@ -238,7 +282,7 @@ export default function CreationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header
           onUpgradeClick={() => setShowUpgradeModal(true)}
           onShowLogin={() => {}}
@@ -248,67 +292,37 @@ export default function CreationsPage() {
           subtitle="View and manage your saved creations"
         />
 
-        {/* Main content with top padding for fixed header */}
-        <div className="pt-24 px-6">
-          <div className="max-w-5xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle>Creations</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <div className="w-64 h-9 bg-gray-200 rounded-md animate-pulse"></div>
+        <div className="pt-32 px-6">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Search skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-64 h-9 bg-muted rounded-md animate-pulse"></div>
+                <div className="w-20 h-9 bg-muted rounded-md animate-pulse"></div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
+                <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
+              </div>
+            </div>
+
+            {/* Content skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className="space-y-3">
+                  <div className="aspect-video bg-muted rounded-lg animate-pulse flex items-center justify-center">
+                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded animate-pulse" />
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 bg-muted rounded-full animate-pulse" />
+                      <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                    </div>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700">
-                          Name
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-24">
-                          Status
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-32">
-                          Date Saved
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-48">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...Array(5)].map((_, index) => (
-                        <tr key={index} className="border-b border-gray-100">
-                          <td className="py-3 px-6">
-                            <div className="w-48 h-4 bg-gray-200 rounded animate-pulse"></div>
-                          </td>
-                          <td className="py-3 px-6">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-gray-200 rounded-full animate-pulse"></div>
-                              <div className="w-12 h-3 bg-gray-200 rounded animate-pulse"></div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-6">
-                            <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
-                          </td>
-                          <td className="py-3 px-6">
-                            <div className="flex items-center space-x-1">
-                              {[...Array(4)].map((_, actionIndex) => (
-                                <div
-                                  key={actionIndex}
-                                  className="w-8 h-8 bg-gray-200 rounded-md animate-pulse"
-                                ></div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -317,7 +331,7 @@ export default function CreationsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header
           onUpgradeClick={() => setShowUpgradeModal(true)}
           onShowLogin={() => {}}
@@ -327,31 +341,27 @@ export default function CreationsPage() {
           subtitle="View and manage your saved creations"
         />
 
-        {/* Main content with top padding for fixed header */}
-        <div className="pt-24 px-6">
-          <div className="max-w-5xl mx-auto">
-            <Card>
-              <CardContent>
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <div className="text-red-500 mb-2">
-                      Error loading creations
-                    </div>
-                    <div className="text-gray-600 text-sm mb-4">{error}</div>
-                    <Button
-                      onClick={() => {
-                        setError(null);
-                        fetchArtifacts();
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Try Again
-                    </Button>
-                  </div>
+        <div className="pt-32 px-6">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Error state */}
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="text-red-500 mb-2">Error loading creations</div>
+                <div className="text-muted-foreground text-sm mb-4">
+                  {error}
                 </div>
-              </CardContent>
-            </Card>
+                <Button
+                  onClick={() => {
+                    setError(null);
+                    fetchArtifacts();
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Try Again
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -359,7 +369,7 @@ export default function CreationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <Header
         onUpgradeClick={() => setShowUpgradeModal(true)}
         onShowLogin={() => {}}
@@ -367,198 +377,279 @@ export default function CreationsPage() {
         onNewConversation={() => router.push("/")}
         title="My Creations"
         subtitle="View and manage your saved creations"
+        variant="page"
       />
 
-      {/* Main content with top padding for fixed header */}
-      <div className="pt-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Creations</CardTitle>
-              <div className="flex items-center space-x-2">
+      <div className="pt-32 px-6">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Search and filters */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search creations..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
+                  className="pl-10"
                 />
               </div>
-            </CardHeader>
-            <CardContent>
-              {filteredArtifacts.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No creations found
+              <select
+                value={filterStatus}
+                onChange={(e) =>
+                  setFilterStatus(
+                    e.target.value as "all" | "public" | "private"
+                  )
+                }
+                className="px-3 py-2 text-sm border rounded-md bg-background"
+              >
+                <option value="all">All</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === "grid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div>
+            {filteredAndSortedArtifacts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="h-16 w-16 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700">
-                          Name
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-24">
-                          Status
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-32">
-                          Date Saved
-                        </th>
-                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-48">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredArtifacts.map((artifact) => (
-                        <tr
-                          key={artifact.id}
-                          className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-150"
-                        >
-                          <td className="py-3 px-6">
-                            <div className="max-w-xs">
-                              <div
-                                className="font-medium text-gray-900 truncate"
+                <h3 className="font-semibold text-foreground mb-2">
+                  No creations found
+                </h3>
+                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                  {searchTerm || filterStatus !== "all"
+                    ? "Try adjusting your search or filters to find what you're looking for."
+                    : "Create your first dashboard in a conversation to see it here."}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Grid view */}
+                {viewMode === "grid" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredAndSortedArtifacts.map((artifact) => (
+                      <div key={artifact.id} className="group">
+                        <div className="bg-card border rounded-xl p-5 hover:shadow-lg transition-all duration-200 hover:border-border">
+                          {/* Thumbnail */}
+                          <div
+                            className="aspect-video bg-gradient-to-br from-muted/50 to-muted rounded-lg mb-4 flex items-center justify-center cursor-pointer group-hover:from-muted/70 group-hover:to-muted/90 transition-all duration-200"
+                            onClick={() => handleViewArtifact(artifact)}
+                          >
+                            <BarChart3 className="h-10 w-10 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors duration-200" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <h3
+                                className="font-semibold text-foreground truncate text-base leading-5"
                                 title={artifact.name}
                               >
                                 {artifact.name}
+                              </h3>
+
+                              <div className="flex items-center gap-2">
+                                {artifact.is_public ? (
+                                  <>
+                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                    <span className="text-xs font-medium text-green-700">
+                                      Public
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      Private
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
-                          </td>
-                          <td className="py-3 px-6">
-                            <div className="flex items-center space-x-2">
-                              {artifact.is_public ? (
-                                <>
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="text-green-700 text-xs font-medium">
-                                    Public
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                  <span className="text-gray-600 text-xs font-medium">
-                                    Private
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-6 text-gray-600 text-sm">
-                            {formatDate(artifact.created_at)}
-                          </td>
-                          <td className="py-3 px-6">
-                            <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handleViewArtifact(artifact)}
-                                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-150"
-                                title="View"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                  />
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                  />
-                                </svg>
-                              </button>
 
-                              <button
+                            <div className="text-xs text-muted-foreground">
+                              {formatDate(artifact.created_at)}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60">
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewArtifact(artifact)}
+                                className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleEditClick(artifact)}
                                 disabled={updatingArtifact === artifact.id}
-                                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Edit"
+                                className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
                               >
-                                <Edit className="w-4 h-4" />
-                              </button>
-
-                              {artifact.is_public && (
-                                <button
-                                  onClick={() => handleCopyShareLink(artifact)}
-                                  className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors duration-150"
-                                  title="Share"
-                                >
-                                  <Share2 className="w-4 h-4" />
-                                </button>
-                              )}
-
-                              <button
-                                onClick={() => handleTogglePublic(artifact)}
-                                disabled={updatingArtifact === artifact.id}
-                                className={`p-2 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                  artifact.is_public
-                                    ? "text-gray-600 hover:text-orange-600 hover:bg-orange-50"
-                                    : "text-gray-600 hover:text-green-600 hover:bg-green-50"
-                                }`}
-                                title={
-                                  artifact.is_public
-                                    ? "Make Private"
-                                    : "Make Public"
-                                }
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleShareClick(artifact)}
+                                className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
+                                title="Share creation"
                               >
-                                <Globe className="w-4 h-4" />
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteClick(artifact)}
-                                disabled={deletingArtifact === artifact.id}
-                                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                                <Share2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(artifact)}
+                              disabled={deletingArtifact === artifact.id}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <div className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
+                {/* List view */}
+                {viewMode === "list" && (
+                  <div className="space-y-3">
+                    {filteredAndSortedArtifacts.map((artifact) => (
+                      <div
+                        key={artifact.id}
+                        className="flex items-center justify-between p-5 bg-card border rounded-xl hover:shadow-md hover:border-border transition-all duration-200"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="h-12 w-12 bg-gradient-to-br from-muted/50 to-muted rounded-lg flex items-center justify-center">
+                            <BarChart3 className="h-6 w-6 text-muted-foreground/70" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="font-semibold text-foreground">
+                              {artifact.name}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                {artifact.is_public ? (
+                                  <>
+                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                    <span className="font-medium text-green-700">
+                                      Public
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
+                                    <span className="font-medium">Private</span>
+                                  </>
+                                )}
+                              </div>
+                              <span>{formatDate(artifact.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewArtifact(artifact)}
+                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(artifact)}
+                            disabled={updatingArtifact === artifact.id}
+                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleShareClick(artifact)}
+                            className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
+                            title="Share creation"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(artifact)}
+                            disabled={deletingArtifact === artifact.id}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage(Math.min(totalPages, currentPage + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-6">
+                    <div className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage(Math.max(1, currentPage - 1))
+                        }
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -585,10 +676,19 @@ export default function CreationsPage() {
         isOpen={editDialogOpen}
         onClose={handleEditCancel}
         onConfirm={handleEditConfirm}
-        title="Edit Creation Name"
+        title="Edit creation name"
         description="Enter a new name for this creation."
         currentName={artifactToEdit?.name || ""}
         isLoading={updatingArtifact === artifactToEdit?.id}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={handleShareModalClose}
+        artifact={artifactToShare}
+        onTogglePublic={handleTogglePublic}
+        isUpdating={updatingArtifact === artifactToShare?.id}
       />
 
       {/* Upgrade Modal */}

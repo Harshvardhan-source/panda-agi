@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Panda AGI",
-  description: "AI Agent that does everything",
+  title: "Annie",
+  description: "Your personal AI assistant for data analysis and insights",
 };
 
 export default function RootLayout({
@@ -34,20 +34,20 @@ export default function RootLayout({
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#363636',
-              color: '#fff',
+              background: "#363636",
+              color: "#fff",
             },
             success: {
               duration: 3000,
               style: {
-                background: '#10b981',
+                background: "#10b981",
               },
             },
             error: {
               duration: 3000,
               style: {
-                background: '#fff',
-                color: '#000',
+                background: "#fff",
+                color: "#000",
               },
             },
           }}
