@@ -329,7 +329,7 @@ async def serve_artifact_file(
     # Determine if this is a public or private artifact based on API key presence
     is_public = api_key is None
 
-    # Get base artifact URL to set_path in the markdown html response
+    # Get base artifact URL for setting the path in the markdown HTML response
     base_source_url = f"{PANDA_CHAT_CLIENT_URL}/creations/{artifact_id}"
 
     try:
