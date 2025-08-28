@@ -5,9 +5,12 @@ Authentication middleware for the PandaAGI SDK API.
 import os
 import json
 import aiohttp
-from fastapi import Request
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import logging
+
+logger = logging.getLogger(__name__)
 
 PANDA_AGI_SERVER_URL = (
     os.environ.get("PANDA_AGI_BASE_URL") or "https://agi-api.pandas-ai.com"
@@ -52,19 +55,33 @@ async def get_api_key(auth_token: str) -> str | None:
     Get the API key based on the auth token.
     """
 
-    async with aiohttp.ClientSession() as session:
-        # Pass the auth token in X-Authorization header
-        headers = {"X-Authorization": f"Bearer {auth_token}"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Pass the auth token in X-Authorization header
+            headers = {"X-Authorization": f"Bearer {auth_token}"}
 
-        async with session.get(
-            f"{PANDA_AGI_SERVER_URL}/auth/api-keys", headers=headers
-        ) as resp:
-            response = await resp.json()
+            async with session.get(
+                f"{PANDA_AGI_SERVER_URL}/auth/api-keys", headers=headers
+            ) as resp:
+                response = await resp.json()
 
-            if len(response.get("api_keys", [])) > 0:
-                return response["api_keys"][0].get("key")
-            else:
-                return None
+                if len(response.get("api_keys", [])) > 0:
+                    return response["api_keys"][0].get("key")
+                else:
+                    return None
+    except aiohttp.ClientConnectorError as e:
+        # Backend server is not reachable
+        logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Sservice unavailable. Please try again later.",
+        )
+    except Exception as e:
+        # Other unexpected errors
+        logger.error(f"Unexpected error while getting API key: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error while authenticating"
+        )
 
     return None
 
@@ -120,13 +137,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         api_key = os.getenv("PANDA_AGI_KEY", None)
 
         if not api_key and auth_token:
-            api_key = await get_api_key(auth_token)
-            if not api_key:
+            try:
+                api_key = await get_api_key(auth_token)
+                if not api_key:
+                    return JSONResponse(
+                        status_code=401,
+                        content={
+                            "error": "Invalid authorization",
+                            "detail": "Invalid Authorization token",
+                        },
+                    )
+            except HTTPException as e:
                 return JSONResponse(
-                    status_code=401,
+                    status_code=e.status_code,
                     content={
-                        "error": "Invalid authorization",
-                        "detail": "Invalid Authorization token",
+                        "error": "Authentication service error",
+                        "detail": e.detail,
                     },
                 )
 

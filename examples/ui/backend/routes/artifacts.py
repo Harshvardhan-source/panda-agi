@@ -393,6 +393,20 @@ async def serve_artifact_file(
 
     except HTTPException as e:
         raise e
+    except aiohttp.ClientConnectorError as e:
+        logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
+        if should_return_html(request.headers.get("accept")):
+            html_content = generate_error_page_html(
+                503,
+                f"Service unavailable. Please try again later.",
+            )
+            return Response(
+                content=html_content, media_type="text/html", status_code=503
+            )
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service unavailable. Please try again later.",
+        )
     except Exception as e:
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
         # Check if client accepts HTML
