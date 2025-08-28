@@ -92,6 +92,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
+        is_artifact_route = request.url.path.startswith("/artifacts/serve/")
+
         # Check for X-Authorization header first
         auth_header = request.headers.get("x-authorization")
         auth_token = None
@@ -127,6 +129,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "detail": "Invalid Authorization token",
                     },
                 )
+
+        # For artifact serve routes, allow the request to proceed even without API key
+        # The route handler will determine if it's public or private access
+        if is_artifact_route:
+            # Add the API key to request state (may be None for public access)
+            request.state.api_key = api_key
+            return await call_next(request)
 
         # If no API key found, return authorization error
         if not api_key and request.method != "OPTIONS":

@@ -15,16 +15,12 @@ const nextConfig: NextConfig = {
   //   ];
   // },
   
-  // Proxy configuration for public artifacts
+  // Proxy configuration for artifacts
   async rewrites() {
     return [
       {
-        source: '/creations/share/:artifact_id/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/artifacts/public/:artifact_id/:path*`,
-      },
-      {
-        source: '/creations/private/:artifact_id/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/artifacts/:artifact_id/:path*`,
+        source: '/creations/:artifact_id/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/artifacts/serve/:artifact_id/:path*`,
       }
     ];
   },
