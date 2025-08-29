@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Save, Loader2 } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
