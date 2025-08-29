@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Save } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -90,8 +90,16 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         filepath: previewData.url || previewData.filename || ""
       });
       
-      if (response.suggested_name && response.suggested_name !== "New Creation") {
+      if (response.suggested_name ) {
         setArtifactName(response.suggested_name);
+        // Select all text after setting the value
+        setTimeout(() => {
+          const input = document.getElementById('artifact-name') as HTMLInputElement;
+          if (input) {
+            input.select();
+            input.focus();
+          }
+        }, 100);
       }
     } catch (error) {
       console.error("Name suggestion error:", error);
@@ -126,13 +134,15 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
             <Label htmlFor="artifact-name" className="text-right">
               Name
             </Label>
-            <div className="col-span-3">
+            <div className="col-span-3 relative">
               <Input
                 id="artifact-name"
                 value={artifactName}
                 onChange={(e) => setArtifactName(e.target.value)}
-                className="w-full"
-                placeholder="Enter creation name..."
+                className={`w-full transition-all duration-200 ${
+                  isSuggestingName ? 'pr-32 bg-gray-50 border-blue-200' : ''
+                }`}
+                placeholder={isSuggestingName ? "Generating AI suggestion..." : "Enter creation name..."}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleSaveArtifact();
@@ -140,6 +150,12 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
                 }}
                 disabled={isSuggestingName}
               />
+              {isSuggestingName && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md animate-in fade-in-0 slide-in-from-right-2 duration-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">AI generating...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

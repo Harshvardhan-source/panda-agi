@@ -64,7 +64,7 @@ class ArtifactsService:
 
             # Create a prompt for name suggestion
             prompt = f"""
-Based on the following file content, suggest a concise, descriptive name (max 50 characters) for this creation.
+Based on the following file content, suggest a concise, descriptive name for this creation.
 
 File Path: {filepath}
 
@@ -73,19 +73,17 @@ File Content:
 
 Instructions:
 - Create a name that reflects the main topic, purpose, or content of the file
-- Keep it under 50 characters
 - Make it descriptive but concise
 - Avoid generic names like "Document" or "File"
-- If it's a markdown file, focus on the main topic or title
-- If it's an iframe/website, focus on the main functionality or purpose
 - Don't add the file extension to the name
+- Only first letter of the name should be capitalized
 
 Suggested name:"""
 
             # Call OpenAI API
             client = openai.AsyncOpenAI(api_key=openai_api_key)
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-nano",
                 messages=[
                     {
                         "role": "system",
