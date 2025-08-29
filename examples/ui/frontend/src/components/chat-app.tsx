@@ -6,8 +6,10 @@ import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
 import Header, { HeaderRef } from "@/components/header";
 import LoginModal from "@/components/login-modal";
+import SessionExpiredPopup from "@/components/session-expired-popup";
 import PageLayout, { useLogout } from "@/components/page-layout";
 import { getFileType } from "@/lib/utils";
+import { useInactivityTimer } from "@/hooks/useInactivityTimer";
 
 interface ChatAppProps {
   isInitializing?: boolean;
@@ -31,6 +33,9 @@ function ChatApp({
 
   // Use the reusable logout hook
   const { handleShowLogout } = useLogout();
+
+  // Use the inactivity timer hook
+  const { showInactivityPopup, setShowInactivityPopup, trackUserMessage } = useInactivityTimer();
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -138,6 +143,7 @@ function ChatApp({
             onCreditsRefetch={async () => {
               headerRef.current?.refreshCredits();
             }}
+            onUserMessage={trackUserMessage}
           />
         </div>
 
@@ -168,6 +174,9 @@ function ChatApp({
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
         />
+
+        {/* Session Expired Popup */}
+        <SessionExpiredPopup isOpen={showInactivityPopup} />
       </div>
     </PageLayout>
   );

@@ -44,6 +44,7 @@ interface ChatBoxProps {
   isInitialLoading?: boolean;
   initialQuery?: string | null;
   onCreditsRefetch?: () => Promise<void>;
+  onUserMessage?: () => void;
 }
 
 export default function ChatBox({
@@ -58,6 +59,7 @@ export default function ChatBox({
   isInitialLoading = false,
   initialQuery = null,
   onCreditsRefetch,
+  onUserMessage,
 }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -415,6 +417,9 @@ export default function ChatBox({
     setPendingFiles([]); // Clear pending files
     setUploadingFilesPreviews([]); // Clear upload previews when message is sent
     setIsLoading(true);
+
+    // Track user activity for inactivity timer
+    onUserMessage?.();
 
     try {
       const apiUrl = getBackendServerURL("/agent/run");

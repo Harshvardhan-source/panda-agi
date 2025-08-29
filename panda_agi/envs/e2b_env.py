@@ -104,7 +104,7 @@ class E2BEnv(BaseEnv):
 
     @staticmethod
     async def get_active_sandbox(
-        metadata: Optional[Dict[str, Any]] = None, timeout: int = 1800
+        metadata: Optional[Dict[str, Any]] = None, timeout: int = 3600
     ):
         if AsyncSandbox is None:
             raise ImportError(
