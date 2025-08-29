@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button } from "./ui/button";
 
 interface SessionExpiredPopupProps {
   isOpen: boolean;
@@ -43,19 +44,22 @@ export default function SessionExpiredPopup({ isOpen }: SessionExpiredPopupProps
 
         {/* Body */}
         <div className="px-6 py-6 space-y-3">
-          <button
+          <Button
             onClick={handleStartNewChat}
-            className="w-full flex items-center justify-center px-4 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors"
+            size="action"
+            className="w-full flex items-center justify-center px-4 py-3"
           >
             Start a new chat
-          </button>
+          </Button>
 
-          <button
+          <Button
             onClick={handleGoToCreations}
-            className="w-full flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+            variant="outline"
+            size="action"
+            className="w-full flex items-center justify-center px-4 py-3"
           >
             Go to my creations
-          </button>
+          </Button>
         </div>
       </div>
 
