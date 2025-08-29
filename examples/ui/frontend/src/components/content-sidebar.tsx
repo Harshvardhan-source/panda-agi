@@ -815,64 +815,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         )}
       </ResizableSidebar>
       
-      {/* Share Modal - Show actual ShareModal when saved, custom modal when not saved */}
-      {shareModal.isOpen && (
-        <>
-          {isSaved && savedArtifact ? (
-            <ShareModal
-              isOpen={shareModal.isOpen}
-              onClose={shareModal.close}
-              artifact={savedArtifact}
-              onTogglePublic={handleTogglePublic}
-              isUpdating={isUpdating}
-            />
-          ) : (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div className="fixed inset-0 bg-black/50" onClick={shareModal.close} />
-              <div className="relative bg-background rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">Share content</h2>
-                  <button
-                    onClick={shareModal.close}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-md">
-                    <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                      <Share2 className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Content not saved yet</p>
-                      <p className="text-xs text-muted-foreground">
-                        Save this content as an artifact to share it with others.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      onClick={shareModal.close}
-                      className="px-4 py-2 text-sm border rounded-md hover:bg-accent"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        shareModal.close();
-                        toast("Use the save button to save this content as an artifact");
-                      }}
-                      className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                    >
-                      Save First
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+      {/* Share Modal - Only show when content is saved */}
+      {shareModal.isOpen && isSaved && savedArtifact && (
+        <ShareModal
+          isOpen={shareModal.isOpen}
+          onClose={shareModal.close}
+          artifact={savedArtifact}
+          onTogglePublic={handleTogglePublic}
+          isUpdating={isUpdating}
+        />
       )}
       
       {/* Delete Confirmation Dialog */}
