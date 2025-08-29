@@ -2,14 +2,11 @@ import React, { useState, useEffect } from "react";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
-import ShareModal from "./share-modal";
-import DeleteConfirmationDialog from "./delete-confirmation-dialog";
 import { getApiHeaders } from "@/lib/api/common";
-import { updateArtifact, deleteArtifact, ArtifactResponse } from "@/lib/api/artifacts";
-import { toast } from "react-hot-toast";
+import { updateArtifact } from "@/lib/api/artifacts";
 import { useFullScreenToggle } from "@/hooks/useFullScreenToggle";
-import { useModalState } from "@/hooks/useModalState";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
+import ArtifactActions from "./artifact-actions";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -36,11 +33,8 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   
   // Custom hooks for cleaner state management
-  const shareModal = useModalState();
-  const deleteModal = useModalState();
   const fullScreen = useFullScreenToggle({ 
     initialWidth: width, 
     onResize 
@@ -48,14 +42,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
 
-  // Clean up modals on component unmount
-  useEffect(() => {
-    return () => {
-      shareModal.close();
-      deleteModal.close();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   // Fetch file content when artifact changes
   useEffect(() => {
@@ -124,64 +111,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  // Handle share
-  const handleShare = () => {
-    shareModal.open();
-  };
 
-  // Handle delete
-  const handleDelete = () => {
-    deleteModal.open();
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!artifact) return;
-    
-    deleteModal.setLoading(true);
-    try {
-      await deleteArtifact(artifact.id);
-      toast.success('Artifact deleted successfully');
-      deleteModal.close();
-      
-      if (onArtifactDeleted) {
-        onArtifactDeleted(artifact.id);
-      }
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete artifact:', error);
-      toast.error('Failed to delete artifact');
-    } finally {
-      deleteModal.setLoading(false);
-    }
-  };
-
-  // Full mode toggle is now handled by the custom hook
-
-  // Handle artifact privacy toggle
-  const handleTogglePublic = async (artifactToUpdate: ArtifactData) => {
-    if (!artifactToUpdate) return;
-    
-    setIsUpdating(true);
-    try {
-      const updatedArtifact = await updateArtifact(artifactToUpdate.id, { 
-        is_public: !artifactToUpdate.is_public 
-      });
-      
-      const newArtifactData: ArtifactData = {
-        ...artifactToUpdate,
-        is_public: updatedArtifact.is_public,
-      };
-      
-      if (onArtifactUpdated) {
-        onArtifactUpdated(newArtifactData);
-      }
-    } catch (error) {
-      console.error('Failed to update artifact privacy:', error);
-      throw error;
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   if (!artifact) return null;
 
@@ -251,35 +181,20 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         error={error}
         editableTitle={true}
         onTitleChange={handleTitleChange}
-        onShare={handleShare}
-        onDelete={handleDelete}
         enableFullMode={true}
         isFullMode={fullScreen.isFullMode}
         onToggleFullMode={fullScreen.toggleFullMode}
+        actions={
+          <ArtifactActions
+            artifact={artifact}
+            onArtifactUpdated={onArtifactUpdated}
+            onArtifactDeleted={onArtifactDeleted}
+            onClose={onClose}
+          />
+        }
       >
         {renderContent()}
       </ResizableSidebar>
-      
-      <ShareModal
-        isOpen={shareModal.isOpen}
-        onClose={shareModal.close}
-        artifact={artifact as ArtifactResponse}
-        onTogglePublic={handleTogglePublic}
-        isUpdating={isUpdating}
-      />
-      
-      {deleteModal.isOpen && (
-        <DeleteConfirmationDialog
-          key={`delete-${artifact?.id}`}
-          isOpen={deleteModal.isOpen}
-          onClose={deleteModal.close}
-          onConfirm={handleDeleteConfirm}
-          title="Delete Artifact"
-          description="Are you sure you want to delete this artifact? This action cannot be undone."
-          itemName={artifact?.name}
-          isLoading={deleteModal.isLoading}
-        />
-      )}
     </>
   );
 };
