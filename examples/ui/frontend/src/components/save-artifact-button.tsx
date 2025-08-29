@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveArtifact, suggestArtifactName } from "@/lib/api/artifacts";
+import { saveArtifact, suggestArtifactName, ArtifactResponse } from "@/lib/api/artifacts";
+
 import { toast } from "react-hot-toast";
 
 interface SaveArtifactButtonProps {
@@ -24,11 +25,13 @@ interface SaveArtifactButtonProps {
     content?: string;
     type?: string;
   };
+  onSave?: (artifactData: { artifact: ArtifactResponse, detail: string }) => void;
 }
 
 const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   conversationId,
   previewData,
+  onSave,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
@@ -48,7 +51,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
 
     setIsLoading(true);
     try {
-      await saveArtifact(conversationId, {
+      const savedArtifact = await saveArtifact(conversationId, {
         type: previewData?.type || "text",
         name: artifactName.trim(),
         filepath: previewData?.url || previewData?.filename || ""
@@ -56,6 +59,11 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       toast.success("Creation saved successfully!");
       setIsOpen(false);
       setArtifactName("");
+      
+      // Call the onSave callback with the saved artifact data
+      if (onSave) {
+        onSave(savedArtifact);
+      }
     } catch (error) {
       console.error("Save error:", error);
       if (error instanceof Error) {

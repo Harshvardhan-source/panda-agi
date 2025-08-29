@@ -26,6 +26,11 @@ export interface ArtifactResponse {
     is_public: boolean;
 }
 
+export interface ArtifactResponseWithDetail {
+    artifact: ArtifactResponse;
+    detail: string;
+}
+
 export const suggestArtifactName = async (conversationId: string, payload: NameSuggestionRequest): Promise<NameSuggestionResponse> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/suggest-name`);
     const options = await getApiOptions();
@@ -44,7 +49,7 @@ export const suggestArtifactName = async (conversationId: string, payload: NameS
     return response.json();
 };
 
-export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
+export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponseWithDetail> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/save`);
     const options = await getApiOptions();
     

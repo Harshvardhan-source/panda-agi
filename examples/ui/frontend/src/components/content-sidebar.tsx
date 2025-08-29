@@ -17,6 +17,9 @@ import {
   isExcelFile,
   validateContentType,
 } from "@/lib/utils";
+import ArtifactActions from "./artifact-actions";
+import { ArtifactData } from "@/types/artifact";
+import { useFullScreenToggle } from "@/hooks/useFullScreenToggle";
 
 export interface PreviewData {
   title?: string;
@@ -62,6 +65,24 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Saved state management
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedArtifact, setSavedArtifact] = useState<ArtifactData | null>(null);
+  
+  // Custom hooks for cleaner state management
+  const fullScreen = useFullScreenToggle({ 
+    initialWidth: width, 
+    onResize 
+  });
+
+  // Reset saved state when sidebar closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSaved(false);
+      setSavedArtifact(null);
+    }
+  }, [isOpen]);
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -604,14 +625,33 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
+  // Handle artifact saved
+  const handleArtifactSaved = (artifactData: { artifact: ArtifactData, detail: string }) => {
+    setIsSaved(true);
+    setSavedArtifact(artifactData.artifact);
+  };
+
+  // Handle artifact updated
+  const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
+    setSavedArtifact(updatedArtifact);
+  };
+
+  // Handle artifact deleted
+  const handleArtifactDeleted = (_artifactId: string) => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    onClose();
+  };
+
   // Create header actions
   const headerActions = (
     <>
-      {/* Save button - only show for markdown files */}
-      {(previewData.type === "markdown" || previewData.type === "iframe") && (
+      {/* Save button - only show for markdown files when not saved */}
+      {(previewData.type === "markdown" || previewData.type === "iframe") && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
           previewData={previewData}
+          onSave={handleArtifactSaved}
         />
       )}
       {/* Download button - only show for actual files, not iframes */}
@@ -630,6 +670,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             <Download className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
+      {/* Artifact actions - only show when saved */}
+      {isSaved && savedArtifact && (
+        <ArtifactActions
+          artifact={savedArtifact}
+          onArtifactUpdated={handleArtifactUpdated}
+          onArtifactDeleted={handleArtifactDeleted}
+          onClose={onClose}
+        />
+      )}
     </>
   );
 
@@ -670,6 +719,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         onResize={onResize}
         loading={isLoading}
         error={error}
+        enableFullMode={true}
+        isFullMode={fullScreen.isFullMode}
+        onToggleFullMode={fullScreen.toggleFullMode}
         className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
       >
         {isFullHeightContent() ? (
@@ -678,6 +730,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           renderContent()
         )}
       </ResizableSidebar>
+      
+
     </>
   );
 };

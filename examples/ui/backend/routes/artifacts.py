@@ -277,7 +277,8 @@ async def save_artifact(
                     )
 
                 # Store the artifact ID for potential cleanup
-                artifact_id = response.get("artifact_id")
+                artifact = response.get("artifact")
+                artifact_id = artifact.get("id") if artifact else None
 
         files_generator = ArtifactsService.get_files_for_artifact(
             payload.type, payload.filepath, conversation_id, artifact_id
@@ -288,7 +289,7 @@ async def save_artifact(
                 response["upload_credentials"], file_bytes, artifact_id, relative_path
             )
 
-        return {"detail": "Creations saved successfully"}
+        return {"detail": "Creations saved successfully", "artifact": artifact}
     except HTTPException as e:
         raise e
     except ValueError as e:
