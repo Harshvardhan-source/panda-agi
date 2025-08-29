@@ -3,6 +3,7 @@ Interact with environment and return relevant files
 """
 
 import re
+import os
 from typing import List, Set
 from urllib.parse import urlparse
 
@@ -12,10 +13,105 @@ from panda_agi.envs.base_env import BaseEnv
 import logging
 import traceback
 
+# Try to import OpenAI, but don't fail if it's not available
+try:
+    import openai
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
 class ArtifactsService:
+
+    @staticmethod
+    async def suggest_artifact_name(
+        conversation_id: str, type: str, filepath: str
+    ) -> str:
+        """
+        Suggest a name for an artifact based on its type and filepath.
+
+        Args:
+            conversation_id: The conversation ID
+            type: The type of artifact (markdown, iframe, etc.)
+            filepath: The filepath of the artifact
+
+        Returns:
+            A suggested name for the artifact
+        """
+        # Check if OpenAI is available and API key is set
+        if not OPENAI_AVAILABLE:
+            logger.warning("OpenAI not available, returning default name")
+            return "New Creation"
+
+        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        if not openai_api_key:
+            logger.warning("OpenAI API key not found in environment variables")
+            return "New Creation"
+
+        try:
+            # Get the file content to analyze
+            env = await get_env({"conversation_id": conversation_id}, force_new=True)
+            print(f"filepath: {filepath}")
+            content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
+            file_content = content_bytes.decode("utf-8", errors="ignore")
+
+            # Truncate content if it's too long to avoid token limits
+            max_content_length = 4000  # Conservative limit
+            if len(file_content) > max_content_length:
+                file_content = file_content[:max_content_length] + "..."
+
+            # Create a prompt for name suggestion
+            prompt = f"""
+            Based on the following file content, suggest a concise, descriptive name (max 50 characters) for this creation.
+        
+            File Path: {filepath}
+            
+            File Content:
+            {file_content}
+            
+            Instructions:
+            - Create a name that reflects the main topic, purpose, or content of the file
+            - Keep it under 50 characters
+            - Make it descriptive but concise
+            - Avoid generic names like "Document" or "File"
+            - If it's a markdown file, focus on the main topic or title
+            - If it's an iframe/website, focus on the main functionality or purpose
+            - Don't add the file extension to the name
+            
+            Suggested name:"""
+
+            # Call OpenAI API
+            client = openai.OpenAI(api_key=openai_api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that suggests descriptive names for files and documents. Always respond with just the suggested name, nothing else.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=50,
+                temperature=0.3,
+            )
+
+            suggested_name = response.choices[0].message.content.strip()
+
+            # Clean up the suggested name
+            suggested_name = suggested_name.replace('"', "").replace("'", "").strip()
+
+            # If the response is empty or too long, return a default
+            if not suggested_name:
+                return "New Creation"
+
+            return suggested_name
+
+        except Exception as e:
+            logger.error(f"Error suggesting artifact name: {e}")
+            return "New Creation"
 
     @staticmethod
     def replace_window_location_origin(

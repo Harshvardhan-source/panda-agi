@@ -7,6 +7,15 @@ interface ArtifactPayload {
     filepath: string;
 }
 
+interface NameSuggestionRequest {
+    type: string;
+    filepath: string;
+}
+
+interface NameSuggestionResponse {
+    suggested_name: string;
+}
+
 export interface ArtifactResponse {
     id: string;
     name: string;
@@ -16,6 +25,24 @@ export interface ArtifactResponse {
     metadata: Record<string, unknown>;
     is_public: boolean;
 }
+
+export const suggestArtifactName = async (conversationId: string, payload: NameSuggestionRequest): Promise<NameSuggestionResponse> => {
+    const url = getBackendServerURL(`/artifacts/${conversationId}/suggest-name`);
+    const options = await getApiOptions();
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        ...options,
+        body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to suggest name: ${response.status}`);
+    }
+    
+    return response.json();
+};
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/save`);

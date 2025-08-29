@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Save } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveArtifact } from "@/lib/api/artifacts";
+import { saveArtifact, suggestArtifactName } from "@/lib/api/artifacts";
 import { toast } from "react-hot-toast";
 
 interface SaveArtifactButtonProps {
@@ -33,6 +33,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggestingName, setIsSuggestingName] = useState(false);
 
   const handleSaveArtifact = async () => {
     if (!conversationId) {
@@ -67,9 +68,37 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     }
   };
 
-  const handleOpenDialog = () => {
-    setArtifactName(previewData?.title || "Untitled");
+  const handleOpenDialog = async () => {
     setIsOpen(true);
+    setArtifactName("");
+    
+    // Automatically suggest a name if we have the required data
+    if (conversationId && previewData?.type && (previewData?.url || previewData?.filename)) {
+      await suggestName();
+    }
+  };
+
+  const suggestName = async () => {
+    if (!conversationId || !previewData?.type || (!previewData?.url && !previewData?.filename)) {
+      return;
+    }
+
+    setIsSuggestingName(true);
+    try {
+      const response = await suggestArtifactName(conversationId, {
+        type: previewData.type,
+        filepath: previewData.url || previewData.filename || ""
+      });
+      
+      if (response.suggested_name && response.suggested_name !== "New Creation") {
+        setArtifactName(response.suggested_name);
+      }
+    } catch (error) {
+      console.error("Name suggestion error:", error);
+      // Don't show error toast for name suggestion failures - just use default
+    } finally {
+      setIsSuggestingName(false);
+    }
   };
 
   return (
@@ -97,31 +126,34 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
             <Label htmlFor="artifact-name" className="text-right">
               Name
             </Label>
-            <Input
-              id="artifact-name"
-              value={artifactName}
-              onChange={(e) => setArtifactName(e.target.value)}
-              className="col-span-3"
-              placeholder="Enter creation name..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSaveArtifact();
-                }
-              }}
-            />
+            <div className="col-span-3">
+              <Input
+                id="artifact-name"
+                value={artifactName}
+                onChange={(e) => setArtifactName(e.target.value)}
+                className="w-full"
+                placeholder="Enter creation name..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveArtifact();
+                  }
+                }}
+                disabled={isSuggestingName}
+              />
+            </div>
           </div>
         </div>
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => setIsOpen(false)}
-            disabled={isLoading}
+            disabled={isLoading || isSuggestingName}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveArtifact}
-            disabled={isLoading || !artifactName.trim()}
+            disabled={!artifactName.trim()}
           >
             {isLoading ? "Saving..." : "Save"}
           </Button>
