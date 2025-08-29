@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const INACTIVITY_TIMEOUT = 30 * 1000//60 * 60 * 1000; // 1 hour in milliseconds
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000; // 1 hour in milliseconds
 
 export function useInactivityTimer() {
   const [showInactivityPopup, setShowInactivityPopup] = useState(false);
