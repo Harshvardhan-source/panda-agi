@@ -239,7 +239,7 @@ async def save_artifact(
 
                 # Store the artifact ID for potential cleanup
                 artifact = response.get("artifact")
-                artifact_id = artifact.get("id")
+                artifact_id = artifact.get("id") if artifact else None
 
         files_generator = ArtifactsService.get_files_for_artifact(
             payload.type, payload.filepath, conversation_id, artifact_id
