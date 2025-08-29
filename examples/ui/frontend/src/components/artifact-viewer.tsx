@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
@@ -28,21 +28,21 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   onArtifactUpdated,
   onArtifactDeleted,
 }) => {
-
   // State for file content
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // Ref for edit title trigger
+  const triggerEditTitleRef = useRef<(() => void) | null>(null);
+
   // Custom hooks for cleaner state management
-  const fullScreen = useFullScreenToggle({ 
-    initialWidth: width, 
-    onResize 
+  const fullScreen = useFullScreenToggle({
+    initialWidth: width,
+    onResize,
   });
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
-
-
 
   // Fetch file content when artifact changes
   useEffect(() => {
@@ -94,24 +94,29 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   // Handle title change
   const handleTitleChange = async (newTitle: string) => {
     if (!artifact) return;
-    
+
     try {
-      const updatedArtifact = await updateArtifact(artifact.id, { name: newTitle });
+      const updatedArtifact = await updateArtifact(artifact.id, {
+        name: newTitle,
+      });
       const newArtifactData: ArtifactData = {
         ...artifact,
         name: updatedArtifact.name,
       };
-      
+
       if (onArtifactUpdated) {
         onArtifactUpdated(newArtifactData);
       }
     } catch (error) {
-      console.error('Failed to update artifact title:', error);
+      console.error("Failed to update artifact title:", error);
       throw error;
     }
   };
 
-
+  // Handle edit title callback from ResizableSidebar
+  const handleEditTitleCallback = (triggerFn: () => void) => {
+    triggerEditTitleRef.current = triggerFn;
+  };
 
   if (!artifact) return null;
 
@@ -174,13 +179,19 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           text: artifact.filepath,
           href: `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
         }}
-        icon={<FileIcon filepath={artifact.filepath} className="w-4 h-4 text-blue-500 mr-2" />}
+        icon={
+          <FileIcon
+            filepath={artifact.filepath}
+            className="w-4 h-4 text-blue-500 mr-2"
+          />
+        }
         width={width}
         onResize={onResize}
         loading={isLoading}
         error={error}
         editableTitle={true}
         onTitleChange={handleTitleChange}
+        onEditTitle={handleEditTitleCallback}
         enableFullMode={true}
         isFullMode={fullScreen.isFullMode}
         onToggleFullMode={fullScreen.toggleFullMode}
@@ -190,6 +201,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             onArtifactUpdated={onArtifactUpdated}
             onArtifactDeleted={onArtifactDeleted}
             onClose={onClose}
+            onEditName={triggerEditTitleRef.current}
           />
         }
       >

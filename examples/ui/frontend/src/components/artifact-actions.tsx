@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Share2, MoreVertical, Trash2 } from "lucide-react";
+import { Share2, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useModalState } from "@/hooks/useModalState";
 import ShareModal from "./share-modal";
@@ -18,6 +18,7 @@ interface ArtifactActionsProps {
   onArtifactUpdated?: (artifact: ArtifactData) => void;
   onArtifactDeleted?: (artifactId: string) => void;
   onClose?: () => void;
+  onEditName?: (() => void) | null;
   showShare?: boolean;
   showDelete?: boolean;
 }
@@ -27,6 +28,7 @@ const ArtifactActions: React.FC<ArtifactActionsProps> = ({
   onArtifactUpdated,
   onArtifactDeleted,
   onClose,
+  onEditName,
   showShare = true,
   showDelete = true,
 }) => {
@@ -44,6 +46,16 @@ const ArtifactActions: React.FC<ArtifactActionsProps> = ({
   // Handle delete
   const handleDelete = () => {
     deleteModal.open();
+  };
+
+  // Handle edit name
+  const handleEditName = () => {
+    if (onEditName) {
+      // Add a small delay to ensure dropdown closes before focusing
+      setTimeout(() => {
+        onEditName();
+      }, 100);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -131,6 +143,15 @@ const ArtifactActions: React.FC<ArtifactActionsProps> = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {onEditName && (
+              <DropdownMenuItem
+                onClick={handleEditName}
+                className="cursor-pointer"
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit name
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={handleDelete}
               className="text-destructive focus:text-destructive cursor-pointer"

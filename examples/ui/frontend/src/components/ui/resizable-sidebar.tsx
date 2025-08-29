@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ReactNode } from "react";
+import React, { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import {
   X,
   ExternalLink,
@@ -40,6 +40,7 @@ interface ResizableSidebarProps {
   // New props for enhanced functionality
   editableTitle?: boolean;
   onTitleChange?: (newTitle: string) => Promise<void>;
+  onEditTitle?: (triggerEdit: () => void) => void;
   onShare?: () => void;
   onDelete?: () => void;
   enableFullMode?: boolean;
@@ -65,6 +66,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   // New props
   editableTitle = false,
   onTitleChange,
+  onEditTitle,
   onShare,
   onDelete,
   enableFullMode = false,
@@ -107,9 +109,21 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       setTimeout(() => {
         titleInputRef.current?.focus();
         titleInputRef.current?.select();
-      }, 0);
+      }, 100);
     }
   };
+
+  // Create a stable reference for the trigger function
+  const triggerEditRef = useRef(handleTitleClick);
+  triggerEditRef.current = handleTitleClick;
+
+  // Expose trigger edit function via callback
+  useEffect(() => {
+    if (onEditTitle) {
+      // Call the callback with a stable wrapper function
+      onEditTitle(() => triggerEditRef.current());
+    }
+  }, [onEditTitle]);
 
   const handleTitleBlur = async () => {
     if (!isEditingTitle || isSavingTitle) return;
@@ -178,7 +192,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
 
   // Update internal state when width prop changes
   useEffect(() => {
-    if (isMobile) {
+    const currentIsMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    if (currentIsMobile) {
       setSidebarWidth(window.innerWidth);
       return;
     }
@@ -186,7 +201,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     if (width && width !== sidebarWidth) {
       setSidebarWidth(width);
     }
-  }, [width, sidebarWidth, isMobile]);
+  }, [width, sidebarWidth]);
 
   // Add resize event listeners
   useEffect(() => {
