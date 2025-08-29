@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Download, FileImage, File } from "lucide-react";
+import { Download, FileImage, File, Share2, MoreVertical, Trash2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
@@ -17,6 +17,14 @@ import {
   isExcelFile,
   validateContentType,
 } from "@/lib/utils";
+import DeleteConfirmationDialog from "./delete-confirmation-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useModalState } from "@/hooks/useModalState";
 
 export interface PreviewData {
   title?: string;
@@ -62,6 +70,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal state management
+  const shareModal = useModalState();
+  const deleteModal = useModalState();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Clean up modals on component unmount
+  useEffect(() => {
+    return () => {
+      shareModal.close();
+      deleteModal.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -604,6 +626,53 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
+  // Handle share
+  const handleShare = () => {
+    shareModal.open();
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    deleteModal.open();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!normalizedFilename || !conversationId) {
+      toast.error("Missing file information");
+      return;
+    }
+    
+    deleteModal.setLoading(true);
+    try {
+      // For content sidebar, we'll close the sidebar instead of deleting from server
+      // since the file might not be saved as an artifact yet
+      toast.success('Content closed');
+      deleteModal.close();
+      onClose();
+    } catch (error) {
+      console.error('Failed to close content:', error);
+      toast.error('Failed to close content');
+    } finally {
+      deleteModal.setLoading(false);
+    }
+  };
+
+  // Handle toggle public (for share modal)
+  const handleTogglePublic = async (artifact: any) => {
+    // This is a placeholder since content sidebar doesn't have artifacts yet
+    // The actual implementation would depend on your backend API
+    setIsUpdating(true);
+    try {
+      // Placeholder - you would implement actual API call here
+      toast.success('Privacy setting updated');
+    } catch (error) {
+      console.error('Failed to update privacy setting:', error);
+      toast.error('Failed to update privacy setting');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // Create header actions
   const headerActions = (
     <>
@@ -630,6 +699,34 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             <Download className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
+      {/* Share button */}
+      <button
+        onClick={handleShare}
+        className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
+        title="Share"
+      >
+        <Share2 className="h-4 w-4 text-muted-foreground" />
+      </button>
+      {/* More options dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
+            title="More options"
+          >
+            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Close
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 
@@ -678,6 +775,67 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           renderContent()
         )}
       </ResizableSidebar>
+      
+      {/* Share Modal - Custom for content sidebar */}
+      {shareModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={shareModal.close} />
+          <div className="relative bg-background rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Share content</h2>
+              <button
+                onClick={shareModal.close}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-md">
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                  <Share2 className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Content not saved yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Save this content as an artifact to share it with others.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={shareModal.close}
+                  className="px-4 py-2 text-sm border rounded-md hover:bg-accent"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    shareModal.close();
+                    toast("Use the save button to save this content as an artifact");
+                  }}
+                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                >
+                  Save First
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      {deleteModal.isOpen && (
+        <DeleteConfirmationDialog
+          isOpen={deleteModal.isOpen}
+          onClose={deleteModal.close}
+          onConfirm={handleDeleteConfirm}
+          title="Close Content"
+          description="Are you sure you want to close this content? This action cannot be undone."
+          itemName={previewData?.title || normalizedFilename}
+          isLoading={deleteModal.isLoading}
+        />
+      )}
     </>
   );
 };
