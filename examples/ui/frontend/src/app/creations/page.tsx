@@ -29,6 +29,7 @@ import FileIcon from "@/components/ui/file-icon";
 import Header from "@/components/header";
 import { useRouter } from "next/navigation";
 import UpgradeModal from "@/components/upgrade-modal";
+import PageLayout, { useLogout } from "@/components/page-layout";
 
 export default function CreationsPage() {
   const [artifacts, setArtifacts] = useState<ArtifactResponse[]>([]);
@@ -75,6 +76,9 @@ export default function CreationsPage() {
 
   // Router for navigation
   const router = useRouter();
+
+  // Use the reusable logout hook
+  const { handleShowLogout } = useLogout();
 
   useEffect(() => {
     fetchArtifacts();
@@ -300,11 +304,12 @@ export default function CreationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <PageLayout>
+        <div className="min-h-screen bg-background">
         <Header
           onUpgradeClick={() => setShowUpgradeModal(true)}
           onShowLogin={() => {}}
-          onShowLogout={() => {}}
+          onShowLogout={handleShowLogout}
           onNewConversation={() => router.push("/")}
           title="My Creations"
           subtitle="View and manage your saved creations"
@@ -343,63 +348,67 @@ export default function CreationsPage() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </PageLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header
-          onUpgradeClick={() => setShowUpgradeModal(true)}
-          onShowLogin={() => {}}
-          onShowLogout={() => {}}
-          onNewConversation={() => router.push("/")}
-          title="My Creations"
-          subtitle="View and manage your saved creations"
-        />
+      <PageLayout>
+        <div className="min-h-screen bg-background">
+          <Header
+            onUpgradeClick={() => setShowUpgradeModal(true)}
+            onShowLogin={() => {}}
+            onShowLogout={handleShowLogout}
+            onNewConversation={() => router.push("/")}
+            title="My Creations"
+            subtitle="View and manage your saved creations"
+          />
 
-        <div className="pt-32 px-6">
-          <div className="max-w-4xl mx-auto space-y-8">
-            {/* Error state */}
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="text-red-500 mb-2">Error loading creations</div>
-                <div className="text-muted-foreground text-sm mb-4">
-                  {error}
+          <div className="pt-32 px-6">
+            <div className="max-w-4xl mx-auto space-y-8">
+              {/* Error state */}
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="text-red-500 mb-2">Error loading creations</div>
+                  <div className="text-muted-foreground text-sm mb-4">
+                    {error}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setError(null);
+                      fetchArtifacts();
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Try Again
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => {
-                    setError(null);
-                    fetchArtifacts();
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  Try Again
-                </Button>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        onUpgradeClick={() => setShowUpgradeModal(true)}
-        onShowLogin={() => {}}
-        onShowLogout={() => {}}
-        onNewConversation={() => router.push("/")}
-        title="My Creations"
-        subtitle="View and manage your saved creations"
-        variant="page"
-      />
+    <PageLayout>
+      <div className="min-h-screen bg-background">
+        <Header
+          onUpgradeClick={() => setShowUpgradeModal(true)}
+          onShowLogin={() => {}}
+          onShowLogout={handleShowLogout}
+          onNewConversation={() => router.push("/")}
+          title="My Creations"
+          subtitle="View and manage your saved creations"
+          variant="page"
+        />
 
-      <div className="pt-32 px-6">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="pt-32 px-6">
+          <div className="max-w-4xl mx-auto space-y-8">
           {/* Search and filters */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -718,6 +727,7 @@ export default function CreationsPage() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
       />
-    </div>
+      </div>
+    </PageLayout>
   );
 }

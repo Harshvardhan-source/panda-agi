@@ -6,8 +6,7 @@ import UpgradeModal from "@/components/upgrade-modal";
 import ChatBox from "@/components/chatbox";
 import Header, { HeaderRef } from "@/components/header";
 import LoginModal from "@/components/login-modal";
-import LogoutModal from "@/components/logout-modal";
-import { logout } from "@/lib/api/auth";
+import PageLayout, { useLogout } from "@/components/page-layout";
 import { getFileType } from "@/lib/utils";
 
 interface ChatAppProps {
@@ -29,9 +28,9 @@ function ChatApp({
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-
+  // Use the reusable logout hook
+  const { handleShowLogout } = useLogout();
 
   const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
@@ -59,14 +58,6 @@ function ChatApp({
     setConversationId(undefined);
     setSidebarOpen(false);
     setPreviewData(undefined);
-  };
-
-  const handleLogoutConfirm = () => {
-    logout();
-    // Reset chat state to empty chat
-    startNewConversation();
-    // Show login modal
-    setShowLoginModal(true);
   };
 
   // Authentication check - placed after all hooks to follow Rules of Hooks
@@ -110,80 +101,75 @@ function ChatApp({
   const isInitialLoading = isAuthenticating || isInitializing;
 
   return (
-    <div className="flex h-screen">
-      {/* Main content */}
-      <div
-        className="flex flex-col transition-all duration-300 w-full"
-        style={{
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
-        }}
-      >
-        <Header
-          ref={headerRef}
-          isInitialLoading={isInitialLoading}
-          isConnected={isConnected}
-          sidebarOpen={sidebarOpen}
-          sidebarWidth={sidebarWidth}
-          onNewConversation={startNewConversation}
-          onUpgradeClick={() => setShowUpgradeModal(true)}
-          onShowLogin={() => setShowLoginModal(true)}
-          onShowLogout={() => setShowLogoutModal(true)}
+    <PageLayout>
+      <div className="flex h-screen">
+        {/* Main content */}
+        <div
+          className="flex flex-col transition-all duration-300 w-full"
+          style={{
+            width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
+          }}
+        >
+          <Header
+            ref={headerRef}
+            isInitialLoading={isInitialLoading}
+            isConnected={isConnected}
+            sidebarOpen={sidebarOpen}
+            sidebarWidth={sidebarWidth}
+            onNewConversation={startNewConversation}
+            onUpgradeClick={() => setShowUpgradeModal(true)}
+            onShowLogin={() => setShowLoginModal(true)}
+            onShowLogout={handleShowLogout}
+          />
+
+          {/* ChatBox Component */}
+          <ChatBox
+            conversationId={conversationId}
+            setConversationId={setConversationId}
+            onPreviewClick={handlePreviewClick}
+            onFileClick={handleFileClick}
+            openUpgradeModal={() => setShowUpgradeModal(true)}
+            isConnected={isConnected}
+            setIsConnected={setIsConnected}
+            sidebarOpen={sidebarOpen}
+            sidebarWidth={sidebarWidth}
+            isInitialLoading={isInitialLoading}
+            initialQuery={initialQuery}
+            onCreditsRefetch={async () => {
+              headerRef.current?.refreshCredits();
+            }}
+          />
+        </div>
+
+        {/* Sidebar */}
+        <ContentSidebar
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          previewData={previewData}
+          conversationId={conversationId}
+          width={sidebarWidth}
+          onResize={setSidebarWidth}
         />
 
-        {/* ChatBox Component */}
-        <ChatBox
-          conversationId={conversationId}
-          setConversationId={setConversationId}
-          onPreviewClick={handlePreviewClick}
-          onFileClick={handleFileClick}
-          openUpgradeModal={() => setShowUpgradeModal(true)}
-          isConnected={isConnected}
-          setIsConnected={setIsConnected}
-          sidebarOpen={sidebarOpen}
-          sidebarWidth={sidebarWidth}
-          isInitialLoading={isInitialLoading}
-          initialQuery={initialQuery}
-          onCreditsRefetch={async () => {
-            headerRef.current?.refreshCredits();
-          }}
+        {/* Upgrade Modal */}
+        <Suspense fallback={null}>
+          <UpgradeModal
+            isOpen={showUpgradeModal}
+            onClose={() => setShowUpgradeModal(false)}
+            onShowLogin={() => {
+              setShowUpgradeModal(false);
+              setShowLoginModal(true);
+            }}
+          />
+        </Suspense>
+
+        {/* Login Modal */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
         />
       </div>
-
-      {/* Sidebar */}
-      <ContentSidebar
-        isOpen={sidebarOpen}
-        onClose={closeSidebar}
-        previewData={previewData}
-        conversationId={conversationId}
-        width={sidebarWidth}
-        onResize={setSidebarWidth}
-      />
-
-      {/* Upgrade Modal */}
-      <Suspense fallback={null}>
-        <UpgradeModal
-          isOpen={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          onShowLogin={() => {
-            setShowUpgradeModal(false);
-            setShowLoginModal(true);
-          }}
-        />
-      </Suspense>
-
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
-
-      {/* Logout Modal */}
-      <LogoutModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={handleLogoutConfirm}
-      />
-    </div>
+    </PageLayout>
   );
 }
 
