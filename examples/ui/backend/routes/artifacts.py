@@ -13,7 +13,7 @@ import traceback
 import mimetypes
 from typing import Optional
 
-from services.artifacts import ArtifactsService
+from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
 from utils.html_utils import generate_error_page_html, should_return_html
 from models.agent import (
@@ -231,7 +231,7 @@ async def suggest_artifact_name(
     except Exception as e:
         logger.error(f"Error suggesting artifact name: {traceback.format_exc()}")
         # Return a default name if there's an error
-        return NameSuggestionResponse(suggested_name="New Creation")
+        return NameSuggestionResponse(suggested_name=DEFAULT_ARTIFACT_NAME)
 
 
 @router.post("/{conversation_id}/save")

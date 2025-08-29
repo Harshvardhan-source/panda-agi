@@ -24,6 +24,9 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_ARTIFACT_NAME = "New Creation"
+
+
 class ArtifactsService:
 
     @staticmethod
@@ -41,12 +44,12 @@ class ArtifactsService:
         # Check if OpenAI is available and API key is set
         if not OPENAI_AVAILABLE:
             logger.warning("OpenAI not available, returning default name")
-            return "New Creation"
+            return DEFAULT_ARTIFACT_NAME
 
         openai_api_key = os.environ.get("OPENAI_API_KEY")
         if not openai_api_key:
             logger.warning("OpenAI API key not found in environment variables")
-            return "New Creation"
+            return DEFAULT_ARTIFACT_NAME
 
         try:
             # Get the file content to analyze
@@ -101,13 +104,13 @@ Suggested name:"""
 
             # If the response is empty or too long, return a default
             if not suggested_name:
-                return "New Creation"
+                return DEFAULT_ARTIFACT_NAME
 
             return suggested_name
 
         except Exception as e:
             logger.error(f"Error suggesting artifact name: {e}")
-            return "New Creation"
+            return DEFAULT_ARTIFACT_NAME
 
     @staticmethod
     def replace_window_location_origin(
