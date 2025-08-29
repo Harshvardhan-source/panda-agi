@@ -11,15 +11,7 @@ import {
   ArtifactsListResponse,
 } from "@/lib/api/artifacts";
 import { format } from "date-fns";
-import {
-  Trash2,
-  Edit,
-  Share2,
-  Search,
-  Eye,
-  Grid3x3,
-  List,
-} from "lucide-react";
+import { Trash2, Edit, Share2, Search, Eye, Grid3x3, List } from "lucide-react";
 import { toast } from "react-hot-toast";
 import ArtifactViewer, { ArtifactData } from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
@@ -72,7 +64,8 @@ export default function CreationsPage() {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [artifactToShare, setArtifactToShare] = useState<ArtifactResponse | null>(null);
+  const [artifactToShare, setArtifactToShare] =
+    useState<ArtifactResponse | null>(null);
 
   // Router for navigation
   const router = useRouter();
@@ -197,7 +190,10 @@ export default function CreationsPage() {
 
       // Update the artifact in share modal state if it's the same one
       if (artifactToShare && artifactToShare.id === artifact.id) {
-        setArtifactToShare({ ...artifactToShare, is_public: updatedArtifact.is_public });
+        setArtifactToShare({
+          ...artifactToShare,
+          is_public: updatedArtifact.is_public,
+        });
       }
 
       const status = updatedArtifact.is_public ? "public" : "private";
@@ -287,14 +283,18 @@ export default function CreationsPage() {
 
   const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
     const artifactResponse: ArtifactResponse = updatedArtifact;
-    setArtifacts(prev => prev.map(artifact => 
-      artifact.id === artifactResponse.id ? artifactResponse : artifact
-    ));
+    setArtifacts((prev) =>
+      prev.map((artifact) =>
+        artifact.id === artifactResponse.id ? artifactResponse : artifact
+      )
+    );
     setSelectedArtifact(artifactResponse);
   };
 
   const handleArtifactDeleted = (artifactId: string) => {
-    setArtifacts(prev => prev.filter(artifact => artifact.id !== artifactId));
+    setArtifacts((prev) =>
+      prev.filter((artifact) => artifact.id !== artifactId)
+    );
     fetchArtifacts(); // Refresh the list
   };
 
@@ -306,48 +306,51 @@ export default function CreationsPage() {
     return (
       <PageLayout>
         <div className="min-h-screen bg-background">
-        <Header
-          onUpgradeClick={() => setShowUpgradeModal(true)}
-          onShowLogin={() => {}}
-          onShowLogout={handleShowLogout}
-          onNewConversation={() => router.push("/")}
-          title="My Creations"
-          subtitle="View and manage your saved creations"
-        />
+          <Header
+            onUpgradeClick={() => setShowUpgradeModal(true)}
+            onShowLogin={() => {}}
+            onShowLogout={handleShowLogout}
+            onNewConversation={() => router.push("/")}
+            title="My Creations"
+            subtitle="View and manage your saved creations"
+          />
 
-        <div className="pt-32 px-6">
-          <div className="max-w-4xl mx-auto space-y-8">
-            {/* Search skeleton */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-64 h-9 bg-muted rounded-md animate-pulse"></div>
-                <div className="w-20 h-9 bg-muted rounded-md animate-pulse"></div>
+          <div className="pt-32 px-6">
+            <div className="max-w-4xl mx-auto space-y-8">
+              {/* Search skeleton */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-64 h-9 bg-muted rounded-md animate-pulse"></div>
+                  <div className="w-20 h-9 bg-muted rounded-md animate-pulse"></div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
+                  <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
-                <div className="w-9 h-8 bg-muted rounded-md animate-pulse"></div>
-              </div>
-            </div>
 
-            {/* Content skeleton */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(8)].map((_, index) => (
-                <div key={index} className="space-y-3">
-                  <div className="aspect-video bg-muted rounded-lg animate-pulse flex items-center justify-center">
-                    <FileIcon filepath="loading" className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-muted rounded-full animate-pulse" />
-                      <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+              {/* Content skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="space-y-3">
+                    <div className="aspect-video bg-muted rounded-lg animate-pulse flex items-center justify-center">
+                      <FileIcon
+                        filepath="loading"
+                        className="h-8 w-8 text-muted-foreground"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-muted rounded animate-pulse" />
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 bg-muted rounded-full animate-pulse" />
+                        <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </PageLayout>
     );
@@ -371,7 +374,9 @@ export default function CreationsPage() {
               {/* Error state */}
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <div className="text-red-500 mb-2">Error loading creations</div>
+                  <div className="text-red-500 mb-2">
+                    Error loading creations
+                  </div>
                   <div className="text-muted-foreground text-sm mb-4">
                     {error}
                   </div>
@@ -409,150 +414,273 @@ export default function CreationsPage() {
 
         <div className="pt-32 px-6">
           <div className="max-w-4xl mx-auto space-y-8">
-          {/* Search and filters */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search creations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <select
-                value={filterStatus}
-                onChange={(e) =>
-                  setFilterStatus(
-                    e.target.value as "all" | "public" | "private"
-                  )
-                }
-                className="px-3 py-2 text-sm border rounded-md bg-background"
-              >
-                <option value="all">All</option>
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-              </select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid3x3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div>
-            {filteredAndSortedArtifacts.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="h-16 w-16 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <FileIcon filepath="empty" className="h-8 w-8 text-muted-foreground/50" />
+            {/* Search and filters */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search creations..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-                <h3 className="font-semibold text-foreground mb-2">
-                  No creations found
-                </h3>
-                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                  {searchTerm || filterStatus !== "all"
-                    ? "Try adjusting your search or filters to find what you're looking for."
-                    : "Create your first dashboard in a conversation to see it here."}
-                </p>
+                <select
+                  value={filterStatus}
+                  onChange={(e) =>
+                    setFilterStatus(
+                      e.target.value as "all" | "public" | "private"
+                    )
+                  }
+                  className="px-3 py-2 text-sm border rounded-md bg-background"
+                >
+                  <option value="all">All</option>
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
               </div>
-            ) : (
-              <>
-                {/* Grid view */}
-                {viewMode === "grid" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAndSortedArtifacts.map((artifact) => (
-                      <div key={artifact.id} className="group">
-                        <div className="bg-card border rounded-xl p-5 hover:shadow-lg transition-all duration-200 hover:border-border">
-                          {/* Thumbnail */}
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid3x3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div>
+              {filteredAndSortedArtifacts.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="h-16 w-16 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <FileIcon
+                      filepath="empty"
+                      className="h-8 w-8 text-muted-foreground/50"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    No creations found
+                  </h3>
+                  <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
+                    {searchTerm || filterStatus !== "all"
+                      ? "Try adjusting your search or filters to find what you're looking for."
+                      : "Create your first dashboard in a conversation to see it here."}
+                  </p>
+                  {!searchTerm &&
+                    filterStatus === "all" &&
+                    artifacts.length === 0 && (
+                      <Button onClick={() => router.push("/")} className="mt-2">
+                        Start New Chat
+                      </Button>
+                    )}
+                </div>
+              ) : (
+                <>
+                  {/* Grid view */}
+                  {viewMode === "grid" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredAndSortedArtifacts.map((artifact) => (
+                        <div key={artifact.id} className="group">
                           <div
-                            className="aspect-video bg-gradient-to-br from-muted/50 to-muted rounded-lg mb-4 flex items-center justify-center cursor-pointer group-hover:from-muted/70 group-hover:to-muted/90 transition-all duration-200"
+                            className="bg-card border rounded-xl p-5 hover:shadow-lg transition-all duration-200 hover:border-border cursor-pointer"
                             onClick={() => handleViewArtifact(artifact)}
                           >
-                            <FileIcon filepath={artifact.filepath} className="h-10 w-10 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors duration-200" />
-                          </div>
+                            {/* Thumbnail */}
+                            <div className="aspect-video bg-gradient-to-br from-muted/50 to-muted rounded-lg mb-4 flex items-center justify-center group-hover:from-muted/70 group-hover:to-muted/90 transition-all duration-200">
+                              <FileIcon
+                                filepath={artifact.filepath}
+                                className="h-10 w-10 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors duration-200"
+                              />
+                            </div>
 
-                          {/* Content */}
-                          <div className="space-y-3">
-                            <div className="space-y-2">
-                              <h3
-                                className="font-semibold text-foreground truncate text-base leading-5"
-                                title={artifact.name}
-                              >
-                                {artifact.name}
-                              </h3>
+                            {/* Content */}
+                            <div className="space-y-3">
+                              <div className="space-y-2">
+                                <h3
+                                  className="font-semibold text-foreground truncate text-base leading-5"
+                                  title={artifact.name}
+                                >
+                                  {artifact.name}
+                                </h3>
 
-                              <div className="flex items-center gap-2">
-                                {artifact.is_public ? (
-                                  <>
-                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                    <span className="text-xs font-medium text-green-700">
-                                      Public
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                      Private
-                                    </span>
-                                  </>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  {artifact.is_public ? (
+                                    <>
+                                      <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                      <span className="text-xs font-medium text-green-700">
+                                        Public
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        Private
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(artifact.created_at)}
                               </div>
                             </div>
 
-                            <div className="text-xs text-muted-foreground">
-                              {formatDate(artifact.created_at)}
+                            {/* Actions */}
+                            <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60">
+                              <div className="flex items-center space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewArtifact(artifact);
+                                  }}
+                                  className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditClick(artifact);
+                                  }}
+                                  disabled={updatingArtifact === artifact.id}
+                                  className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleShareClick(artifact);
+                                  }}
+                                  className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
+                                  title="Share creation"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(artifact);
+                                }}
+                                disabled={deletingArtifact === artifact.id}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* List view */}
+                  {viewMode === "list" && (
+                    <div className="space-y-3">
+                      {filteredAndSortedArtifacts.map((artifact) => (
+                        <div
+                          key={artifact.id}
+                          className="flex items-center justify-between p-5 bg-card border rounded-xl hover:shadow-md hover:border-border transition-all duration-200 cursor-pointer"
+                          onClick={() => handleViewArtifact(artifact)}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="h-12 w-12 bg-gradient-to-br from-muted/50 to-muted rounded-lg flex items-center justify-center">
+                              <FileIcon
+                                filepath={artifact.filepath}
+                                className="h-6 w-6 text-muted-foreground/70"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="font-semibold text-foreground">
+                                {artifact.name}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                  {artifact.is_public ? (
+                                    <>
+                                      <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                      <span className="font-medium text-green-700">
+                                        Public
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
+                                      <span className="font-medium">
+                                        Private
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                <span>{formatDate(artifact.created_at)}</span>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60">
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewArtifact(artifact)}
-                                className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditClick(artifact)}
-                                disabled={updatingArtifact === artifact.id}
-                                className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleShareClick(artifact)}
-                                className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
-                                title="Share creation"
-                              >
-                                <Share2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                          <div className="flex items-center space-x-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteClick(artifact)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewArtifact(artifact);
+                              }}
+                              className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(artifact);
+                              }}
+                              disabled={updatingArtifact === artifact.id}
+                              className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShareClick(artifact);
+                              }}
+                              className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
+                              title="Share creation"
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(artifact);
+                              }}
                               disabled={deletingArtifact === artifact.id}
                               className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             >
@@ -560,173 +688,95 @@ export default function CreationsPage() {
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* List view */}
-                {viewMode === "list" && (
-                  <div className="space-y-3">
-                    {filteredAndSortedArtifacts.map((artifact) => (
-                      <div
-                        key={artifact.id}
-                        className="flex items-center justify-between p-5 bg-card border rounded-xl hover:shadow-md hover:border-border transition-all duration-200"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="h-12 w-12 bg-gradient-to-br from-muted/50 to-muted rounded-lg flex items-center justify-center">
-                            <FileIcon filepath={artifact.filepath} className="h-6 w-6 text-muted-foreground/70" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="font-semibold text-foreground">
-                              {artifact.name}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-2">
-                                {artifact.is_public ? (
-                                  <>
-                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                    <span className="font-medium text-green-700">
-                                      Public
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
-                                    <span className="font-medium">Private</span>
-                                  </>
-                                )}
-                              </div>
-                              <span>{formatDate(artifact.created_at)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewArtifact(artifact)}
-                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditClick(artifact)}
-                            disabled={updatingArtifact === artifact.id}
-                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleShareClick(artifact)}
-                            className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
-                            title="Share creation"
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(artifact)}
-                            disabled={deletingArtifact === artifact.id}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-6">
-                    <div className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
+                      ))}
                     </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage(Math.min(totalPages, currentPage + 1))
-                        }
-                        disabled={currentPage === totalPages}
-                      >
-                        Next
-                      </Button>
+                  )}
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-6">
+                      <div className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage(Math.max(1, currentPage - 1))
+                          }
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage(
+                              Math.min(totalPages, currentPage + 1)
+                            )
+                          }
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Artifact Viewer */}
-      <ArtifactViewer
-        isOpen={isViewerOpen}
-        onClose={handleCloseViewer}
-        artifact={selectedArtifact as ArtifactData || undefined}
-        onArtifactUpdated={handleArtifactUpdated}
-        onArtifactDeleted={handleArtifactDeleted}
-        width={viewerWidth}
-        onResize={handleViewerResize}
-      />
+        {/* Artifact Viewer */}
+        <ArtifactViewer
+          isOpen={isViewerOpen}
+          onClose={handleCloseViewer}
+          artifact={(selectedArtifact as ArtifactData) || undefined}
+          onArtifactUpdated={handleArtifactUpdated}
+          onArtifactDeleted={handleArtifactDeleted}
+          width={viewerWidth}
+          onResize={handleViewerResize}
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmationDialog
-        isOpen={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Creation"
-        description="Are you sure you want to delete this creation? This action cannot be undone."
-        itemName={artifactToDelete?.name}
-        isLoading={deletingArtifact === artifactToDelete?.id}
-      />
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmationDialog
+          isOpen={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Creation"
+          description="Are you sure you want to delete this creation? This action cannot be undone."
+          itemName={artifactToDelete?.name}
+          isLoading={deletingArtifact === artifactToDelete?.id}
+        />
 
-      {/* Edit Name Dialog */}
-      <EditNameDialog
-        isOpen={editDialogOpen}
-        onClose={handleEditCancel}
-        onConfirm={handleEditConfirm}
-        title="Edit creation name"
-        description="Enter a new name for this creation."
-        currentName={artifactToEdit?.name || ""}
-        isLoading={updatingArtifact === artifactToEdit?.id}
-      />
+        {/* Edit Name Dialog */}
+        <EditNameDialog
+          isOpen={editDialogOpen}
+          onClose={handleEditCancel}
+          onConfirm={handleEditConfirm}
+          title="Edit creation name"
+          description="Enter a new name for this creation."
+          currentName={artifactToEdit?.name || ""}
+          isLoading={updatingArtifact === artifactToEdit?.id}
+        />
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={shareModalOpen}
-        onClose={handleShareModalClose}
-        artifact={artifactToShare}
-        onTogglePublic={handleTogglePublic}
-        isUpdating={updatingArtifact === artifactToShare?.id}
-      />
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={handleShareModalClose}
+          artifact={artifactToShare}
+          onTogglePublic={handleTogglePublic}
+          isUpdating={updatingArtifact === artifactToShare?.id}
+        />
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-      />
+        {/* Upgrade Modal */}
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+        />
       </div>
     </PageLayout>
   );
