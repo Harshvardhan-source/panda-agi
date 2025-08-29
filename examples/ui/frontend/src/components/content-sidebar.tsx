@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Download, FileImage, File, Share2, MoreVertical, Trash2 } from "lucide-react";
+import { Download, FileImage, File } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
@@ -17,15 +17,8 @@ import {
   isExcelFile,
   validateContentType,
 } from "@/lib/utils";
-import ShareModal from "./share-modal";
-import DeleteConfirmationDialog from "./delete-confirmation-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useModalState } from "@/hooks/useModalState";
+import ArtifactActions from "./artifact-actions";
+import { ArtifactData } from "@/types/artifact";
 
 export interface PreviewData {
   title?: string;
@@ -72,23 +65,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal state management
-  const shareModal = useModalState();
-  const deleteModal = useModalState();
-  const [isUpdating, setIsUpdating] = useState(false);
-  
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
-  const [savedArtifact, setSavedArtifact] = useState<any>(null);
-
-  // Clean up modals on component unmount
-  useEffect(() => {
-    return () => {
-      shareModal.close();
-      deleteModal.close();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [savedArtifact, setSavedArtifact] = useState<ArtifactData | null>(null);
 
   // Reset saved state when sidebar closes
   useEffect(() => {
@@ -639,72 +618,22 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Handle share
-  const handleShare = () => {
-    shareModal.open();
-  };
-
-  // Handle delete
-  const handleDelete = () => {
-    deleteModal.open();
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!savedArtifact) {
-      toast.error("No artifact to delete");
-      return;
-    }
-    
-    deleteModal.setLoading(true);
-    try {
-      // Import the deleteArtifact function
-      const { deleteArtifact } = await import("@/lib/api/artifacts");
-      await deleteArtifact(savedArtifact.id);
-      
-      toast.success('Artifact deleted successfully');
-      deleteModal.close();
-      
-      // Reset saved state
-      setIsSaved(false);
-      setSavedArtifact(null);
-      
-      // Close the sidebar
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete artifact:', error);
-      toast.error('Failed to delete artifact');
-    } finally {
-      deleteModal.setLoading(false);
-    }
-  };
-
   // Handle artifact saved
-  const handleArtifactSaved = (artifactData: any) => {
+  const handleArtifactSaved = (artifactData: { artifact: ArtifactData, detail: string }) => {
     setIsSaved(true);
     setSavedArtifact(artifactData.artifact);
   };
 
-  // Handle toggle public (for share modal)
-  const handleTogglePublic = async (artifact: any) => {
-    if (!savedArtifact) return;
-    
-    setIsUpdating(true);
-    try {
-      // Import the updateArtifact function
-      const { updateArtifact } = await import("@/lib/api/artifacts");
-      const updatedArtifact = await updateArtifact(artifact.id, { 
-        is_public: !artifact.is_public 
-      });
-      
-      // Update the saved artifact state
-      setSavedArtifact(updatedArtifact);
-      toast.success(`Creation made ${updatedArtifact.is_public ? 'public' : 'private'} successfully!`);
-    } catch (error) {
-      console.error('Failed to update privacy setting:', error);
-      toast.error('Failed to update privacy setting');
-    } finally {
-      setIsUpdating(false);
-    }
+  // Handle artifact updated
+  const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
+    setSavedArtifact(updatedArtifact);
+  };
+
+  // Handle artifact deleted
+  const handleArtifactDeleted = (_artifactId: string) => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    onClose();
   };
 
   // Create header actions
@@ -734,37 +663,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             <Download className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
-      {/* Share button - only show when saved */}
-      {isSaved && (
-        <button
-          onClick={handleShare}
-          className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
-          title="Share"
-        >
-          <Share2 className="h-4 w-4 text-muted-foreground" />
-        </button>
-      )}
-      {/* More options dropdown - only show when saved */}
-      {isSaved && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center cursor-pointer"
-              title="More options"
-            >
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem
-              onClick={handleDelete}
-              className="text-destructive focus:text-destructive cursor-pointer"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Artifact actions - only show when saved */}
+      {isSaved && savedArtifact && (
+        <ArtifactActions
+          artifact={savedArtifact}
+          onArtifactUpdated={handleArtifactUpdated}
+          onArtifactDeleted={handleArtifactDeleted}
+          onClose={onClose}
+        />
       )}
     </>
   );
@@ -815,29 +721,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         )}
       </ResizableSidebar>
       
-      {/* Share Modal - Only show when content is saved */}
-      {shareModal.isOpen && isSaved && savedArtifact && (
-        <ShareModal
-          isOpen={shareModal.isOpen}
-          onClose={shareModal.close}
-          artifact={savedArtifact}
-          onTogglePublic={handleTogglePublic}
-          isUpdating={isUpdating}
-        />
-      )}
-      
-      {/* Delete Confirmation Dialog */}
-      {deleteModal.isOpen && (
-        <DeleteConfirmationDialog
-          isOpen={deleteModal.isOpen}
-          onClose={deleteModal.close}
-          onConfirm={handleDeleteConfirm}
-          title="Delete Artifact"
-          description="Are you sure you want to delete this artifact? This action cannot be undone."
-          itemName={previewData?.title || normalizedFilename}
-          isLoading={deleteModal.isLoading}
-        />
-      )}
+
     </>
   );
 };

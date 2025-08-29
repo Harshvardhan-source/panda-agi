@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveArtifact } from "@/lib/api/artifacts";
+import { saveArtifact, ArtifactResponse } from "@/lib/api/artifacts";
 import { toast } from "react-hot-toast";
 
 interface SaveArtifactButtonProps {
@@ -24,7 +24,7 @@ interface SaveArtifactButtonProps {
     content?: string;
     type?: string;
   };
-  onSave?: (artifactData: any) => void;
+  onSave?: (artifactData: { artifact: ArtifactResponse, detail: string }) => void;
 }
 
 const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
