@@ -19,6 +19,7 @@ import {
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
+import { useFullScreenToggle } from "@/hooks/useFullScreenToggle";
 
 export interface PreviewData {
   title?: string;
@@ -68,6 +69,12 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
   const [savedArtifact, setSavedArtifact] = useState<ArtifactData | null>(null);
+  
+  // Custom hooks for cleaner state management
+  const fullScreen = useFullScreenToggle({ 
+    initialWidth: width, 
+    onResize 
+  });
 
   // Reset saved state when sidebar closes
   useEffect(() => {
@@ -712,6 +719,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         onResize={onResize}
         loading={isLoading}
         error={error}
+        enableFullMode={true}
+        isFullMode={fullScreen.isFullMode}
+        onToggleFullMode={fullScreen.toggleFullMode}
         className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
       >
         {isFullHeightContent() ? (

@@ -20,7 +20,6 @@ interface ArtifactActionsProps {
   onClose?: () => void;
   showShare?: boolean;
   showDelete?: boolean;
-  className?: string;
 }
 
 const ArtifactActions: React.FC<ArtifactActionsProps> = ({
@@ -30,7 +29,6 @@ const ArtifactActions: React.FC<ArtifactActionsProps> = ({
   onClose,
   showShare = true,
   showDelete = true,
-  className = "",
 }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   

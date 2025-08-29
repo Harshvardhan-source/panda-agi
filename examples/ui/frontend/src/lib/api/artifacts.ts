@@ -17,7 +17,12 @@ export interface ArtifactResponse {
     is_public: boolean;
 }
 
-export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
+export interface ArtifactResponseWithDetail {
+    artifact: ArtifactResponse;
+    detail: string;
+}
+
+export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponseWithDetail> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/save`);
     const options = await getApiOptions();
     
