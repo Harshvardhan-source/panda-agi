@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggestingName, setIsSuggestingName] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveArtifact = async () => {
     if (!conversationId) {
@@ -102,10 +103,9 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         setArtifactName(response.suggested_name);
         // Select all text after setting the value
         setTimeout(() => {
-          const input = document.getElementById('artifact-name') as HTMLInputElement;
-          if (input) {
-            input.select();
-            input.focus();
+          if (inputRef.current) {
+            inputRef.current.select();
+            inputRef.current.focus();
           }
         }, 100);
       }
@@ -144,6 +144,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
             </Label>
             <div className="col-span-3 relative">
               <Input
+                ref={inputRef}
                 id="artifact-name"
                 value={artifactName}
                 onChange={(e) => setArtifactName(e.target.value)}
