@@ -54,7 +54,6 @@ class ArtifactsService:
         try:
             # Get the file content to analyze
             env = await get_env({"conversation_id": conversation_id}, force_new=True)
-            print(f"filepath: {filepath}")
             content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
             file_content = content_bytes.decode("utf-8", errors="ignore")
 
@@ -84,8 +83,8 @@ class ArtifactsService:
             Suggested name:"""
 
             # Call OpenAI API
-            client = openai.OpenAI(api_key=openai_api_key)
-            response = client.chat.completions.create(
+            client = openai.AsyncOpenAI(api_key=openai_api_key)
+            response = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
