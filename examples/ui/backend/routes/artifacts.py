@@ -13,7 +13,7 @@ import traceback
 import mimetypes
 from typing import Optional
 
-from services.artifacts import ArtifactsService
+from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
 from utils.html_utils import generate_error_page_html, should_return_html
 from models.agent import (
@@ -117,6 +117,19 @@ class ArtifactUpdateRequest(BaseModel):
     is_public: Optional[bool] = None
 
 
+class NameSuggestionRequest(BaseModel):
+    """Request model for name suggestion."""
+
+    type: str
+    filepath: str
+
+
+class NameSuggestionResponse(BaseModel):
+    """Response model for name suggestion."""
+
+    suggested_name: str
+
+
 async def cleanup_artifact(artifact_id: str, api_key: str):
     """
     Clean up an artifact by calling the delete endpoint.
@@ -193,6 +206,32 @@ async def upload_file_to_gcs(
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
+
+@router.post("/{conversation_id}/suggest-name")
+async def suggest_artifact_name(
+    request: Request, conversation_id: str, payload: NameSuggestionRequest
+) -> NameSuggestionResponse:
+    """Suggest a name for an artifact based on its type and filepath"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        filepath = ArtifactsService.get_relative_filepath(
+            payload.type, payload.filepath
+        )
+        suggested_name = await ArtifactsService.suggest_artifact_name(
+            conversation_id, filepath
+        )
+        return NameSuggestionResponse(suggested_name=suggested_name)
+    except Exception as e:
+        logger.error(f"Error suggesting artifact name: {traceback.format_exc()}")
+        # Return a default name if there's an error
+        return NameSuggestionResponse(suggested_name=DEFAULT_ARTIFACT_NAME)
 
 
 @router.post("/{conversation_id}/save")

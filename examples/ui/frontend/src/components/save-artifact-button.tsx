@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Save } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveArtifact, ArtifactResponse } from "@/lib/api/artifacts";
+import { saveArtifact, suggestArtifactName, ArtifactResponse } from "@/lib/api/artifacts";
+
 import { toast } from "react-hot-toast";
 
 interface SaveArtifactButtonProps {
@@ -35,6 +36,8 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggestingName, setIsSuggestingName] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveArtifact = async () => {
     if (!conversationId) {
@@ -74,9 +77,44 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     }
   };
 
-  const handleOpenDialog = () => {
-    setArtifactName(previewData?.title || "Untitled");
+  const handleOpenDialog = async () => {
     setIsOpen(true);
+    setArtifactName("");
+    
+    // Automatically suggest a name if we have the required data
+    if (conversationId && previewData?.type && (previewData?.url || previewData?.filename)) {
+      await suggestName();
+    }
+  };
+
+  const suggestName = async () => {
+    if (!conversationId || !previewData?.type || (!previewData?.url && !previewData?.filename)) {
+      return;
+    }
+
+    setIsSuggestingName(true);
+    try {
+      const response = await suggestArtifactName(conversationId, {
+        type: previewData.type,
+        filepath: previewData.url || previewData.filename || ""
+      });
+      
+      if (response.suggested_name ) {
+        setArtifactName(response.suggested_name);
+        // Select all text after setting the value
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.select();
+            inputRef.current.focus();
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error("Name suggestion error:", error);
+      // Don't show error toast for name suggestion failures - just use default
+    } finally {
+      setIsSuggestingName(false);
+    }
   };
 
   return (
@@ -104,31 +142,43 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
             <Label htmlFor="artifact-name" className="text-right">
               Name
             </Label>
-            <Input
-              id="artifact-name"
-              value={artifactName}
-              onChange={(e) => setArtifactName(e.target.value)}
-              className="col-span-3"
-              placeholder="Enter creation name..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSaveArtifact();
-                }
-              }}
-            />
+            <div className="col-span-3 relative">
+              <Input
+                ref={inputRef}
+                id="artifact-name"
+                value={artifactName}
+                onChange={(e) => setArtifactName(e.target.value)}
+                className={`w-full transition-all duration-200 ${
+                  isSuggestingName ? 'pr-32 bg-gray-50 border-blue-200' : ''
+                }`}
+                placeholder={isSuggestingName ? "Generating AI suggestion..." : "Enter creation name..."}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveArtifact();
+                  }
+                }}
+                disabled={isSuggestingName}
+              />
+              {isSuggestingName && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md animate-in fade-in-0 slide-in-from-right-2 duration-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">AI generating...</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => setIsOpen(false)}
-            disabled={isLoading}
+            disabled={isLoading || isSuggestingName}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveArtifact}
-            disabled={isLoading || !artifactName.trim()}
+            disabled={!artifactName.trim()}
           >
             {isLoading ? "Saving..." : "Save"}
           </Button>
