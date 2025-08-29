@@ -27,15 +27,12 @@ logger = logging.getLogger(__name__)
 class ArtifactsService:
 
     @staticmethod
-    async def suggest_artifact_name(
-        conversation_id: str, type: str, filepath: str
-    ) -> str:
+    async def suggest_artifact_name(conversation_id: str, filepath: str) -> str:
         """
         Suggest a name for an artifact based on its type and filepath.
 
         Args:
             conversation_id: The conversation ID
-            type: The type of artifact (markdown, iframe, etc.)
             filepath: The filepath of the artifact
 
         Returns:
@@ -64,23 +61,23 @@ class ArtifactsService:
 
             # Create a prompt for name suggestion
             prompt = f"""
-            Based on the following file content, suggest a concise, descriptive name (max 50 characters) for this creation.
-        
-            File Path: {filepath}
-            
-            File Content:
-            {file_content}
-            
-            Instructions:
-            - Create a name that reflects the main topic, purpose, or content of the file
-            - Keep it under 50 characters
-            - Make it descriptive but concise
-            - Avoid generic names like "Document" or "File"
-            - If it's a markdown file, focus on the main topic or title
-            - If it's an iframe/website, focus on the main functionality or purpose
-            - Don't add the file extension to the name
-            
-            Suggested name:"""
+Based on the following file content, suggest a concise, descriptive name (max 50 characters) for this creation.
+
+File Path: {filepath}
+
+File Content:
+{file_content}
+
+Instructions:
+- Create a name that reflects the main topic, purpose, or content of the file
+- Keep it under 50 characters
+- Make it descriptive but concise
+- Avoid generic names like "Document" or "File"
+- If it's a markdown file, focus on the main topic or title
+- If it's an iframe/website, focus on the main functionality or purpose
+- Don't add the file extension to the name
+
+Suggested name:"""
 
             # Call OpenAI API
             client = openai.AsyncOpenAI(api_key=openai_api_key)

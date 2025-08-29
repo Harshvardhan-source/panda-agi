@@ -225,7 +225,7 @@ async def suggest_artifact_name(
             payload.type, payload.filepath
         )
         suggested_name = await ArtifactsService.suggest_artifact_name(
-            conversation_id, payload.type, filepath
+            conversation_id, filepath
         )
         return NameSuggestionResponse(suggested_name=suggested_name)
     except Exception as e:
