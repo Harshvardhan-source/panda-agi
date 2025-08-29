@@ -11,11 +11,10 @@ import {
   ArtifactsListResponse,
 } from "@/lib/api/artifacts";
 import { format } from "date-fns";
-import { Trash2, Edit, Share2, Search, Eye, Grid3x3, List } from "lucide-react";
+import { Trash2, Share2, Search, Grid3x3, List } from "lucide-react";
 import { toast } from "react-hot-toast";
 import ArtifactViewer, { ArtifactData } from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
-import EditNameDialog from "@/components/edit-name-dialog";
 import ShareModal from "@/components/share-modal";
 import FileIcon from "@/components/ui/file-icon";
 import Header from "@/components/header";
@@ -47,11 +46,6 @@ export default function CreationsPage() {
   const [artifactToDelete, setArtifactToDelete] =
     useState<ArtifactResponse | null>(null);
 
-  // Edit dialog state
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [artifactToEdit, setArtifactToEdit] = useState<ArtifactResponse | null>(
-    null
-  );
 
   // Artifact viewer state
   const [selectedArtifact, setSelectedArtifact] =
@@ -137,40 +131,6 @@ export default function CreationsPage() {
     setDeletingArtifact(null);
   };
 
-  const handleEditClick = (artifact: ArtifactResponse) => {
-    setArtifactToEdit(artifact);
-    setEditDialogOpen(true);
-  };
-
-  const handleEditConfirm = async (newName: string) => {
-    if (!artifactToEdit) return;
-
-    try {
-      setUpdatingArtifact(artifactToEdit.id);
-      const updatedArtifact = await updateArtifact(artifactToEdit.id, {
-        name: newName,
-      });
-
-      // Update the artifact in the local state
-      setArtifacts((prev) =>
-        prev.map((artifact) =>
-          artifact.id === artifactToEdit.id
-            ? { ...artifact, name: updatedArtifact.name }
-            : artifact
-        )
-      );
-
-      toast.success("Creation name updated successfully!");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to update creation name";
-      toast.error(errorMessage);
-    } finally {
-      setUpdatingArtifact(null);
-      setEditDialogOpen(false);
-      setArtifactToEdit(null);
-    }
-  };
 
   const handleTogglePublic = async (artifact: ArtifactResponse) => {
     try {
@@ -220,11 +180,6 @@ export default function CreationsPage() {
     setArtifactToShare(null);
   };
 
-  const handleEditCancel = () => {
-    setEditDialogOpen(false);
-    setArtifactToEdit(null);
-    setUpdatingArtifact(null);
-  };
 
   const filteredAndSortedArtifacts = artifacts
     .filter((artifact) => {
@@ -545,29 +500,6 @@ export default function CreationsPage() {
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleViewArtifact(artifact);
-                                  }}
-                                  className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditClick(artifact);
-                                  }}
-                                  disabled={updatingArtifact === artifact.id}
-                                  className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
                                     handleShareClick(artifact);
                                   }}
                                   className="h-8 w-8 p-0 hover:bg-green-600/10 hover:text-green-600"
@@ -639,29 +571,6 @@ export default function CreationsPage() {
                           </div>
 
                           <div className="flex items-center space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewArtifact(artifact);
-                              }}
-                              className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditClick(artifact);
-                              }}
-                              disabled={updatingArtifact === artifact.id}
-                              className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -752,16 +661,6 @@ export default function CreationsPage() {
           isLoading={deletingArtifact === artifactToDelete?.id}
         />
 
-        {/* Edit Name Dialog */}
-        <EditNameDialog
-          isOpen={editDialogOpen}
-          onClose={handleEditCancel}
-          onConfirm={handleEditConfirm}
-          title="Edit creation name"
-          description="Enter a new name for this creation."
-          currentName={artifactToEdit?.name || ""}
-          isLoading={updatingArtifact === artifactToEdit?.id}
-        />
 
         {/* Share Modal */}
         <ShareModal
