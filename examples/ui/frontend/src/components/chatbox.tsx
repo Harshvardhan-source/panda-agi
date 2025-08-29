@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import LoginModal from "@/components/login-modal";
 import { AnimatedText } from "@/components/ui/animated-text";
+import CSVPreview from "@/components/ui/csv-preview";
+import CSVModal from "@/components/ui/csv-modal";
 
 interface RequestBody {
   query: string;
@@ -74,6 +76,7 @@ export default function ChatBox({
       progress: number;
       status: "uploading" | "completed" | "error";
       error?: string;
+      content?: string;
     }[]
   >([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,6 +84,8 @@ export default function ChatBox({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] =
     useState(false);
+  const [showCSVModal, setShowCSVModal] = useState(false);
+  const [csvModalData, setCSVModalData] = useState<{filename: string; content: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -88,6 +93,20 @@ export default function ChatBox({
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Helper function to read CSV file content
+  const readCSVFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target?.result as string || '');
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsText(file);
+    });
   };
 
   // Auto-resize textarea based on content
@@ -154,13 +173,29 @@ export default function ChatBox({
 
       // Create new file previews to add to existing ones (cumulative)
       const baseId = Date.now();
-      const newFilePreviews = Array.from(files).map((file, index) => ({
-        id: baseId + index + Math.random() * 1000, // Ensure unique IDs
-        name: file.name,
-        size: file.size,
-        progress: 0,
-        status: "uploading" as const,
-      }));
+      const newFilePreviews = await Promise.all(
+        Array.from(files).map(async (file, index) => {
+          let content = undefined;
+          
+          // Read CSV files for preview
+          if (file.name.toLowerCase().endsWith('.csv') && file.size < 1024 * 1024) { // Only read CSV files under 1MB
+            try {
+              content = await readCSVFile(file);
+            } catch (error) {
+              console.warn('Failed to read CSV file:', error);
+            }
+          }
+          
+          return {
+            id: baseId + index + Math.random() * 1000, // Ensure unique IDs
+            name: file.name,
+            size: file.size,
+            progress: 0,
+            status: "uploading" as const,
+            content,
+          };
+        })
+      );
 
       // Add new files to existing previews (cumulative)
       setUploadingFilesPreviews((prev) => [...prev, ...newFilePreviews]);
@@ -703,6 +738,22 @@ export default function ChatBox({
     setShowLoginModal(false);
   };
 
+  const handleExpandCSV = (filename: string, content: string) => {
+    setCSVModalData({ filename, content });
+    setShowCSVModal(true);
+  };
+
+  const handleCloseCSVModal = () => {
+    setShowCSVModal(false);
+    setCSVModalData(null);
+  };
+
+  const handleRemoveCSV = () => {
+    // Clear all files when CSV is removed
+    setPendingFiles([]);
+    setUploadingFilesPreviews([]);
+  };
+
   return (
     <div
       className="relative transition-all duration-300 w-full bg-gradient-to-br from-slate-50/90 via-white/60 to-slate-100/80 overflow-hidden"
@@ -896,74 +947,88 @@ export default function ChatBox({
             )}
             {/* Files Display - Show all files (uploading, completed, and attached) */}
             {(uploadingFilesPreviews.length > 0 || pendingFiles.length > 0) && (
-              <div className="mb-4 p-3 bg-slate-50/80 rounded-2xl border border-slate-200/50">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-slate-700 flex items-center">
-                    <Paperclip className="w-4 h-4 mr-2" />
-                    {(() => {
-                      // Count unique files by avoiding duplicates between uploadingFilesPreviews and pendingFiles
-                      const uniqueFiles = new Set([
-                        ...uploadingFilesPreviews.map((f) => f.id),
-                        ...pendingFiles
-                          .filter(
-                            (pf) =>
-                              !uploadingFilesPreviews.some(
-                                (upf) => upf.id === pf.id
-                              )
-                          )
-                          .map((f) => f.id),
-                      ]);
-                      return uniqueFiles.size;
-                    })()}{" "}
-                    attachment
-                    {(() => {
-                      const uniqueFiles = new Set([
-                        ...uploadingFilesPreviews.map((f) => f.id),
-                        ...pendingFiles
-                          .filter(
-                            (pf) =>
-                              !uploadingFilesPreviews.some(
-                                (upf) => upf.id === pf.id
-                              )
-                          )
-                          .map((f) => f.id),
-                      ]);
-                      return uniqueFiles.size !== 1 ? "s" : "";
-                    })()}
-                    {uploadingFilesPreviews.some(
-                      (f) => f.status === "uploading"
-                    ) && (
-                      <span className="ml-2 text-slate-600">
-                        <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    onClick={clearAllFiles}
-                    className="text-sm text-slate-500 hover:text-slate-700 transition-colors flex items-center font-medium"
-                    disabled={uploadingFilesPreviews.some(
-                      (f) => f.status === "uploading"
-                    )}
-                    title={
-                      uploadingFilesPreviews.some(
-                        (f) => f.status === "uploading"
-                      )
-                        ? "Wait for uploads to complete"
-                        : "Clear all files"
-                    }
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Clear
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {/* Show uploading/completed files from preview */}
-                  {uploadingFilesPreviews.map((file) => {
+              <div className="mb-4">
+                {(() => {
+                  // Check if we should show CSV preview
+                  const allFiles = [
+                    ...uploadingFilesPreviews,
+                    ...pendingFiles.filter(
+                      (pf) => !uploadingFilesPreviews.some((upf) => upf.id === pf.id)
+                    ),
+                  ];
+                  
+                  // Show CSV preview if there's exactly one file and it's a CSV with content
+                  const firstFile = allFiles[0];
+                  const fileName = 'name' in firstFile ? firstFile.name : firstFile.filename;
+                  const shouldShowCSVPreview = allFiles.length === 1 && 
+                    fileName.toLowerCase().endsWith('.csv') && 
+                    (uploadingFilesPreviews[0]?.content || (!('status' in firstFile) || firstFile.status !== 'uploading'));
+                    
+                  if (shouldShowCSVPreview) {
+                    const csvFile = allFiles[0];
+                    const csvFileName = 'name' in csvFile ? csvFile.name : csvFile.filename;
+                    const csvStatus = 'status' in csvFile ? csvFile.status : undefined;
+                    const csvContent = uploadingFilesPreviews[0]?.content || '';
                     return (
-                      <div
-                        key={`preview-${file.id}`}
-                        className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
-                      >
+                      <div className="space-y-3">
+                        <CSVPreview
+                          filename={csvFileName}
+                          content={csvContent}
+                          onExpand={() => handleExpandCSV(csvFileName, csvContent)}
+                          onRemove={handleRemoveCSV}
+                        />
+                        {csvStatus === "uploading" && (
+                          <div className="flex items-center justify-center space-x-2 text-sm text-slate-600">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Uploading...</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // Default file list display
+                  return (
+                    <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-slate-700 flex items-center">
+                          <Paperclip className="w-4 h-4 mr-2" />
+                          {allFiles.length}{" "}
+                          attachment{allFiles.length !== 1 ? "s" : ""}
+                          {uploadingFilesPreviews.some(
+                            (f) => f.status === "uploading"
+                          ) && (
+                            <span className="ml-2 text-slate-600">
+                              <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          onClick={clearAllFiles}
+                          className="text-sm text-slate-500 hover:text-slate-700 transition-colors flex items-center font-medium"
+                          disabled={uploadingFilesPreviews.some(
+                            (f) => f.status === "uploading"
+                          )}
+                          title={
+                            uploadingFilesPreviews.some(
+                              (f) => f.status === "uploading"
+                            )
+                              ? "Wait for uploads to complete"
+                              : "Clear all files"
+                          }
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Clear
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Show uploading/completed files from preview */}
+                        {uploadingFilesPreviews.map((file) => {
+                          return (
+                            <div
+                              key={`preview-${file.id}`}
+                              className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
+                            >
                         {/* Progress background for uploading files */}
                         {file.status === "uploading" && (
                           <div
@@ -1069,7 +1134,10 @@ export default function ChatBox({
                         </button>
                       </div>
                     ))}
-                </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1150,6 +1218,16 @@ export default function ChatBox({
 
       {/* Login Modal */}
       <LoginModal isOpen={showLoginModal} onClose={handleCloseLoginModal} />
+      
+      {/* CSV Modal */}
+      {csvModalData && (
+        <CSVModal
+          isOpen={showCSVModal}
+          onClose={handleCloseCSVModal}
+          filename={csvModalData.filename}
+          content={csvModalData.content}
+        />
+      )}
     </div>
   );
 }
