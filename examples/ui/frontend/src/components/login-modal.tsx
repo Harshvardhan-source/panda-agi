@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { getAuthUrl } from "@/lib/api/auth";
 import toast from "react-hot-toast";
+import { Button } from "@/components/ui/button";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <div className="relative px-6 py-4 border-b border-gray-100">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="absolute right-4 top-4 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
             disabled={isLoading}
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -94,10 +95,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
         {/* Body */}
         <div className="px-6 py-6 space-y-3">
-          <button
+          <Button
             onClick={handleGitHubLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center px-4 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            variant="github"
+            size="auth"
+            className="w-full flex items-center justify-center"
           >
             <svg
               className="w-5 h-5 mr-3"
@@ -112,12 +115,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               />
             </svg>
             {isLoading ? "Connecting..." : "Continue with GitHub"}
-          </button>
+          </Button>
 
-          <button
+          <Button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            variant="google"
+            size="auth"
+            className="w-full flex items-center justify-center"
           >
             <svg
               className="w-5 h-5 mr-3"
@@ -142,7 +147,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               />
             </svg>
             {isLoading ? "Connecting..." : "Continue with Google"}
-          </button>
+          </Button>
 
           {/* Terms and Privacy Policy */}
           <div className="mt-4 pt-4 border-t border-gray-100">
