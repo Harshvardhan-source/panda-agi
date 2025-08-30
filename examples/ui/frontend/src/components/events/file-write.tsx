@@ -10,13 +10,19 @@ interface FileWriteEventProps {
   onPreviewClick?: (previewData: unknown) => void;
 }
 
-const FileWriteEvent: React.FC<FileWriteEventProps> = ({ payload, onPreviewClick }) => {
+const FileWriteEvent: React.FC<FileWriteEventProps> = ({
+  payload,
+  onPreviewClick,
+}) => {
   if (!payload) return null;
 
   const filename = payload.file || payload.path;
   const filePath = payload.path || payload.file;
 
-  const truncateFilename = (filename: string | undefined, maxLength = 50): string => {
+  const truncateFilename = (
+    filename: string | undefined,
+    maxLength = 50
+  ): string => {
     if (!filename) return "Unknown file";
     return filename.length > maxLength
       ? `${filename.substring(0, maxLength)}...`
@@ -28,8 +34,10 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({ payload, onPreviewClick
       const getFileType = (filePath: string): string => {
         if (!filePath) return "text";
         const extension = filePath.split(".").pop()?.toLowerCase();
-        if (extension && ["csv", "xls", "xlsx"].includes(extension)) return "table";
-        if (extension && ["md", "markdown", "txt"].includes(extension)) return "markdown";
+        if (extension && ["csv", "xls", "xlsx"].includes(extension))
+          return "table";
+        if (extension && ["md", "markdown", "txt"].includes(extension))
+          return "markdown";
         if (extension && ["html", "htm"].includes(extension)) return "html";
         if (
           extension &&
@@ -90,7 +98,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({ payload, onPreviewClick
         {payload.content && (
           <button
             onClick={handlePreviewClick}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             title="View in preview"
           >
             <Eye className="w-3 h-3" />

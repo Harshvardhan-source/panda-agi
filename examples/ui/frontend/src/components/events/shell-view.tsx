@@ -80,11 +80,12 @@ const ShellViewEvent: React.FC<ShellViewEventProps> = ({ payload }) => {
         <div className="flex items-center space-x-2 px-3 py-2 bg-white/90 rounded-xl">
           <Terminal className="w-3 h-3 text-blue-600" />
           <span className="text-xs text-slate-600 font-medium">
-            Managing process <strong className="text-slate-800">{getDisplayContent()}</strong>
+            Managing process{" "}
+            <strong className="text-slate-800">{getDisplayContent()}</strong>
           </span>
           <button
             onClick={toggleExpanded}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div

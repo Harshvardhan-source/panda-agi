@@ -39,12 +39,14 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
       <div className="mx-3 mb-4 bg-blue-50/90 border border-blue-200/50 rounded-xl overflow-hidden shadow-sm">
         <div className="flex items-center px-3 py-2 bg-blue-100 border-b border-blue-200">
           <Zap className="w-4 h-4 mr-2 text-blue-600" />
-          <span className="text-sm font-mono text-blue-700">Tool used:  {payload.tool_name}</span>
+          <span className="text-sm font-mono text-blue-700">
+            Tool used: {payload.tool_name}
+          </span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
           {result && result.data && (
             <div>
-              {typeof result.data === 'string' ? (
+              {typeof result.data === "string" ? (
                 result.data
               ) : (
                 <pre className="whitespace-pre-wrap overflow-auto">
@@ -68,7 +70,7 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
           </span>
           <button
             onClick={toggleExpanded}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div

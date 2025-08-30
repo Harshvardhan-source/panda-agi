@@ -39,11 +39,11 @@ const ShellExecEvent: React.FC<ShellExecEventProps> = ({ payload }) => {
             <span className="text-white">{command}</span>
           </div>
           {payload.output && (
-            <div 
+            <div
               className="text-gray-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
               style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#4B5563 #1F2937'
+                scrollbarWidth: "thin",
+                scrollbarColor: "#4B5563 #1F2937",
               }}
             >
               {String(payload.output)}
@@ -60,11 +60,12 @@ const ShellExecEvent: React.FC<ShellExecEventProps> = ({ payload }) => {
         <div className="flex items-center space-x-2 px-3 py-2 bg-white/90 rounded-xl">
           <Terminal className="w-3 h-3 text-purple-600" />
           <span className="text-xs text-slate-600 font-medium">
-            Ran <strong className="text-slate-800">{getDisplayContent()}</strong>
+            Ran{" "}
+            <strong className="text-slate-800">{getDisplayContent()}</strong>
           </span>
           <button
             onClick={toggleExpanded}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div

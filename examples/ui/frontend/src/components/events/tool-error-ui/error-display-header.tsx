@@ -12,21 +12,22 @@ interface ErrorDisplayHeaderProps {
   showExpandButton?: boolean;
 }
 
-const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({ 
-  payload, 
-  isExpanded, 
+const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({
+  payload,
+  isExpanded,
   onToggleExpanded,
-  showExpandButton = true 
+  showExpandButton = true,
 }) => {
   const getDisplayContent = () => {
     const toolName = payload.tool_name || "Unknown tool";
     const errorMessage = payload.error || "Unknown error occurred";
-    
+
     // Truncate error message for display
-    const truncatedError = errorMessage.length > 120 
-      ? `${errorMessage.substring(0, 120)}...` 
-      : errorMessage;
-    
+    const truncatedError =
+      errorMessage.length > 120
+        ? `${errorMessage.substring(0, 120)}...`
+        : errorMessage;
+
     return { toolName, truncatedError };
   };
 
@@ -47,7 +48,7 @@ const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({
         {showExpandButton && (
           <button
             onClick={onToggleExpanded}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             title={isExpanded ? "Hide details" : "Show details"}
           >
             <div
@@ -64,4 +65,4 @@ const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({
   );
 };
 
-export default ErrorDisplayHeader; 
+export default ErrorDisplayHeader;
