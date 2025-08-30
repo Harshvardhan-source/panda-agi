@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/api/auth";
 import { notifyAuthChange } from "./useAuth";
+import { useGlobalModals } from "@/contexts/global-modals-context";
 
 // Global state for logout modal
 let globalShowLogoutModal = false;
@@ -17,6 +18,7 @@ function setGlobalLogoutModal(show: boolean) {
 export function useLogout() {
   const [showLogoutModal, setShowLogoutModal] = useState(globalShowLogoutModal);
   const router = useRouter();
+  const { showLoginModal } = useGlobalModals();
 
   useEffect(() => {
     // Register this component's setter
@@ -43,7 +45,9 @@ export function useLogout() {
     setGlobalLogoutModal(false);
     // Redirect to home page after logout
     router.push("/");
-  }, [router]);
+    // Open login modal after successful logout
+    showLoginModal();
+  }, [router, showLoginModal]);
 
   return {
     showLogoutModal,

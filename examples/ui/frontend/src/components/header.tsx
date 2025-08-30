@@ -1,6 +1,7 @@
 "use client";
 import React, { forwardRef, useImperativeHandle } from "react";
 import { Plus, Coins } from "lucide-react";
+import { useRouter } from "next/navigation";
 import UserMenu from "@/components/user-menu";
 import Avatar from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useLogout } from "@/hooks/useLogout";
+import { useGlobalModals } from "@/contexts/global-modals-context";
 import { getUserCredits, UserCreditsResponse } from "@/lib/api/stripe";
 import { PLATFORM_MODE } from "@/lib/config";
 import { useState, useEffect, useCallback } from "react";
@@ -25,15 +28,13 @@ interface HeaderProps {
   isConnected?: boolean;
   sidebarOpen?: boolean;
   sidebarWidth?: number;
-  onNewConversation?: () => void;
-  onUpgradeClick: () => void;
-  onShowLogin?: () => void;
-  onShowLogout?: () => void;
   // Custom content props
   title?: string;
   subtitle?: string;
   // Styling props
   variant?: "default" | "page";
+  // Optional overrides for default behavior
+  onNewConversation?: () => void;
 }
 
 const Header = forwardRef<HeaderRef, HeaderProps>(
@@ -44,16 +45,22 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
       sidebarOpen = false,
       sidebarWidth = 0,
       onNewConversation,
-      onUpgradeClick,
-      onShowLogin,
-      onShowLogout,
       title,
       subtitle,
       variant = "default",
     },
     ref
   ) => {
+    const router = useRouter();
+    const { handleShowLogout } = useLogout();
+    const { showUpgradeModal, showLoginModal } = useGlobalModals();
     const { isAuthenticated } = useAuth();
+
+    // Default handlers
+    const handleNewConversation = onNewConversation || (() => router.push("/"));
+    const handleUpgradeClick = showUpgradeModal;
+    const handleShowLogin = showLoginModal;
+    const handleLogout = handleShowLogout;
 
     // Credits state - managed internally with localStorage caching
     const [userCredits, setUserCredits] = useState<UserCreditsResponse | null>(
@@ -208,7 +215,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                           ? "bg-muted/70 scale-[0.98] opacity-80"
                           : "bg-muted/50 hover:bg-muted"
                       }`}
-                      onClick={onUpgradeClick}
+                      onClick={handleUpgradeClick}
                     >
                       <Coins
                         className={`w-3.5 h-3.5 transition-all duration-500 ${
@@ -244,9 +251,9 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 </Tooltip>
               )}
 
-              {isAuthenticated && onNewConversation && (
+              {isAuthenticated && (
                 <Button
-                  onClick={onNewConversation}
+                  onClick={handleNewConversation}
                   variant="default"
                   size="action"
                 >
@@ -256,9 +263,9 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
               )}
 
               <UserMenu
-                onUpgradeClick={onUpgradeClick}
-                onShowLogin={onShowLogin}
-                onShowLogout={onShowLogout}
+                onUpgradeClick={handleUpgradeClick}
+                onShowLogin={handleShowLogin}
+                onShowLogout={handleLogout}
               />
             </div>
           </div>

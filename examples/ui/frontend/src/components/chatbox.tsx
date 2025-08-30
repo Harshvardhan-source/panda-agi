@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import {
   Send,
   Paperclip,
@@ -20,6 +20,7 @@ import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { PreviewData } from "@/components/content-sidebar";
+import { useGlobalModals } from "@/contexts/global-modals-context";
 import { formatAgentMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
@@ -33,12 +34,15 @@ interface RequestBody {
   conversation_id?: string;
 }
 
+export interface ChatBoxRef {
+  stopCurrentConversation: () => void;
+}
+
 interface ChatBoxProps {
   conversationId: string | undefined;
   setConversationId: (id: string | undefined) => void;
   onPreviewClick: (data: PreviewData) => void;
   onFileClick: (filename: string) => void;
-  openUpgradeModal: () => void;
   isConnected: boolean;
   setIsConnected: (connected: boolean) => void;
   sidebarOpen: boolean;
@@ -49,12 +53,11 @@ interface ChatBoxProps {
   onUserMessage?: () => void;
 }
 
-export default function ChatBox({
+const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(({
   conversationId,
   setConversationId,
   onPreviewClick,
   onFileClick,
-  openUpgradeModal,
   setIsConnected,
   sidebarOpen,
   sidebarWidth,
@@ -62,11 +65,13 @@ export default function ChatBox({
   initialQuery = null,
   onCreditsRefetch,
   onUserMessage,
-}: ChatBoxProps) {
+}: ChatBoxProps, ref) => {
+  const { showUpgradeModal } = useGlobalModals();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
   const [uploadingFilesPreviews, setUploadingFilesPreviews] = useState<
     {
@@ -90,6 +95,28 @@ export default function ChatBox({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Function to stop current conversation and reset to default state
+  const stopCurrentConversation = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset all conversation state
+    setIsLoading(false);
+    setIsConnected(false);
+    setMessages([]);
+    setInputValue("");
+    setPendingFiles([]);
+    setUploadingFilesPreviews([]);
+    setCurrentActivity("");
+  }, [setIsConnected]);
+
+  // Expose the stop function to parent components
+  useImperativeHandle(ref, () => ({
+    stopCurrentConversation,
+  }), [stopCurrentConversation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -457,6 +484,9 @@ export default function ChatBox({
     onUserMessage?.();
 
     try {
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
+      
       const apiUrl = getBackendServerURL("/agent/run");
 
       const requestBody: RequestBody = {
@@ -474,6 +504,7 @@ export default function ChatBox({
         method: "POST",
         headers: apiHeaders,
         body: JSON.stringify(requestBody),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -618,6 +649,12 @@ export default function ChatBox({
         }
       }
     } catch (error) {
+      // Handle aborted requests gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log("Request was aborted");
+        return;
+      }
+      
       let errorText: string = "Unable to process request, try again!";
 
       if (error instanceof Error) {
@@ -635,6 +672,8 @@ export default function ChatBox({
 
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      // Clean up abort controller
+      abortControllerRef.current = null;
       setIsLoading(false);
       setIsConnected(false);
       setCurrentActivity(""); // Clear activity when done
@@ -886,7 +925,7 @@ export default function ChatBox({
                   conversationId={conversationId}
                   onPreviewClick={onPreviewClick}
                   onFileClick={onFileClick}
-                  openUpgradeModal={openUpgradeModal}
+                  openUpgradeModal={showUpgradeModal}
                 />
               )}
             </div>
@@ -1230,4 +1269,8 @@ export default function ChatBox({
       )}
     </div>
   );
-}
+});
+
+ChatBox.displayName = 'ChatBox';
+
+export default ChatBox;
