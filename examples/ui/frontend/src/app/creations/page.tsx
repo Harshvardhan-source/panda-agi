@@ -44,7 +44,6 @@ export default function CreationsPage() {
   const [selectedArtifact, setSelectedArtifact] =
     useState<ArtifactResponse | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [viewerWidth, setViewerWidth] = useState(900);
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -210,10 +209,6 @@ export default function CreationsPage() {
       prev.filter((artifact) => artifact.id !== artifactId)
     );
     fetchArtifacts(); // Refresh the list
-  };
-
-  const handleViewerResize = (width: number) => {
-    setViewerWidth(width);
   };
 
   if (loading) {
@@ -583,8 +578,6 @@ export default function CreationsPage() {
         artifact={(selectedArtifact as ArtifactData) || undefined}
         onArtifactUpdated={handleArtifactUpdated}
         onArtifactDeleted={handleArtifactDeleted}
-        width={viewerWidth}
-        onResize={handleViewerResize}
       />
 
       {/* Delete Confirmation Dialog */}
