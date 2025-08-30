@@ -17,6 +17,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { createLowlight } from 'lowlight';
 import Typography from '@tiptap/extension-typography';
+import { marked } from 'marked';
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -42,33 +43,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Simple markdown to HTML converter for basic formatting
-  const markdownToHtml = (markdown: string): string => {
-    if (!markdown) return '';
-    
-    let html = markdown
-      // Headers
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      // Bold
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Code
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      // Line breaks - convert double line breaks to paragraphs
-      .replace(/\n\n/g, '</p><p>')
-      // Single line breaks
-      .replace(/\n/g, '<br>');
-    
-    // Wrap in paragraphs if not already wrapped
-    if (!html.includes('<h') && !html.includes('<p>')) {
-      html = '<p>' + html + '</p>';
-    }
-    
-    return html;
-  };
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
 
@@ -184,10 +158,109 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     },
   });
 
+  // Custom markdown parser that preserves empty lines
+  const parseMarkdownWithEmptyLines = (markdown: string): string => {
+    if (!markdown) return '';
+    
+    const lines = markdown.split('\n');
+    const htmlLines: string[] = [];
+    let inList = false;
+    let listType = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Empty line - preserve it and close any open list
+      if (line.trim() === '') {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        htmlLines.push('<p></p>');
+        continue;
+      }
+      
+      let processedLine = line;
+      
+      // Headers
+      if (line.startsWith('### ')) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        processedLine = `<h3>${line.substring(4)}</h3>`;
+      } else if (line.startsWith('## ')) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        processedLine = `<h2>${line.substring(3)}</h2>`;
+      } else if (line.startsWith('# ')) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        processedLine = `<h1>${line.substring(2)}</h1>`;
+      } else if (line.trim().startsWith('- ')) {
+        // Unordered list item
+        if (!inList || listType !== 'ul') {
+          if (inList) htmlLines.push(`</${listType}>`);
+          htmlLines.push('<ul>');
+          inList = true;
+          listType = 'ul';
+        }
+        const listItemContent = line.trim().substring(2)
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/`(.*?)`/g, '<code>$1</code>');
+        processedLine = `<li>${listItemContent}</li>`;
+      } else if (/^\d+\.\s/.test(line.trim())) {
+        // Numbered list item (1. 2. 3. etc.)
+        if (!inList || listType !== 'ol') {
+          if (inList) htmlLines.push(`</${listType}>`);
+          htmlLines.push('<ol>');
+          inList = true;
+          listType = 'ol';
+        }
+        const listItemContent = line.trim().replace(/^\d+\.\s/, '')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/`(.*?)`/g, '<code>$1</code>');
+        processedLine = `<li>${listItemContent}</li>`;
+      } else {
+        // Regular content
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        processedLine = line
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/`(.*?)`/g, '<code>$1</code>');
+        processedLine = `<p>${processedLine}</p>`;
+      }
+      
+      htmlLines.push(processedLine);
+    }
+    
+    // Close any remaining open list
+    if (inList) {
+      htmlLines.push(`</${listType}>`);
+    }
+    
+    return htmlLines.join('');
+  };
+
   // Update editor content when file content changes
   useEffect(() => {
     if (editor && fileContent !== null) {
-      const htmlContent = markdownToHtml(fileContent);
+      // Use our custom parser that preserves empty lines
+      const htmlContent = parseMarkdownWithEmptyLines(fileContent);
       editor.commands.setContent(htmlContent);
       setHasUnsavedChanges(false);
     }
@@ -342,16 +415,28 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                   }
                   
                   /* Lists */
-                  .tiptap-editor .ProseMirror ul,
-                  .tiptap-editor .ProseMirror ol {
+                  .tiptap-editor .ProseMirror ul {
+                    list-style-type: disc;
+                    list-style-position: outside;
                     padding-left: 1.5rem;
                     margin-bottom: 1.25rem;
+                    margin-left: 1rem;
+                  }
+                  
+                  .tiptap-editor .ProseMirror ol {
+                    list-style-type: decimal;
+                    list-style-position: outside;
+                    padding-left: 1.5rem;
+                    margin-bottom: 1.25rem;
+                    margin-left: 1rem;
                   }
                   
                   .tiptap-editor .ProseMirror li {
+                    display: list-item;
                     margin-bottom: 0.5rem;
                     line-height: 1.7;
                     color: #374151;
+                    padding-left: 0.5rem;
                   }
                   .dark .tiptap-editor .ProseMirror li {
                     color: #d1d5db;
