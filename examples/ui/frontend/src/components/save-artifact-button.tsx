@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,6 +37,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggestingName, setIsSuggestingName] = useState(false);
+  const [userHasEdited, setUserHasEdited] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveArtifact = async () => {
@@ -80,6 +81,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const handleOpenDialog = async () => {
     setIsOpen(true);
     setArtifactName("");
+    setUserHasEdited(false);
     
     // Automatically suggest a name if we have the required data
     if (conversationId && previewData?.type && (previewData?.url || previewData?.filename)) {
@@ -99,11 +101,11 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         filepath: previewData.url || previewData.filename || ""
       });
       
-      if (response.suggested_name ) {
+      if (response.suggested_name && !userHasEdited) {
         setArtifactName(response.suggested_name);
         // Select all text after setting the value
         setTimeout(() => {
-          if (inputRef.current) {
+          if (inputRef.current && !userHasEdited) {
             inputRef.current.select();
             inputRef.current.focus();
           }
@@ -147,22 +149,21 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
                 ref={inputRef}
                 id="artifact-name"
                 value={artifactName}
-                onChange={(e) => setArtifactName(e.target.value)}
-                className={`w-full transition-all duration-200 ${
-                  isSuggestingName ? 'pr-32 bg-gray-50 border-blue-200' : ''
-                }`}
-                placeholder={isSuggestingName ? "Generating AI suggestion..." : "Enter creation name..."}
+                onChange={(e) => {
+                  setArtifactName(e.target.value);
+                  setUserHasEdited(true);
+                }}
+                className="w-full"
+                placeholder="Enter creation name..."
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleSaveArtifact();
                   }
                 }}
-                disabled={isSuggestingName}
               />
               {isSuggestingName && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md animate-in fade-in-0 slide-in-from-right-2 duration-300">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">AI generating...</span>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Sparkles className="w-3 h-3 text-gray-400 animate-pulse" />
                 </div>
               )}
             </div>
@@ -172,13 +173,13 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
           <Button
             variant="outline"
             onClick={() => setIsOpen(false)}
-            disabled={isLoading || isSuggestingName}
+            disabled={isLoading}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveArtifact}
-            disabled={!artifactName.trim()}
+            disabled={!artifactName.trim() || isLoading}
           >
             {isLoading ? "Saving..." : "Save"}
           </Button>

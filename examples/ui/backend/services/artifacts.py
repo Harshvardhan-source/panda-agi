@@ -58,7 +58,7 @@ class ArtifactsService:
             file_content = content_bytes.decode("utf-8", errors="ignore")
 
             # Truncate content if it's too long to avoid token limits
-            max_content_length = 4000  # Conservative limit
+            max_content_length = 1000  # Conservative limit
             if len(file_content) > max_content_length:
                 file_content = file_content[:max_content_length] + "..."
 
