@@ -189,6 +189,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 status={
                   isInitialLoading ? "loading" : isConnected ? "active" : "idle"
                 }
+                onClick={() => router.push("/")}
               >
                 <span className="text-xl select-none">🐼</span>
               </Avatar>

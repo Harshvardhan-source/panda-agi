@@ -8,6 +8,7 @@ interface AvatarProps {
   className?: string;
   showStatus?: boolean;
   status?: "idle" | "loading" | "active";
+  onClick?: () => void;
 }
 
 const sizeStyles = {
@@ -28,6 +29,7 @@ export default function Avatar({
   className,
   showStatus = false,
   status = "idle",
+  onClick,
 }: AvatarProps) {
   return (
     <div className="relative">
@@ -35,8 +37,10 @@ export default function Avatar({
         className={cn(
           "bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg",
           sizeStyles[size],
+          onClick && "cursor-pointer hover:scale-105 transition-transform duration-200",
           className
         )}
+        onClick={onClick}
       >
         {children}
       </div>

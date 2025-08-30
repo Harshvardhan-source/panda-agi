@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, ReactNode } from "react";
+import React, { useState, useEffect, useRef, ReactNode } from "react";
 import {
   X,
   ExternalLink,
@@ -192,7 +192,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
 
   // Update internal state when width prop changes
   useEffect(() => {
-    const currentIsMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const currentIsMobile =
+      typeof window !== "undefined" && window.innerWidth < 768;
     if (currentIsMobile) {
       setSidebarWidth(window.innerWidth);
       return;
