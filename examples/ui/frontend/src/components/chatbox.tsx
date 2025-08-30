@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import {
   Send,
+  Square,
   Paperclip,
   X,
   FileText,
@@ -96,6 +97,26 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(({
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Function to stop current conversation stream without resetting messages
+  const stopCurrentStream = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Stop streaming state but keep messages
+    setIsLoading(false);
+    setIsConnected(false);
+    setCurrentActivity("");
+    
+    // Reload credits when stream is interrupted
+    if (onCreditsRefetch) {
+      onCreditsRefetch().catch((error) => {
+        console.error("Failed to refetch credits after stopping:", error);
+      });
+    }
+  }, [setIsConnected, onCreditsRefetch]);
+
   // Function to stop current conversation and reset to default state
   const stopCurrentConversation = useCallback(() => {
     if (abortControllerRef.current) {
@@ -111,7 +132,14 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(({
     setPendingFiles([]);
     setUploadingFilesPreviews([]);
     setCurrentActivity("");
-  }, [setIsConnected]);
+    
+    // Reload credits when stream is interrupted
+    if (onCreditsRefetch) {
+      onCreditsRefetch().catch((error) => {
+        console.error("Failed to refetch credits after stopping:", error);
+      });
+    }
+  }, [setIsConnected, onCreditsRefetch]);
 
   // Expose the stop function to parent components
   useImperativeHandle(ref, () => ({
@@ -1230,26 +1258,37 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(({
                 />
               </div>
 
-              {/* Send button */}
-              <Button
-                onClick={sendMessage}
-                disabled={
-                  !inputValue.trim() ||
-                  isLoading ||
-                  isInitialLoading ||
-                  uploadingFilesPreviews.some((f) => f.status === "uploading")
-                }
-                variant="send"
-                size="send"
-                title={
-                  uploadingFilesPreviews.some((f) => f.status === "uploading")
-                    ? "Wait for files to finish uploading"
-                    : "Send message"
-                }
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 to-slate-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <Send className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300 relative z-10" />
-              </Button>
+              {/* Send/Stop button */}
+              {isLoading ? (
+                <Button
+                  onClick={stopCurrentStream}
+                  variant="stop"
+                  size="send"
+                  title="Stop conversation"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 to-slate-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <Square className="w-4 h-4 relative z-10" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={sendMessage}
+                  disabled={
+                    !inputValue.trim() ||
+                    isInitialLoading ||
+                    uploadingFilesPreviews.some((f) => f.status === "uploading")
+                  }
+                  variant="send"
+                  size="send"
+                  title={
+                    uploadingFilesPreviews.some((f) => f.status === "uploading")
+                      ? "Wait for files to finish uploading"
+                      : "Send message"
+                  }
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 to-slate-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <Send className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300 relative z-10" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
