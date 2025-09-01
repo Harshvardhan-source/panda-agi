@@ -136,7 +136,7 @@ async def get_artifact_upload_credentials(artifact_id: str, api_key: str) -> dic
     Get upload credentials for an artifact.
 
     Args:
-        conversation_id: The conversation ID
+        artifact_id: The artifact ID
         filepath: The filepath of the artifact
         api_key: The API key for authentication
 
