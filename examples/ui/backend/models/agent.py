@@ -46,3 +46,14 @@ class ArtifactNameUpdateRequest(BaseModel):
     """
 
     name: str = Field(..., min_length=1, description="New name for the artifact")
+
+
+class ArtifactFileUpdateRequest(BaseModel):
+    """
+    Model for updating file content within an artifact.
+    """
+
+    file_path: str = Field(
+        ..., description="Path to the file to update within the artifact"
+    )
+    content: str = Field(..., description="New content for the file")

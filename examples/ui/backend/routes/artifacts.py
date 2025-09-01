@@ -20,6 +20,7 @@ from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
     ArtifactNameUpdateRequest,
+    ArtifactFileUpdateRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,55 @@ class NameSuggestionResponse(BaseModel):
     """Response model for name suggestion."""
 
     suggested_name: str
+
+
+async def get_artifact_upload_credentials(artifact_id: str, api_key: str) -> dict:
+    """
+    Get upload credentials for an artifact.
+
+    Args:
+        conversation_id: The conversation ID
+        filepath: The filepath of the artifact
+        api_key: The API key for authentication
+
+    Returns:
+        dict: Response containing upload credentials
+
+    Raises:
+        HTTPException: If there's an error getting upload credentials
+    """
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-KEY": f"{api_key}"}
+            async with session.post(
+                f"{PANDA_AGI_SERVER_URL}/artifacts/upload-credentials/{artifact_id}",
+                headers=headers,
+            ) as resp:
+                response = await resp.json()
+
+                if resp.status != 200:
+                    logger.error(f"Error getting upload credentials: {response}")
+                    message = (
+                        "Unknown error"
+                        if "detail" not in response
+                        else response["detail"]
+                    )
+
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=response.get(
+                            "message",
+                            message,
+                        ),
+                    )
+
+                return response
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting upload credentials: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
 
 
 async def cleanup_artifact(artifact_id: str, api_key: str):
@@ -532,4 +582,47 @@ async def update_artifact(
         raise e
     except Exception as e:
         logger.error(f"Error updating creation: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.patch("/{artifact_id}/file")
+async def update_artifact_file(
+    request: Request, artifact_id: str, update_data: ArtifactFileUpdateRequest
+):
+    """Update a specific file within an artifact"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        # Get upload credentials using the new function
+        response = await get_artifact_upload_credentials(artifact_id, api_key)
+        upload_credentials = response.get("upload_credentials")
+
+        if not upload_credentials:
+            raise HTTPException(
+                status_code=500,
+                detail="No upload credentials received from server",
+            )
+
+        # Convert content to bytes
+        content_bytes = update_data.content.encode("utf-8")
+
+        # Upload the updated file to GCS
+        await upload_file_to_gcs(
+            upload_credentials,
+            content_bytes,
+            artifact_id,
+            update_data.file_path,
+        )
+
+        return {"detail": "File updated successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating artifact file: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")

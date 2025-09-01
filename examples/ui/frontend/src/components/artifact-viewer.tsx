@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { getApiHeaders } from "@/lib/api/common";
-import { updateArtifact } from "@/lib/api/artifacts";
+import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
 import { X, Loader2 } from "lucide-react";
@@ -303,21 +303,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           ? htmlToMarkdown(editor.getHTML())
           : editor.getHTML();
 
-      const response = await fetch(
-        `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "text/plain",
-            ...(await getApiHeaders()),
-          },
-          body: content,
-        }
+      await updateArtifactFile(
+        artifact.id,
+        artifact.filepath,
+        content
       );
-
-      if (!response.ok) {
-        throw new Error(`Failed to save: ${response.status}`);
-      }
 
       setFileContent(content);
       setHasUnsavedChanges(false);
