@@ -15,7 +15,7 @@ from typing import Optional
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
-from utils.html_utils import generate_error_page_html, should_return_html
+from utils.html_utils import should_return_html
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -31,6 +31,8 @@ PANDA_AGI_SERVER_URL = (
 PANDA_CHAT_CLIENT_URL = (
     os.environ.get("PANDA_CHAT_CLIENT_URL") or "https://chat.pandas-ai.com"
 )
+
+ERROR_PAGE_URL = f"{PANDA_CHAT_CLIENT_URL}/404"
 
 # Create router
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
@@ -393,13 +395,9 @@ async def serve_artifact_file(
 
                     # Check if client accepts HTML
                     if should_return_html(request.headers.get("accept")):
-                        html_content = generate_error_page_html(
-                            resp.status, error_detail
-                        )
                         return Response(
-                            content=html_content,
-                            media_type="text/html",
-                            status_code=resp.status,
+                            status_code=302,
+                            headers={"Location": ERROR_PAGE_URL},
                         )
 
                     raise HTTPException(
@@ -436,12 +434,9 @@ async def serve_artifact_file(
     except aiohttp.ClientConnectorError as e:
         logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
         if should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                503,
-                f"Service unavailable. Please try again later.",
-            )
             return Response(
-                content=html_content, media_type="text/html", status_code=503
+                status_code=302,
+                headers={"Location": ERROR_PAGE_URL},
             )
         raise HTTPException(
             status_code=503,
@@ -451,12 +446,9 @@ async def serve_artifact_file(
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
         # Check if client accepts HTML
         if should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                500,
-                "We're experiencing technical difficulties. Please try again later.",
-            )
             return Response(
-                content=html_content, media_type="text/html", status_code=500
+                status_code=302,
+                headers={"Location": ERROR_PAGE_URL},
             )
         raise HTTPException(status_code=500, detail="internal server error")
 
