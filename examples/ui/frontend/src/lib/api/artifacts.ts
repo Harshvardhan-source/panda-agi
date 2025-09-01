@@ -31,7 +31,7 @@ export interface ArtifactResponseWithDetail {
     detail: string;
 }
 
-export const suggestArtifactName = async (conversationId: string, payload: NameSuggestionRequest): Promise<NameSuggestionResponse> => {
+export const suggestArtifactName = async (conversationId: string, payload: NameSuggestionRequest, signal?: AbortSignal): Promise<NameSuggestionResponse> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/suggest-name`);
     const options = await getApiOptions();
     
@@ -39,6 +39,7 @@ export const suggestArtifactName = async (conversationId: string, payload: NameS
         method: 'POST',
         ...options,
         body: JSON.stringify(payload),
+        signal,
     });
     
     if (!response.ok) {
