@@ -84,18 +84,18 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
+    let filename = previewData.filename || "index.html";
+
     if (previewData.type === "iframe" && previewData.url) {
       // Extract the path from the URL and use it as filename
       const url = new URL(previewData.url);
       const path = url.pathname;
+      
       if (path && path !== "/") {
         // Remove leading slash and use as filename
-        previewData.filename = path.startsWith("/") ? path.substring(1) : path;
-      } else {
-        // Default to index.html if no path
-        previewData.filename = "index.html";
+        filename = path.startsWith("/") ? path.substring(1) : path;
       }
-    } 
+    }
 
     if (previewData.filename) {
       const normalized = normalizeFilename(previewData.filename);
