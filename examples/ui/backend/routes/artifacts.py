@@ -122,6 +122,7 @@ class NameSuggestionRequest(BaseModel):
 
     type: str
     filepath: str
+    content: str
 
 
 class NameSuggestionResponse(BaseModel):
@@ -225,7 +226,7 @@ async def suggest_artifact_name(
             payload.type, payload.filepath
         )
         suggested_name = await ArtifactsService.suggest_artifact_name(
-            conversation_id, filepath
+            conversation_id, filepath, content=payload.content
         )
         return NameSuggestionResponse(suggested_name=suggested_name)
     except Exception as e:

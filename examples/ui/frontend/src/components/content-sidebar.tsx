@@ -84,6 +84,19 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
+    if (previewData.type === "iframe" && previewData.url) {
+      // Extract the path from the URL and use it as filename
+      const url = new URL(previewData.url);
+      const path = url.pathname;
+      if (path && path !== "/") {
+        // Remove leading slash and use as filename
+        previewData.filename = path.startsWith("/") ? path.substring(1) : path;
+      } else {
+        // Default to index.html if no path
+        previewData.filename = "index.html";
+      }
+    } 
+
     if (previewData.filename) {
       const normalized = normalizeFilename(previewData.filename);
       setNormalizedFilename(normalized);
@@ -145,6 +158,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setIsLoading(false);
     }
   };
+
 
   if (!previewData) return null;
 
@@ -644,7 +658,12 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       {(previewData.type === "markdown" || previewData.type === "iframe") && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
-          previewData={previewData}
+          previewData={{
+            type: previewData.type,
+            url: previewData.url,
+            filename: previewData.filename,
+            content: previewData.content || (fileContent as string || ""),
+          }}
           onSave={handleArtifactSaved}
         />
       )}

@@ -107,7 +107,8 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     try {
       const response = await suggestArtifactName(conversationId, {
         type: previewData.type,
-        filepath: previewData.url || previewData.filename || ""
+        filepath: previewData.url || previewData.filename || "",
+        content: (previewData.content || "").substring(0, 1000)
       }, abortControllerRef.current.signal);
       
       // Check if user has started typing during the API call

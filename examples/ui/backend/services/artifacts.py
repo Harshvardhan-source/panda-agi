@@ -30,7 +30,9 @@ DEFAULT_ARTIFACT_NAME = "New Creation"
 class ArtifactsService:
 
     @staticmethod
-    async def suggest_artifact_name(conversation_id: str, filepath: str) -> str:
+    async def suggest_artifact_name(
+        conversation_id: str, filepath: str, content: str = None
+    ) -> str:
         """
         Suggest a name for an artifact based on its type and filepath.
 
@@ -52,10 +54,13 @@ class ArtifactsService:
             return DEFAULT_ARTIFACT_NAME
 
         try:
-            # Get the file content to analyze
-            env = await get_env({"conversation_id": conversation_id})
-            content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
-            file_content = content_bytes.decode("utf-8", errors="ignore")
+            if not content:
+                # Get the file content to analyze
+                env = await get_env({"conversation_id": conversation_id})
+                content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
+                file_content = content_bytes.decode("utf-8", errors="ignore")
+            else:
+                file_content = content
 
             # Truncate content if it's too long to avoid token limits
             max_content_length = 1000  # Conservative limit
