@@ -18,7 +18,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { createLowlight } from "lowlight";
 import Typography from "@tiptap/extension-typography";
-import { marked } from "marked";
+import Placeholder from "@tiptap/extension-placeholder";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -154,6 +154,9 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     extensions: [
       StarterKit,
       Typography,
+      Placeholder.configure({
+        placeholder: 'Click to start writing...',
+      }),
       Link.configure({
         openOnClick: false,
       }),
@@ -288,8 +291,15 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       const htmlContent = parseMarkdownWithEmptyLines(fileContent);
       editor.commands.setContent(htmlContent);
       setHasUnsavedChanges(false);
+      
+      // Focus the editor after content is set
+      if (isOpen) {
+        setTimeout(() => {
+          editor.commands.focus('start');
+        }, 200);
+      }
     }
-  }, [editor, fileContent]);
+  }, [editor, fileContent, isOpen]);
 
   const handleSaveContent = async () => {
     if (!artifact || !hasUnsavedChanges || !editor || isSaving) return;
@@ -380,11 +390,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       case "markdown":
         return (
           <div className="h-full p-6 overflow-auto bg-gray-50 dark:bg-gray-900">
-            <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm">
+            <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200">
               <div className="px-16 py-12">
                 <EditorContent
                   editor={editor}
-                  className="tiptap-editor focus:outline-none"
+                  className="tiptap-editor focus:outline-none cursor-text"
                 />
                 <style jsx global>{`
                   .tiptap-editor .ProseMirror {
@@ -394,10 +404,21 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
                       Roboto, sans-serif;
                     color: #1f2937;
+                    cursor: text;
+                    caret-color: #3b82f6;
                   }
 
                   .dark .tiptap-editor .ProseMirror {
                     color: #f9fafb;
+                    caret-color: #60a5fa;
+                  }
+
+                  .tiptap-editor .ProseMirror:focus {
+                    caret-color: #3b82f6;
+                  }
+
+                  .dark .tiptap-editor .ProseMirror:focus {
+                    caret-color: #60a5fa;
                   }
 
                   /* Headings */
@@ -608,14 +629,17 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                   }
 
                   /* Placeholder */
-                  .tiptap-editor
-                    .ProseMirror.ProseMirror-focused
-                    .is-empty::before {
+                  .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
                     float: left;
                     color: #9ca3af;
                     pointer-events: none;
                     height: 0;
+                    font-style: italic;
+                  }
+                  
+                  .dark .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+                    color: #6b7280;
                   }
                 `}</style>
               </div>
