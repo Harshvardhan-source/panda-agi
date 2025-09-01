@@ -34,9 +34,11 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import { createLowlight } from "lowlight";
 import Typography from "@tiptap/extension-typography";
 import Placeholder from "@tiptap/extension-placeholder";
+import { SlashCommand, slashCommandSuggestion } from "./slash-command-extension";
 import "./tiptap-editor.css";
 
 // Re-export from types for backward compatibility
@@ -178,7 +180,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       StarterKit,
       Typography,
       Placeholder.configure({
-        placeholder: "Click to start writing...",
+        placeholder: "Type '/' for commands or click to start writing...",
       }),
       Link.configure({
         openOnClick: false,
@@ -199,6 +201,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       TableRow,
       TableHeader,
       TableCell,
+      HorizontalRule,
+      SlashCommand.configure({
+        suggestion: slashCommandSuggestion,
+      }),
     ],
     content: fileContent || "",
     onUpdate: ({ editor }) => {
