@@ -39,6 +39,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const [isSuggestingName, setIsSuggestingName] = useState(false);
   const [userHasEdited, setUserHasEdited] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSaveArtifact = async () => {
     if (!conversationId) {
@@ -94,13 +95,22 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       return;
     }
 
+    // Cancel any existing suggestion request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
     setIsSuggestingName(true);
     try {
       const response = await suggestArtifactName(conversationId, {
         type: previewData.type,
         filepath: previewData.url || previewData.filename || ""
-      });
+      }, abortControllerRef.current.signal);
       
+      // Check if user has started typing during the API call
       if (response.suggested_name && !userHasEdited) {
         setArtifactName(response.suggested_name);
         // Select all text after setting the value
@@ -112,11 +122,28 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         }, 100);
       }
     } catch (error) {
-      console.error("Name suggestion error:", error);
+      // Only log error if it's not an abort error
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("Name suggestion error:", error);
+      }
       // Don't show error toast for name suggestion failures - just use default
     } finally {
       setIsSuggestingName(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setArtifactName(newValue);
+    
+    // If user starts typing and we're currently suggesting a name, cancel the request
+    if (isSuggestingName && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsSuggestingName(false);
+    }
+    
+    setUserHasEdited(true);
   };
 
   return (
@@ -149,10 +176,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
                 ref={inputRef}
                 id="artifact-name"
                 value={artifactName}
-                onChange={(e) => {
-                  setArtifactName(e.target.value);
-                  setUserHasEdited(true);
-                }}
+                onChange={handleInputChange}
                 className="w-full"
                 placeholder="Enter creation name..."
                 onKeyDown={(e) => {
