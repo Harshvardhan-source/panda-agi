@@ -1,13 +1,31 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { getApiHeaders } from "@/lib/api/common";
 import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
-import { X, Loader2 } from "lucide-react";
+import {
+  X,
+  Loader2,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  Undo2,
+  Redo2,
+  Link2,
+  Hash,
+  Unlink,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -27,6 +45,7 @@ interface MarkdownStorage {
   };
 }
 import Placeholder from "@tiptap/extension-placeholder";
+import "./tiptap-editor.css";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -54,6 +73,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [titleEditJustTriggered, setTitleEditJustTriggered] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [wordCount, setWordCount] = useState(0);
+  const [, forceUpdate] = useState({});
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
@@ -163,10 +186,16 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       StarterKit,
       Typography,
       Placeholder.configure({
-        placeholder: 'Click to start writing...',
+        placeholder: "Click to start writing...",
       }),
       Link.configure({
         openOnClick: false,
+        linkOnPaste: true,
+        HTMLAttributes: {
+          rel: "noopener noreferrer nofollow",
+          target: null,
+          class: "editor-link",
+        },
       }),
       Image,
       CodeBlockLowlight.configure({
@@ -198,6 +227,21 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       if (hasChanges) {
         setJustSaved(false);
       }
+
+      // Update word count
+      const text = editor.getText();
+      const words = text
+        .trim()
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+      setWordCount(words.length);
+
+      // Update button states
+      forceUpdate({});
+    },
+    onSelectionUpdate: () => {
+      // Force re-render to update button states
+      forceUpdate({});
     },
   });
 
@@ -207,15 +251,32 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       // Use the Markdown extension to parse markdown content
       editor.commands.setContent(fileContent);
       setHasUnsavedChanges(false);
-      
+
       // Focus the editor after content is set
       if (isOpen) {
         setTimeout(() => {
-          editor.commands.focus('start');
+          editor.commands.focus("start");
         }, 200);
       }
+
+      // Update initial word count
+      const text = editor.getText();
+      const words = text
+        .trim()
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+      setWordCount(words.length);
     }
   }, [editor, fileContent, isOpen]);
+
+  // Handle editing existing link URL
+  const handleEditLinkUrl = useCallback(() => {
+    if (!editor) return;
+
+    const attrs = editor.getAttributes("link");
+    setLinkUrl(attrs.href || "");
+    setShowLinkDialog(true);
+  }, [editor]);
 
   const handleSaveContent = async () => {
     if (!artifact || !hasUnsavedChanges || !editor || isSaving) return;
@@ -254,6 +315,236 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
+  // Simple HTML to markdown converter
+  const htmlToMarkdown = (html: string): string => {
+    return html
+      .replace(/<h1>(.*?)<\/h1>/g, "# $1")
+      .replace(/<h2>(.*?)<\/h2>/g, "## $1")
+      .replace(/<h3>(.*?)<\/h3>/g, "### $1")
+      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
+      .replace(/<em>(.*?)<\/em>/g, "*$1*")
+      .replace(/<code>(.*?)<\/code>/g, "`$1`")
+      .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
+      .replace(/<br\s*\/?>/g, "\n")
+      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
+      .trim();
+  };
+
+  // Handle link insertion
+  const handleLinkClick = () => {
+    if (!editor) return;
+
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to) || "";
+
+    // Check if the current selection is within a link
+    const isInLink = editor.isActive("link");
+
+    if (isInLink) {
+      // Remove existing link from current selection/cursor position
+      editor.chain().focus().unsetLink().run();
+    } else {
+      // Show dialog to add link
+      setLinkUrl(selectedText.startsWith("http") ? selectedText : "");
+      setShowLinkDialog(true);
+    }
+  };
+
+  const handleLinkSubmit = () => {
+    if (linkUrl && editor) {
+      // If we're editing an existing link, we need to update the entire link
+      if (editor.isActive("link")) {
+        // Select the entire link first, then update its URL
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange("link")
+          .setLink({ href: linkUrl })
+          .run();
+      } else {
+        // Creating a new link
+        editor.chain().focus().setLink({ href: linkUrl }).run();
+      }
+    }
+    setShowLinkDialog(false);
+    setLinkUrl("");
+  };
+
+  const handleUnlink = () => {
+    if (editor) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    }
+    setShowLinkDialog(false);
+    setLinkUrl("");
+  };
+
+  // Helper component for tooltip-wrapped toolbar buttons
+  const ToolbarButton = ({ 
+    onClick, 
+    disabled = false, 
+    isActive = false, 
+    tooltip, 
+    children 
+  }: {
+    onClick: () => void;
+    disabled?: boolean;
+    isActive?: boolean;
+    tooltip: string;
+    children: React.ReactNode;
+  }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+            disabled
+              ? "opacity-50 cursor-not-allowed"
+              : isActive
+              ? "bg-gray-200 dark:bg-gray-700 text-blue-600 dark:text-blue-400"
+              : "text-gray-600 dark:text-gray-400"
+          }`}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  // Toolbar component
+  const Toolbar = ({ editor }: { editor: Editor | null }) => {
+    if (!editor) return null;
+
+    return (
+      <TooltipProvider>
+        <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center space-x-1">
+            {/* Undo/Redo */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().undo().run()}
+              disabled={!editor.can().undo()}
+              tooltip="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().redo().run()}
+              disabled={!editor.can().redo()}
+              tooltip="Redo (Ctrl+Y)"
+            >
+              <Redo2 className="w-4 h-4" />
+            </ToolbarButton>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+            {/* Text Formatting */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              isActive={editor.isActive("bold")}
+              tooltip="Bold (Ctrl+B)"
+            >
+              <Bold className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              isActive={editor.isActive("italic")}
+              tooltip="Italic (Ctrl+I)"
+            >
+              <Italic className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              isActive={editor.isActive("code")}
+              tooltip="Inline Code"
+            >
+              <Code className="w-4 h-4" />
+            </ToolbarButton>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+            {/* Headings */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              isActive={editor.isActive("heading", { level: 1 })}
+              tooltip="Heading 1"
+            >
+              <Heading1 className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              isActive={editor.isActive("heading", { level: 2 })}
+              tooltip="Heading 2"
+            >
+              <Heading2 className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              isActive={editor.isActive("heading", { level: 3 })}
+              tooltip="Heading 3"
+            >
+              <Heading3 className="w-4 h-4" />
+            </ToolbarButton>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+            {/* Lists */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              isActive={editor.isActive("bulletList")}
+              tooltip="Bullet List"
+            >
+              <List className="w-4 h-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              isActive={editor.isActive("orderedList")}
+              tooltip="Numbered List"
+            >
+              <ListOrdered className="w-4 h-4" />
+            </ToolbarButton>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+
+            {/* Link */}
+            <ToolbarButton
+              onClick={editor.isActive("link") ? handleEditLinkUrl : handleLinkClick}
+              isActive={editor.isActive("link")}
+              tooltip={editor.isActive("link") ? "Edit Link" : "Add Link"}
+            >
+              <Link2 className="w-4 h-4" />
+            </ToolbarButton>
+
+            {/* Quote */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              isActive={editor.isActive("blockquote")}
+              tooltip="Quote"
+            >
+              <Quote className="w-4 h-4" />
+            </ToolbarButton>
+          </div>
+
+          {/* Word count */}
+          <div className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-400">
+            <span className="flex items-center space-x-1">
+              <Hash className="w-4 h-4" />
+              <span>{wordCount} words</span>
+            </span>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+  };
+
   if (!artifact) return null;
 
   // Get file extension and determine type
@@ -280,262 +571,82 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     switch (type) {
       case "markdown":
         return (
-          <div className="h-full p-6 overflow-auto bg-gray-50 dark:bg-gray-900">
-            <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200">
-              <div className="px-16 py-12">
-                <EditorContent
-                  editor={editor}
-                  className="tiptap-editor focus:outline-none cursor-text"
-                />
-                <style jsx global>{`
-                  .tiptap-editor .ProseMirror {
-                    outline: none;
-                    padding: 0;
-                    min-height: 400px;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-                      Roboto, sans-serif;
-                    color: #1f2937;
-                    cursor: text;
-                    caret-color: #3b82f6;
-                  }
-
-                  .dark .tiptap-editor .ProseMirror {
-                    color: #f9fafb;
-                    caret-color: #60a5fa;
-                  }
-
-                  .tiptap-editor .ProseMirror:focus {
-                    caret-color: #3b82f6;
-                  }
-
-                  .dark .tiptap-editor .ProseMirror:focus {
-                    caret-color: #60a5fa;
-                  }
-
-                  /* Headings */
-                  .tiptap-editor .ProseMirror h1 {
-                    font-size: 2.25rem;
-                    font-weight: 600;
-                    line-height: 1.2;
-                    margin: 2rem 0 1.5rem 0;
-                    color: #111827;
-                  }
-                  .dark .tiptap-editor .ProseMirror h1 {
-                    color: #f9fafb;
-                  }
-
-                  .tiptap-editor .ProseMirror h2 {
-                    font-size: 1.875rem;
-                    font-weight: 600;
-                    line-height: 1.3;
-                    margin: 1.75rem 0 1rem 0;
-                    color: #111827;
-                  }
-                  .dark .tiptap-editor .ProseMirror h2 {
-                    color: #f9fafb;
-                  }
-
-                  .tiptap-editor .ProseMirror h3 {
-                    font-size: 1.5rem;
-                    font-weight: 600;
-                    line-height: 1.4;
-                    margin: 1.5rem 0 0.75rem 0;
-                    color: #111827;
-                  }
-                  .dark .tiptap-editor .ProseMirror h3 {
-                    color: #f9fafb;
-                  }
-
-                  .tiptap-editor .ProseMirror h4 {
-                    font-size: 1.25rem;
-                    font-weight: 600;
-                    line-height: 1.5;
-                    margin: 1.25rem 0 0.5rem 0;
-                    color: #111827;
-                  }
-                  .dark .tiptap-editor .ProseMirror h4 {
-                    color: #f9fafb;
-                  }
-
-                  /* Paragraphs */
-                  .tiptap-editor .ProseMirror p {
-                    line-height: 1.7;
-                    margin-bottom: 1.25rem;
-                    font-size: 1rem;
-                    color: #374151;
-                  }
-                  .dark .tiptap-editor .ProseMirror p {
-                    color: #d1d5db;
-                  }
-
-                  /* Lists */
-                  .tiptap-editor .ProseMirror ul {
-                    list-style-type: disc;
-                    list-style-position: outside;
-                    padding-left: 1.5rem;
-                    margin-bottom: 1.25rem;
-                    margin-left: 1rem;
-                  }
-
-                  .tiptap-editor .ProseMirror ol {
-                    list-style-type: decimal;
-                    list-style-position: outside;
-                    padding-left: 1.5rem;
-                    margin-bottom: 1.25rem;
-                    margin-left: 1rem;
-                  }
-
-                  .tiptap-editor .ProseMirror li {
-                    display: list-item;
-                    margin-bottom: 0.5rem;
-                    line-height: 1.7;
-                    color: #374151;
-                    padding-left: 0.5rem;
-                  }
-                  .dark .tiptap-editor .ProseMirror li {
-                    color: #d1d5db;
-                  }
-
-                  /* Blockquotes */
-                  .tiptap-editor .ProseMirror blockquote {
-                    border-left: 4px solid #3b82f6;
-                    padding-left: 1.5rem;
-                    margin: 2rem 0;
-                    font-style: italic;
-                    color: #6b7280;
-                    background: #f8fafc;
-                    padding: 1rem 1.5rem;
-                    border-radius: 0 0.5rem 0.5rem 0;
-                  }
-                  .dark .tiptap-editor .ProseMirror blockquote {
-                    color: #9ca3af;
-                    background: #1f2937;
-                    border-left-color: #60a5fa;
-                  }
-
-                  /* Code */
-                  .tiptap-editor .ProseMirror code {
-                    background-color: #f1f5f9;
-                    color: #e11d48;
-                    padding: 0.2rem 0.4rem;
-                    border-radius: 0.375rem;
-                    font-size: 0.875rem;
-                    font-family: "SF Mono", Monaco, "Cascadia Code",
-                      "Roboto Mono", Consolas, "Courier New", monospace;
-                    font-weight: 500;
-                  }
-                  .dark .tiptap-editor .ProseMirror code {
-                    background-color: #374151;
-                    color: #fbbf24;
-                  }
-
-                  /* Code blocks */
-                  .tiptap-editor .ProseMirror pre {
-                    background-color: #0f172a;
-                    color: #e2e8f0;
-                    border-radius: 0.5rem;
-                    padding: 1.5rem;
-                    margin: 1.5rem 0;
-                    overflow-x: auto;
-                    font-family: "SF Mono", Monaco, "Cascadia Code",
-                      "Roboto Mono", Consolas, "Courier New", monospace;
-                    line-height: 1.6;
-                  }
-
-                  .tiptap-editor .ProseMirror pre code {
-                    background: transparent;
-                    color: inherit;
-                    padding: 0;
-                    border-radius: 0;
-                    font-size: 0.875rem;
-                  }
-
-                  /* Tables */
-                  .tiptap-editor .ProseMirror table {
-                    border-collapse: collapse;
-                    margin: 1.5rem 0;
-                    width: 100%;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 0.5rem;
-                    overflow: hidden;
-                  }
-                  .dark .tiptap-editor .ProseMirror table {
-                    border-color: #4b5563;
-                  }
-
-                  .tiptap-editor .ProseMirror th,
-                  .tiptap-editor .ProseMirror td {
-                    border: 1px solid #e5e7eb;
-                    padding: 0.75rem 1rem;
-                    text-align: left;
-                  }
-                  .dark .tiptap-editor .ProseMirror th,
-                  .dark .tiptap-editor .ProseMirror td {
-                    border-color: #4b5563;
-                  }
-
-                  .tiptap-editor .ProseMirror th {
-                    background-color: #f8fafc;
-                    font-weight: 600;
-                    color: #374151;
-                  }
-                  .dark .tiptap-editor .ProseMirror th {
-                    background-color: #374151;
-                    color: #f9fafb;
-                  }
-
-                  .tiptap-editor .ProseMirror td {
-                    color: #6b7280;
-                  }
-                  .dark .tiptap-editor .ProseMirror td {
-                    color: #d1d5db;
-                  }
-
-                  /* Links */
-                  .tiptap-editor .ProseMirror a {
-                    color: #3b82f6;
-                    text-decoration: underline;
-                    text-underline-offset: 2px;
-                  }
-                  .dark .tiptap-editor .ProseMirror a {
-                    color: #60a5fa;
-                  }
-
-                  /* Images */
-                  .tiptap-editor .ProseMirror img {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 0.5rem;
-                    margin: 1.5rem 0;
-                  }
-
-                  /* Selection */
-                  .tiptap-editor .ProseMirror ::selection {
-                    background-color: #f3f4f6;
-                    color: #374151;
-                  }
-                  .dark .tiptap-editor .ProseMirror ::selection {
-                    background-color: #374151;
-                    color: #f3f4f6;
-                  }
-
-                  /* Placeholder */
-                  .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
-                    content: attr(data-placeholder);
-                    float: left;
-                    color: #9ca3af;
-                    pointer-events: none;
-                    height: 0;
-                    font-style: italic;
-                  }
-                  
-                  .dark .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
-                    color: #6b7280;
-                  }
-                `}</style>
+          <>
+            <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+              <Toolbar editor={editor} />
+              <div className="flex-1 p-6 overflow-auto">
+                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
+                  <div className="px-16 py-12">
+                    <EditorContent
+                      editor={editor}
+                      className="tiptap-editor focus:outline-none cursor-text"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Link Dialog */}
+            {showLinkDialog && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 shadow-xl">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                    {editor?.isActive("link") ? "Edit Link" : "Add Link"}
+                  </h3>
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="Enter URL..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleLinkSubmit();
+                      } else if (e.key === "Escape") {
+                        setShowLinkDialog(false);
+                        setLinkUrl("");
+                      }
+                    }}
+                  />
+                  <div className="flex justify-between">
+                    <div>
+                      {editor?.isActive("link") && (
+                        <Button
+                          onClick={handleUnlink}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Unlink className="w-4 h-4 mr-2" />
+                          Remove Link
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => {
+                          setShowLinkDialog(false);
+                          setLinkUrl("");
+                        }}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleLinkSubmit}
+                        size="sm"
+                        disabled={!linkUrl.trim()}
+                      >
+                        {editor?.isActive("link") ? "Update Link" : "Add Link"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         );
       case "iframe":
         return (
