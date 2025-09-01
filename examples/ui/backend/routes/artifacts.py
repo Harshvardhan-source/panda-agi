@@ -15,7 +15,7 @@ from typing import Optional
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
-from utils.html_utils import should_return_html
+from utils.html_utils import should_return_html, create_html_redirect_response
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -395,10 +395,7 @@ async def serve_artifact_file(
 
                     # Check if client accepts HTML
                     if should_return_html(request.headers.get("accept")):
-                        return Response(
-                            status_code=302,
-                            headers={"Location": ERROR_PAGE_URL},
-                        )
+                        return create_html_redirect_response(ERROR_PAGE_URL)
 
                     raise HTTPException(
                         status_code=resp.status,
@@ -434,10 +431,7 @@ async def serve_artifact_file(
     except aiohttp.ClientConnectorError as e:
         logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
         if should_return_html(request.headers.get("accept")):
-            return Response(
-                status_code=302,
-                headers={"Location": ERROR_PAGE_URL},
-            )
+            return create_html_redirect_response(ERROR_PAGE_URL)
         raise HTTPException(
             status_code=503,
             detail=f"Service unavailable. Please try again later.",
@@ -446,10 +440,7 @@ async def serve_artifact_file(
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
         # Check if client accepts HTML
         if should_return_html(request.headers.get("accept")):
-            return Response(
-                status_code=302,
-                headers={"Location": ERROR_PAGE_URL},
-            )
+            return create_html_redirect_response(ERROR_PAGE_URL)
         raise HTTPException(status_code=500, detail="internal server error")
 
 
