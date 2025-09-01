@@ -145,7 +145,6 @@ export const updateArtifact = async (
 export interface ArtifactFileUpdateRequest {
     file_path: string;
     content: string;
-    conversation_id: string;
 }
 
 export const updateArtifactFile = async (
