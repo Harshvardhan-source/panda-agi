@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveArtifact, suggestArtifactName, ArtifactResponse } from "@/lib/api/artifacts";
+import { config } from "@/lib/config";
 
 import { toast } from "react-hot-toast";
 
@@ -108,7 +109,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       const response = await suggestArtifactName(conversationId, {
         type: previewData.type,
         filepath: previewData.url || previewData.filename || "",
-        content: (previewData.content || "").substring(0, 1000)
+        content: (previewData.content || "").substring(0, config.markdown.maxContentLength)
       }, abortControllerRef.current.signal);
       
       // Check if user has started typing during the API call
