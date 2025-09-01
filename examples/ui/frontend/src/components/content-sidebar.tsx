@@ -97,14 +97,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       }
     }
 
-    if (previewData.filename) {
-      const normalized = normalizeFilename(previewData.filename);
+    if (filename) {
+      const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
 
       // Only fetch content if it's not an image and we don't already have content
       const fileType = previewData.type || "text";
       if (fileType !== "image" && !previewData.content) {
-        fetchFileContent(previewData.filename);
+        fetchFileContent(filename);
       } else if (previewData.content) {
         // If content was provided directly, use it
         setFileContent(previewData.content);
