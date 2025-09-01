@@ -53,7 +53,7 @@ class ArtifactsService:
 
         try:
             # Get the file content to analyze
-            env = await get_env({"conversation_id": conversation_id}, force_new=True)
+            env = await get_env({"conversation_id": conversation_id})
             content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
             file_content = content_bytes.decode("utf-8", errors="ignore")
 
@@ -354,6 +354,8 @@ Suggested name:"""
         # Step 4 & 5: Return all referenced files with window.location.origin replacement
         for file_path in referenced_files:
             try:
+
+                logger.info(f"Getting file {file_path}")
                 content_bytes, mime_type = await FilesService.get_file_from_env(
                     file_path, env
                 )
