@@ -18,7 +18,14 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { createLowlight } from "lowlight";
 import Typography from "@tiptap/extension-typography";
-import { marked } from "marked";
+import { Markdown } from "tiptap-markdown";
+
+// Type for the markdown storage
+interface MarkdownStorage {
+  markdown: {
+    getMarkdown: () => string;
+  };
+}
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -167,11 +174,22 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       TableRow,
       TableHeader,
       TableCell,
+      Markdown.configure({
+        html: false,
+        tightLists: false,
+        bulletListMarker: '-',
+        linkify: true,
+        breaks: true,
+      }),
     ],
     content: fileContent || "",
     onUpdate: ({ editor }) => {
-      const content = editor.getHTML();
-      const hasChanges = content !== fileContent;
+      // For markdown files, compare markdown content
+      // For other files, compare HTML content
+      const currentContent = getFileType(artifact?.filepath || "") === "markdown"
+        ? (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown()
+        : editor.getHTML();
+      const hasChanges = currentContent !== fileContent;
       setHasUnsavedChanges(hasChanges);
       if (hasChanges) {
         setJustSaved(false);
@@ -179,114 +197,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     },
   });
 
-  // Custom markdown parser that preserves empty lines
-  const parseMarkdownWithEmptyLines = (markdown: string): string => {
-    if (!markdown) return "";
-
-    const lines = markdown.split("\n");
-    const htmlLines: string[] = [];
-    let inList = false;
-    let listType = "";
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Empty line - preserve it and close any open list
-      if (line.trim() === "") {
-        if (inList) {
-          htmlLines.push(`</${listType}>`);
-          inList = false;
-          listType = "";
-        }
-        htmlLines.push("<p></p>");
-        continue;
-      }
-
-      let processedLine = line;
-
-      // Headers
-      if (line.startsWith("### ")) {
-        if (inList) {
-          htmlLines.push(`</${listType}>`);
-          inList = false;
-          listType = "";
-        }
-        processedLine = `<h3>${line.substring(4)}</h3>`;
-      } else if (line.startsWith("## ")) {
-        if (inList) {
-          htmlLines.push(`</${listType}>`);
-          inList = false;
-          listType = "";
-        }
-        processedLine = `<h2>${line.substring(3)}</h2>`;
-      } else if (line.startsWith("# ")) {
-        if (inList) {
-          htmlLines.push(`</${listType}>`);
-          inList = false;
-          listType = "";
-        }
-        processedLine = `<h1>${line.substring(2)}</h1>`;
-      } else if (line.trim().startsWith("- ")) {
-        // Unordered list item
-        if (!inList || listType !== "ul") {
-          if (inList) htmlLines.push(`</${listType}>`);
-          htmlLines.push("<ul>");
-          inList = true;
-          listType = "ul";
-        }
-        const listItemContent = line
-          .trim()
-          .substring(2)
-          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-          .replace(/\*(.*?)\*/g, "<em>$1</em>")
-          .replace(/`(.*?)`/g, "<code>$1</code>");
-        processedLine = `<li>${listItemContent}</li>`;
-      } else if (/^\d+\.\s/.test(line.trim())) {
-        // Numbered list item (1. 2. 3. etc.)
-        if (!inList || listType !== "ol") {
-          if (inList) htmlLines.push(`</${listType}>`);
-          htmlLines.push("<ol>");
-          inList = true;
-          listType = "ol";
-        }
-        const listItemContent = line
-          .trim()
-          .replace(/^\d+\.\s/, "")
-          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-          .replace(/\*(.*?)\*/g, "<em>$1</em>")
-          .replace(/`(.*?)`/g, "<code>$1</code>");
-        processedLine = `<li>${listItemContent}</li>`;
-      } else {
-        // Regular content
-        if (inList) {
-          htmlLines.push(`</${listType}>`);
-          inList = false;
-          listType = "";
-        }
-        processedLine = line
-          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-          .replace(/\*(.*?)\*/g, "<em>$1</em>")
-          .replace(/`(.*?)`/g, "<code>$1</code>");
-        processedLine = `<p>${processedLine}</p>`;
-      }
-
-      htmlLines.push(processedLine);
-    }
-
-    // Close any remaining open list
-    if (inList) {
-      htmlLines.push(`</${listType}>`);
-    }
-
-    return htmlLines.join("");
-  };
-
   // Update editor content when file content changes
   useEffect(() => {
     if (editor && fileContent !== null) {
-      // Use our custom parser that preserves empty lines
-      const htmlContent = parseMarkdownWithEmptyLines(fileContent);
-      editor.commands.setContent(htmlContent);
+      // Use the Markdown extension to parse markdown content
+      editor.commands.setContent(fileContent);
       setHasUnsavedChanges(false);
     }
   }, [editor, fileContent]);
@@ -296,11 +211,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
     setIsSaving(true);
     try {
-      // For markdown files, we should convert HTML back to markdown
-      // For now, let's save the raw content from the editor
+      // For markdown files, use the Markdown extension to get markdown content
+      // For other files, use HTML content
       const content =
         getFileType(artifact.filepath) === "markdown"
-          ? htmlToMarkdown(editor.getHTML())
+          ? (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown()
           : editor.getHTML();
 
       await updateArtifactFile(
@@ -326,21 +241,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
-
-  // Simple HTML to markdown converter
-  const htmlToMarkdown = (html: string): string => {
-    return html
-      .replace(/<h1>(.*?)<\/h1>/g, "# $1")
-      .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-      .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-      .replace(/<em>(.*?)<\/em>/g, "*$1*")
-      .replace(/<code>(.*?)<\/code>/g, "`$1`")
-      .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
-      .replace(/<br\s*\/?>/g, "\n")
-      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-      .trim();
   };
 
   if (!artifact) return null;
