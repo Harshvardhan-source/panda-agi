@@ -39,16 +39,12 @@ async def convert_relative_links_to_absolute(
         if link_path.startswith(("http://", "https://", "data:")):
             return match.group(0)
 
-        # If it's a relative path, prepend base_url
+        # If it's a relative path, use urljoin for proper path resolution
         if link_path.startswith(("./", "../", "/")) or not link_path.startswith(
             ("http://", "https://", "data:")
         ):
-            # Remove leading ./ or ../ if present
-            clean_path = link_path.lstrip("./").lstrip("../")
-            # Ensure clean path doesn't start with / to avoid double slashes
-            if clean_path.startswith("/"):
-                clean_path = clean_path[1:]
-            full_url = f"{base_url}/{clean_path}" if clean_path else base_url
+            # Use urljoin to properly resolve relative paths
+            full_url = urljoin(base_url, link_path)
             return f"[{link_text}]({full_url})"
 
         return match.group(0)
@@ -145,13 +141,12 @@ async def process_markdown_to_pdf(
                 if md_path.startswith(("http://", "https://")):
                     return match.group(0)
 
-                # If it's a relative path, prepend base_source_url
+                # If it's a relative path, use urljoin for proper path resolution
                 if md_path.startswith(("./", "../", "/")) or not md_path.startswith(
                     ("http://", "https://")
                 ):
-                    # Remove leading ./ or ../ if present
-                    clean_path = md_path.lstrip("./").lstrip("../")
-                    full_url = f"{base_source_url}/{clean_path}"
+                    # Use urljoin to properly resolve relative paths
+                    full_url = urljoin(base_source_url, md_path)
                     return f"[{link_text}]({full_url})"
 
                 return match.group(0)

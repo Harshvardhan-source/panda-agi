@@ -737,7 +737,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       const convertContent = async () => {
         try {
           const htmlContent = await markdownToHtml(fileContent);
-          console.log("htmlContent", htmlContent);
           editor.commands.setContent(htmlContent);
           setHasUnsavedChanges(false);
         } catch (error) {
