@@ -1,1 +1,0 @@
-export { default as MarkdownExtension, getMarkdownFromEditor, setMarkdownInEditor, htmlToMarkdown } from './markdown-extension' 
