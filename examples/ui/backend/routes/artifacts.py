@@ -15,7 +15,7 @@ from typing import Optional
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
-from utils.html_utils import generate_error_page_html, should_return_html
+from utils.html_utils import should_return_html, create_html_redirect_response
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -32,6 +32,8 @@ PANDA_AGI_SERVER_URL = (
 PANDA_CHAT_CLIENT_URL = (
     os.environ.get("PANDA_CHAT_CLIENT_URL") or "https://chat.pandas-ai.com"
 )
+
+ERROR_PAGE_URL = f"{PANDA_CHAT_CLIENT_URL}/404"
 
 # Create router
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
@@ -123,6 +125,7 @@ class NameSuggestionRequest(BaseModel):
 
     type: str
     filepath: str
+    content: str
 
 
 class NameSuggestionResponse(BaseModel):
@@ -275,7 +278,7 @@ async def suggest_artifact_name(
             payload.type, payload.filepath
         )
         suggested_name = await ArtifactsService.suggest_artifact_name(
-            conversation_id, filepath
+            conversation_id, filepath, content=payload.content
         )
         return NameSuggestionResponse(suggested_name=suggested_name)
     except Exception as e:
@@ -443,14 +446,7 @@ async def serve_artifact_file(
 
                     # Check if client accepts HTML
                     if should_return_html(request.headers.get("accept")):
-                        html_content = generate_error_page_html(
-                            resp.status, error_detail
-                        )
-                        return Response(
-                            content=html_content,
-                            media_type="text/html",
-                            status_code=resp.status,
-                        )
+                        return create_html_redirect_response(ERROR_PAGE_URL)
 
                     raise HTTPException(
                         status_code=resp.status,
@@ -486,13 +482,7 @@ async def serve_artifact_file(
     except aiohttp.ClientConnectorError as e:
         logger.error(f"Backend server is not responding at {PANDA_AGI_SERVER_URL}: {e}")
         if should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                503,
-                f"Service unavailable. Please try again later.",
-            )
-            return Response(
-                content=html_content, media_type="text/html", status_code=503
-            )
+            return create_html_redirect_response(ERROR_PAGE_URL)
         raise HTTPException(
             status_code=503,
             detail=f"Service unavailable. Please try again later.",
@@ -501,13 +491,7 @@ async def serve_artifact_file(
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
         # Check if client accepts HTML
         if should_return_html(request.headers.get("accept")):
-            html_content = generate_error_page_html(
-                500,
-                "We're experiencing technical difficulties. Please try again later.",
-            )
-            return Response(
-                content=html_content, media_type="text/html", status_code=500
-            )
+            return create_html_redirect_response(ERROR_PAGE_URL)
         raise HTTPException(status_code=500, detail="internal server error")
 
 

@@ -23,6 +23,7 @@ import {
   Link2,
   Hash,
   Unlink,
+  Plus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useEditor, EditorContent, Editor } from "@tiptap/react";
@@ -34,17 +35,11 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import { createLowlight } from "lowlight";
 import Typography from "@tiptap/extension-typography";
-import { Markdown } from "tiptap-markdown";
-
-// Type for the markdown storage
-interface MarkdownStorage {
-  markdown: {
-    getMarkdown: () => string;
-  };
-}
 import Placeholder from "@tiptap/extension-placeholder";
+import { SlashCommand, slashCommandSuggestion } from "./slash-command-extension";
 import "./tiptap-editor.css";
 
 // Re-export from types for backward compatibility
@@ -54,6 +49,40 @@ interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   isOpen: boolean;
   onClose: () => void;
   artifact?: ArtifactData;
+}
+
+import { unified } from "unified"
+
+// Markdown → HTML
+import remarkParse from "remark-parse"
+import remarkRehype from "remark-rehype"
+import rehypeStringify from "rehype-stringify"
+
+// HTML → Markdown
+import rehypeParse from "rehype-parse"
+import rehypeRemark from "rehype-remark"
+import remarkStringify from "remark-stringify"
+
+// Markdown → HTML
+export async function markdownToHtml(markdown: string): Promise<string> {
+  const file = await unified()
+    .use(remarkParse)
+    .use(remarkRehype)
+    .use(rehypeStringify)
+    .process(markdown)
+
+  return String(file).trim()
+}
+
+// HTML → Markdown
+export async function htmlToMarkdown(html: string): Promise<string> {
+  const file = await unified()
+    .use(rehypeParse, { fragment: true })
+    .use(rehypeRemark) 
+    .use(remarkStringify)
+    .process(html)
+
+  return String(file)
 }
 
 const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
@@ -77,6 +106,8 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [linkUrl, setLinkUrl] = useState("");
   const [wordCount, setWordCount] = useState(0);
   const [, forceUpdate] = useState({});
+  const [hoveredTable, setHoveredTable] = useState<HTMLTableElement | null>(null);
+  const [tablePosition, setTablePosition] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
@@ -186,7 +217,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       StarterKit,
       Typography,
       Placeholder.configure({
-        placeholder: "Click to start writing...",
+        placeholder: "Type '/' for commands or click to start writing...",
       }),
       Link.configure({
         openOnClick: false,
@@ -207,22 +238,15 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       TableRow,
       TableHeader,
       TableCell,
-      Markdown.configure({
-        html: false,
-        tightLists: false,
-        bulletListMarker: '-',
-        linkify: true,
-        breaks: true,
+      HorizontalRule,
+      SlashCommand.configure({
+        suggestion: slashCommandSuggestion,
       }),
     ],
-    content: fileContent || "",
+    content: "",
     onUpdate: ({ editor }) => {
-      // For markdown files, compare markdown content
-      // For other files, compare HTML content
-      const currentContent = getFileType(artifact?.filepath || "") === "markdown"
-        ? (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown()
-        : editor.getHTML();
-      const hasChanges = currentContent !== fileContent;
+      const content = editor.getHTML();
+      const hasChanges = content !== fileContent;
       setHasUnsavedChanges(hasChanges);
       if (hasChanges) {
         setJustSaved(false);
@@ -238,6 +262,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
       // Update button states
       forceUpdate({});
+
+      // Refresh table listeners after content changes
+      setTimeout(() => {
+        setupTableHoverListeners();
+      }, 100);
     },
     onSelectionUpdate: () => {
       // Force re-render to update button states
@@ -245,29 +274,236 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     },
   });
 
+  // Set up table hover listeners
+  const setupTableHoverListeners = useCallback(() => {
+    if (!editor) return;
+
+    const editorElement = document.querySelector('.tiptap-editor .ProseMirror');
+    if (!editorElement) return;
+
+    const editorContainer = document.querySelector('.px-16.py-12');
+    if (!editorContainer) return;
+
+    const tables = editorElement.querySelectorAll('table');
+    
+    const handleMouseEnter = (table: HTMLTableElement) => {
+      const containerRect = editorContainer.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      
+      setHoveredTable(table);
+      setTablePosition({
+        top: tableRect.top - containerRect.top,
+        left: tableRect.left - containerRect.left,
+        width: tableRect.width,
+        height: tableRect.height,
+      });
+    };
+
+    const handleMouseLeave = () => {
+      // Don't hide immediately, let the invisible hover zone handle it
+    };
+
+    tables.forEach(table => {
+      const htmlTable = table as HTMLTableElement;
+      htmlTable.addEventListener('mouseenter', () => handleMouseEnter(htmlTable));
+      htmlTable.addEventListener('mouseleave', handleMouseLeave);
+    });
+
+    // Cleanup function
+    return () => {
+      tables.forEach(table => {
+        const htmlTable = table as HTMLTableElement;
+        htmlTable.removeEventListener('mouseenter', () => handleMouseEnter(htmlTable));
+        htmlTable.removeEventListener('mouseleave', handleMouseLeave);
+      });
+    };
+  }, [editor]);
+
+  // Add table controls
+  const handleAddRow = useCallback(() => {
+    if (!editor || !hoveredTable) return;
+    
+    // Move cursor to last cell of the table to ensure we add at the end
+    const rows = hoveredTable.querySelectorAll('tr');
+    if (rows.length > 0) {
+      const lastRow = rows[rows.length - 1];
+      const cells = lastRow.querySelectorAll('td, th');
+      if (cells.length > 0) {
+        const lastCell = cells[cells.length - 1];
+        // Focus the last cell and then add row after it
+        const pos = editor.view.posAtDOM(lastCell, 0);
+        editor.commands.setTextSelection(pos);
+      }
+    }
+    
+    editor.chain().focus().addRowAfter().run();
+    setTimeout(() => setupTableHoverListeners(), 100);
+  }, [editor, setupTableHoverListeners, hoveredTable]);
+
+  const handleAddColumn = useCallback(() => {
+    if (!editor || !hoveredTable) return;
+    
+    // Move cursor to last cell of the first row to ensure we add at the end
+    const rows = hoveredTable.querySelectorAll('tr');
+    if (rows.length > 0) {
+      const firstRow = rows[0];
+      const cells = firstRow.querySelectorAll('td, th');
+      if (cells.length > 0) {
+        const lastCell = cells[cells.length - 1];
+        // Focus the last cell of the first row and then add column after it
+        const pos = editor.view.posAtDOM(lastCell, 0);
+        editor.commands.setTextSelection(pos);
+      }
+    }
+    
+    editor.chain().focus().addColumnAfter().run();
+    setTimeout(() => setupTableHoverListeners(), 100);
+  }, [editor, setupTableHoverListeners, hoveredTable]);
+
+  // Custom markdown parser that preserves empty lines
+  const parseMarkdownWithEmptyLines = (markdown: string): string => {
+    if (!markdown) return "";
+
+    const lines = markdown.split("\n");
+    const htmlLines: string[] = [];
+    let inList = false;
+    let listType = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Empty line - preserve it and close any open list
+      if (line.trim() === "") {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = "";
+        }
+        htmlLines.push("<p></p>");
+        continue;
+      }
+
+      let processedLine = line;
+
+      // Headers
+      if (line.startsWith("### ")) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = "";
+        }
+        processedLine = `<h3>${line.substring(4)}</h3>`;
+      } else if (line.startsWith("## ")) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = "";
+        }
+        processedLine = `<h2>${line.substring(3)}</h2>`;
+      } else if (line.startsWith("# ")) {
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = "";
+        }
+        processedLine = `<h1>${line.substring(2)}</h1>`;
+      } else if (line.trim().startsWith("- ")) {
+        // Unordered list item
+        if (!inList || listType !== "ul") {
+          if (inList) htmlLines.push(`</${listType}>`);
+          htmlLines.push("<ul>");
+          inList = true;
+          listType = "ul";
+        }
+        const listItemContent = line
+          .trim()
+          .substring(2)
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/`(.*?)`/g, "<code>$1</code>");
+        processedLine = `<li>${listItemContent}</li>`;
+      } else if (/^\d+\.\s/.test(line.trim())) {
+        // Numbered list item (1. 2. 3. etc.)
+        if (!inList || listType !== "ol") {
+          if (inList) htmlLines.push(`</${listType}>`);
+          htmlLines.push("<ol>");
+          inList = true;
+          listType = "ol";
+        }
+        const listItemContent = line
+          .trim()
+          .replace(/^\d+\.\s/, "")
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/`(.*?)`/g, "<code>$1</code>");
+        processedLine = `<li>${listItemContent}</li>`;
+      } else {
+        // Regular content
+        if (inList) {
+          htmlLines.push(`</${listType}>`);
+          inList = false;
+          listType = "";
+        }
+        processedLine = line
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/`(.*?)`/g, "<code>$1</code>");
+        processedLine = `<p>${processedLine}</p>`;
+      }
+
+      htmlLines.push(processedLine);
+    }
+
+    // Close any remaining open list
+    if (inList) {
+      htmlLines.push(`</${listType}>`);
+    }
+
+    return htmlLines.join("");
+  };
+
   // Update editor content when file content changes
   useEffect(() => {
     if (editor && fileContent !== null) {
-      // Use the Markdown extension to parse markdown content
-      editor.commands.setContent(fileContent);
-      setHasUnsavedChanges(false);
+      // Convert markdown to HTML using the markdownToHtml function
+      const convertContent = async () => {
+        try {
+          const htmlContent = await markdownToHtml(fileContent);
+          console.log("htmlContent", htmlContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error("Error converting markdown to HTML:", error);
+          // Fallback to the custom parser if markdownToHtml fails
+          const htmlContent = parseMarkdownWithEmptyLines(fileContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+          
+          // Focus the editor after content is set
+          if (isOpen) {
+            setTimeout(() => {
+              editor.commands.focus("start");
+            }, 200);
+          }
 
-      // Focus the editor after content is set
-      if (isOpen) {
-        setTimeout(() => {
-          editor.commands.focus("start");
-        }, 200);
-      }
+          // Update initial word count
+          const text = editor.getText();
+          const words = text
+            .trim()
+            .split(/\s+/)
+            .filter((word) => word.length > 0);
+          setWordCount(words.length);
 
-      // Update initial word count
-      const text = editor.getText();
-      const words = text
-        .trim()
-        .split(/\s+/)
-        .filter((word) => word.length > 0);
-      setWordCount(words.length);
+          // Set up table hover listeners
+          setTimeout(() => {
+            setupTableHoverListeners();
+          }, 100);
+        }
+      };
+      
+      convertContent();
     }
-  }, [editor, fileContent, isOpen]);
+  }, [editor, fileContent, isOpen, setupTableHoverListeners]);
 
   // Handle editing existing link URL
   const handleEditLinkUrl = useCallback(() => {
@@ -283,18 +519,14 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
     setIsSaving(true);
     try {
-      // For markdown files, use the Markdown extension to get markdown content
-      // For other files, use HTML content
+      // For markdown files, we should convert HTML back to markdown
+      // For now, let's save the raw content from the editor
       const content =
         getFileType(artifact.filepath) === "markdown"
-          ? (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown()
+          ? await htmlToMarkdown(editor.getHTML())
           : editor.getHTML();
 
-      await updateArtifactFile(
-        artifact.id,
-        artifact.filepath,
-        content
-      );
+      await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       setFileContent(content);
       setHasUnsavedChanges(false);
@@ -316,19 +548,19 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   };
 
   // Simple HTML to markdown converter
-  const htmlToMarkdown = (html: string): string => {
-    return html
-      .replace(/<h1>(.*?)<\/h1>/g, "# $1")
-      .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-      .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-      .replace(/<em>(.*?)<\/em>/g, "*$1*")
-      .replace(/<code>(.*?)<\/code>/g, "`$1`")
-      .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
-      .replace(/<br\s*\/?>/g, "\n")
-      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-      .trim();
-  };
+  // const htmlToMarkdown = (html: string): string => {
+  //   return html
+  //     .replace(/<h1>(.*?)<\/h1>/g, "# $1")
+  //     .replace(/<h2>(.*?)<\/h2>/g, "## $1")
+  //     .replace(/<h3>(.*?)<\/h3>/g, "### $1")
+  //     .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
+  //     .replace(/<em>(.*?)<\/em>/g, "*$1*")
+  //     .replace(/<code>(.*?)<\/code>/g, "`$1`")
+  //     .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
+  //     .replace(/<br\s*\/?>/g, "\n")
+  //     .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
+  //     .trim();
+  // };
 
   // Handle link insertion
   const handleLinkClick = () => {
@@ -575,12 +807,101 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
               <Toolbar editor={editor} />
               <div className="flex-1 p-6 overflow-auto">
-                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
+                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg relative">
                   <div className="px-16 py-12">
                     <EditorContent
                       editor={editor}
                       className="tiptap-editor focus:outline-none cursor-text"
                     />
+                    {/* Table Controls */}
+                    {hoveredTable && tablePosition && (
+                      <>
+                        {/* Invisible hover zone that extends beyond the table */}
+                        <div
+                          className="absolute"
+                          style={{
+                            left: tablePosition.left - 20,
+                            top: tablePosition.top - 20,
+                            width: tablePosition.width + 60,
+                            height: tablePosition.height + 60,
+                            pointerEvents: 'none',
+                            zIndex: 1,
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredTable(null);
+                            setTablePosition(null);
+                          }}
+                        >
+                          {/* Only the outer border area should capture mouse events */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '20px',
+                              pointerEvents: 'auto',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: '20px',
+                              pointerEvents: 'auto',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '20px',
+                              bottom: '20px',
+                              left: 0,
+                              width: '20px',
+                              pointerEvents: 'auto',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '20px',
+                              bottom: '20px',
+                              right: 0,
+                              width: '20px',
+                              pointerEvents: 'auto',
+                            }}
+                          />
+                        </div>
+                        {/* Add Column Button (positioned on right side) */}
+                        <button
+                          onClick={handleAddColumn}
+                          className="absolute bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md p-1.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md"
+                          style={{
+                            left: tablePosition.left + tablePosition.width - 12,
+                            top: tablePosition.top + tablePosition.height / 2 - 12,
+                            zIndex: 20,
+                          }}
+                          title="Add column"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                        {/* Add Row Button (positioned on bottom) */}
+                        <button
+                          onClick={handleAddRow}
+                          className="absolute bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md p-1.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md"
+                          style={{
+                            left: tablePosition.left + tablePosition.width / 2 - 12,
+                            top: tablePosition.top + tablePosition.height - 12,
+                            zIndex: 20,
+                          }}
+                          title="Add row"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

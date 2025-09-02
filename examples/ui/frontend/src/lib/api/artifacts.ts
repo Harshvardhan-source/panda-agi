@@ -10,6 +10,7 @@ interface ArtifactPayload {
 interface NameSuggestionRequest {
     type: string;
     filepath: string;
+    content: string;
 }
 
 interface NameSuggestionResponse {

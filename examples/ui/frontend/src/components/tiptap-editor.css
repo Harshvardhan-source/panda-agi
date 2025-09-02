@@ -167,9 +167,21 @@
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   overflow: hidden;
+  position: relative;
 }
 .dark .tiptap-editor .ProseMirror table {
   border-color: #4b5563;
+}
+
+/* Table hover effect */
+.tiptap-editor .ProseMirror table:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #3b82f6;
+  transition: all 0.2s ease-in-out;
+}
+.dark .tiptap-editor .ProseMirror table:hover {
+  border-color: #60a5fa;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
 }
 
 .tiptap-editor .ProseMirror th,

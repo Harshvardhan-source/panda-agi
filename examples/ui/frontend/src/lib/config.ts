@@ -21,6 +21,9 @@ export const config = {
   external: {
     urls: EXTERNAL_URLS,
   },
+  markdown: {
+    maxContentLength: 1000,
+  },
 };
 
 export default config;
