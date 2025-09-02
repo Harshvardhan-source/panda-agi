@@ -142,4 +142,34 @@ export const updateArtifact = async (
     }
     
     return response.json();
+};
+
+export interface ArtifactFileUpdateRequest {
+    file_path: string;
+    content: string;
+}
+
+export const updateArtifactFile = async (
+    artifactId: string,
+    filePath: string,
+    content: string
+): Promise<{ detail: string }> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}/file`);
+    const options = await getApiOptions();
+    
+    const response = await fetch(url, {
+        method: 'PATCH',
+        ...options,
+        body: JSON.stringify({
+            file_path: filePath,
+            content: content,
+        }),
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to update artifact file: ${response.status}`);
+    }
+    
+    return response.json();
 }; 

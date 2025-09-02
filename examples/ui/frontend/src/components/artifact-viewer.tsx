@@ -3,7 +3,7 @@ import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { getApiHeaders } from "@/lib/api/common";
-import { updateArtifact } from "@/lib/api/artifacts";
+import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
 import {
@@ -58,6 +58,40 @@ interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   isOpen: boolean;
   onClose: () => void;
   artifact?: ArtifactData;
+}
+
+import { unified } from "unified"
+
+// Markdown → HTML
+import remarkParse from "remark-parse"
+import remarkRehype from "remark-rehype"
+import rehypeStringify from "rehype-stringify"
+
+// HTML → Markdown
+import rehypeParse from "rehype-parse"
+import rehypeRemark from "rehype-remark"
+import remarkStringify from "remark-stringify"
+
+// Markdown → HTML
+export async function markdownToHtml(markdown: string): Promise<string> {
+  const file = await unified()
+    .use(remarkParse)
+    .use(remarkRehype)
+    .use(rehypeStringify)
+    .process(markdown)
+
+  return String(file).trim()
+}
+
+// HTML → Markdown
+export async function htmlToMarkdown(html: string): Promise<string> {
+  const file = await unified()
+    .use(rehypeParse, { fragment: true })
+    .use(rehypeRemark) 
+    .use(remarkStringify)
+    .process(html)
+
+  return String(file)
 }
 
 const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
@@ -224,7 +258,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         suggestion: slashCommandSuggestion,
       }),
     ],
-    content: fileContent || "",
+    content: "",
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
       const hasChanges = content !== fileContent;
@@ -699,32 +733,44 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   // Update editor content when file content changes
   useEffect(() => {
     if (editor && fileContent !== null) {
-      // Use our custom parser that preserves empty lines
-      const htmlContent = parseMarkdownWithEmptyLines(fileContent);
-      editor.commands.setContent(htmlContent);
-      setHasUnsavedChanges(false);
+      // Convert markdown to HTML using the markdownToHtml function
+      const convertContent = async () => {
+        try {
+          const htmlContent = await markdownToHtml(fileContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error("Error converting markdown to HTML:", error);
+          // Fallback to the custom parser if markdownToHtml fails
+          const htmlContent = parseMarkdownWithEmptyLines(fileContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+          
+          // Focus the editor after content is set
+          if (isOpen) {
+            setTimeout(() => {
+              editor.commands.focus("start");
+            }, 200);
+          }
 
-      // Focus the editor after content is set
-      if (isOpen) {
-        setTimeout(() => {
-          editor.commands.focus("start");
-        }, 200);
-      }
+          // Update initial word count
+          const text = editor.getText();
+          const words = text
+            .trim()
+            .split(/\s+/)
+            .filter((word) => word.length > 0);
+          setWordCount(words.length);
 
-      // Update initial word count
-      const text = editor.getText();
-      const words = text
-        .trim()
-        .split(/\s+/)
-        .filter((word) => word.length > 0);
-      setWordCount(words.length);
-
-      // Set up table hover listeners
-      setTimeout(() => {
-        // Clean up any existing table controls first
-        cleanupTableControls();
-        setupTableHoverListeners();
-      }, 100);
+          // Set up table hover listeners
+          setTimeout(() => {
+            // Clean up any existing table controls first
+            cleanupTableControls();
+            setupTableHoverListeners();
+          }, 100);
+        }
+      };
+      
+      convertContent();
     }
   }, [editor, fileContent, isOpen, setupTableHoverListeners, cleanupTableControls]);
 
@@ -746,24 +792,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       // For now, let's save the raw content from the editor
       const content =
         getFileType(artifact.filepath) === "markdown"
-          ? htmlToMarkdown(editor.getHTML())
+          ? await htmlToMarkdown(editor.getHTML())
           : editor.getHTML();
 
-      const response = await fetch(
-        `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "text/plain",
-            ...(await getApiHeaders()),
-          },
-          body: content,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to save: ${response.status}`);
-      }
+      await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       setFileContent(content);
       setHasUnsavedChanges(false);
@@ -783,22 +815,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setIsSaving(false);
     }
   };
-
-  // Simple HTML to markdown converter
-  const htmlToMarkdown = (html: string): string => {
-    return html
-      .replace(/<h1>(.*?)<\/h1>/g, "# $1")
-      .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-      .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-      .replace(/<em>(.*?)<\/em>/g, "*$1*")
-      .replace(/<code>(.*?)<\/code>/g, "`$1`")
-      .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
-      .replace(/<br\s*\/?>/g, "\n")
-      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-      .trim();
-  };
-
   // Handle link insertion
   const handleLinkClick = () => {
     if (!editor) return;

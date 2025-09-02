@@ -13,6 +13,48 @@ from typing import Optional, Tuple
 logger = logging.getLogger(__name__)
 
 
+async def convert_relative_links_to_absolute(
+    markdown_content: str,
+    base_url: str,
+) -> str:
+    """
+    Convert all relative links in markdown content to absolute URLs by prepending base URL.
+
+    Args:
+        markdown_content: The markdown content as string
+        base_url: Base URL to prepend to relative links
+
+    Returns:
+        Updated markdown content with absolute URLs
+    """
+
+    # Pattern to match markdown links: [text](path) or [text](./path) or [text](../path)
+    link_pattern = r"\[([^\]]*)\]\(([^)]+)\)"
+
+    def replace_links(match):
+        link_text = match.group(1)
+        link_path = match.group(2)
+
+        # Skip if already absolute URL or data URL
+        if link_path.startswith(("http://", "https://", "data:")):
+            return match.group(0)
+
+        # If it's a relative path, use urljoin for proper path resolution
+        if link_path.startswith(("./", "../", "/")) or not link_path.startswith(
+            ("http://", "https://", "data:")
+        ):
+            # Use urljoin to properly resolve relative paths
+            full_url = urljoin(base_url, link_path)
+            return f"[{link_text}]({full_url})"
+
+        return match.group(0)
+
+    # Apply the replacement
+    updated_markdown = re.sub(link_pattern, replace_links, markdown_content)
+
+    return updated_markdown
+
+
 async def process_markdown_to_pdf(
     markdown_content: str,
     file_path: str,
@@ -99,13 +141,12 @@ async def process_markdown_to_pdf(
                 if md_path.startswith(("http://", "https://")):
                     return match.group(0)
 
-                # If it's a relative path, prepend base_source_url
+                # If it's a relative path, use urljoin for proper path resolution
                 if md_path.startswith(("./", "../", "/")) or not md_path.startswith(
                     ("http://", "https://")
                 ):
-                    # Remove leading ./ or ../ if present
-                    clean_path = md_path.lstrip("./").lstrip("../")
-                    full_url = f"{base_source_url}/{clean_path}"
+                    # Use urljoin to properly resolve relative paths
+                    full_url = urljoin(base_source_url, md_path)
                     return f"[{link_text}]({full_url})"
 
                 return match.group(0)
