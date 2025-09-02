@@ -72,26 +72,62 @@ import rehypeParse from "rehype-parse"
 import rehypeRemark from "rehype-remark"
 import remarkStringify from "remark-stringify"
 
-// Markdown → HTML
+// Markdown → HTML with empty line preservation
 export async function markdownToHtml(markdown: string): Promise<string> {
+  if (!markdown) return "";
+  
+  // Pre-process markdown to preserve multiple consecutive empty lines
+  // We'll convert multiple consecutive newlines to a special placeholder
+  const processedMarkdown = markdown.replace(/\n\n\n+/g, (match) => {
+    const emptyLineCount = match.length - 2; // subtract the first two newlines
+    return '\n\n' + '<!---EMPTY-LINE-PLACEHOLDER--->\n'.repeat(emptyLineCount);
+  });
+  
   const file = await unified()
     .use(remarkParse)
-    .use(remarkRehype)
-    .use(rehypeStringify)
-    .process(markdown)
-
-  return String(file).trim()
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeStringify, { allowDangerousHtml: true })
+    .process(processedMarkdown);
+  
+  let html = String(file);
+  
+  // Convert placeholders back to empty paragraphs - note the 3 dashes!
+  html = html.replace(/<!---EMPTY-LINE-PLACEHOLDER--->/g, '<p></p>');
+  return html;
 }
 
-// HTML → Markdown
+// HTML → Markdown with empty line preservation
 export async function htmlToMarkdown(html: string): Promise<string> {
+  if (!html) return "";
+  
+  // Better approach: Replace all empty paragraphs with special markers before unified processing
+  let processedHtml = html;
+  
+  // Replace empty paragraphs with a special marker that unified won't collapse
+  processedHtml = processedHtml.replace(/<p><\/p>/g, '<div data-empty-line="true">EMPTY_LINE_MARKER</div>');
+  
   const file = await unified()
     .use(rehypeParse, { fragment: true })
-    .use(rehypeRemark) 
+    .use(rehypeRemark)
     .use(remarkStringify)
-    .process(html)
-
-  return String(file)
+    .process(processedHtml);
+  
+  let markdown = String(file);
+  
+  // Post-process: Convert markers back to empty lines
+  // Each marker should add just one newline: \n\nMARKER\n\n becomes \n\n\n
+  // Use a simple iterative approach since global replace doesn't work well with overlapping patterns
+  while (markdown.includes('EMPTY_LINE_MARKER') || markdown.includes('EMPTY\\_LINE\\_MARKER')) {
+    const beforeReplace = markdown;
+    markdown = markdown.replace(/\n\nEMPTY\\_LINE\\_MARKER\n\n/, '\n\n\n');
+    markdown = markdown.replace(/\n\nEMPTY_LINE_MARKER\n\n/, '\n\n\n');
+    // Safety check to prevent infinite loop
+    if (beforeReplace === markdown) break;
+  }
+  
+  // Clean up any extra newlines at the end
+  markdown = markdown.replace(/\n+$/, '\n');
+  return markdown;
 }
 
 const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
@@ -628,7 +664,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }, 100);
   }, [editor, hoveredTable, setupTableHoverListeners, cleanupTableControls]);
 
-  // Custom markdown parser that preserves empty lines
+  // Custom markdown parser that preserves empty lines (fallback)
   const parseMarkdownWithEmptyLines = (markdown: string): string => {
     if (!markdown) return "";
 
@@ -745,29 +781,29 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           const htmlContent = parseMarkdownWithEmptyLines(fileContent);
           editor.commands.setContent(htmlContent);
           setHasUnsavedChanges(false);
-          
-          // Focus the editor after content is set
-          if (isOpen) {
-            setTimeout(() => {
-              editor.commands.focus("start");
-            }, 200);
-          }
-
-          // Update initial word count
-          const text = editor.getText();
-          const words = text
-            .trim()
-            .split(/\s+/)
-            .filter((word) => word.length > 0);
-          setWordCount(words.length);
-
-          // Set up table hover listeners
-          setTimeout(() => {
-            // Clean up any existing table controls first
-            cleanupTableControls();
-            setupTableHoverListeners();
-          }, 100);
         }
+        
+        // Focus the editor after content is set
+        if (isOpen) {
+          setTimeout(() => {
+            editor.commands.focus("start");
+          }, 200);
+        }
+
+        // Update initial word count
+        const text = editor.getText();
+        const words = text
+          .trim()
+          .split(/\s+/)
+          .filter((word) => word.length > 0);
+        setWordCount(words.length);
+
+        // Set up table hover listeners
+        setTimeout(() => {
+          // Clean up any existing table controls first
+          cleanupTableControls();
+          setupTableHoverListeners();
+        }, 100);
       };
       
       convertContent();
@@ -787,14 +823,15 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     if (!artifact || !hasUnsavedChanges || !editor || isSaving) return;
 
     setIsSaving(true);
-    try {
+        try {
       // For markdown files, we should convert HTML back to markdown
-      // For now, let's save the raw content from the editor
+      const editorHTML = editor.getHTML();
+      
       const content =
         getFileType(artifact.filepath) === "markdown"
-          ? await htmlToMarkdown(editor.getHTML())
-          : editor.getHTML();
-
+          ? await htmlToMarkdown(editorHTML)
+          : editorHTML;
+      
       await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       setFileContent(content);
