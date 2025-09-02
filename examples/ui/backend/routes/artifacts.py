@@ -14,7 +14,10 @@ import mimetypes
 from typing import Optional
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
-from utils.markdown_utils import process_markdown_to_pdf
+from utils.markdown_utils import (
+    convert_relative_links_to_absolute,
+    process_markdown_to_pdf,
+)
 from utils.html_utils import should_return_html, create_html_redirect_response
 from models.agent import (
     ArtifactResponse,
@@ -76,10 +79,7 @@ async def process_artifact_markdown_to_pdf(
     markdown_content = content_bytes.decode("utf-8")
 
     # Get the base URL for resolving relative image paths
-    if is_public:
-        base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/"
-    else:
-        base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/"
+    base_url = f"{PANDA_CHAT_CLIENT_URL}/creations/{artifact_id}/"
 
     # Use the utility function to convert markdown to PDF
     result = await process_markdown_to_pdf(
@@ -457,7 +457,18 @@ async def serve_artifact_file(
                 content_bytes = await resp.read()
 
                 # Check if it's a markdown file and raw mode is not requested
-                if file_path.lower().endswith((".md", ".markdown")) and not raw:
+                if file_path.lower().endswith((".md", ".markdown")):
+                    if raw:
+                        # Convert relative links to absolute URLs
+                        content_str = content_bytes.decode("utf-8")
+                        updated_content = await convert_relative_links_to_absolute(
+                            content_str, base_source_url or ""
+                        )
+                        return Response(
+                            content=updated_content.encode("utf-8"),
+                            media_type="text/markdown",
+                        )
+
                     pdf_response = await process_artifact_markdown_to_pdf(
                         file_path,
                         content_bytes,

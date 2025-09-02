@@ -546,22 +546,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setIsSaving(false);
     }
   };
-
-  // Simple HTML to markdown converter
-  // const htmlToMarkdown = (html: string): string => {
-  //   return html
-  //     .replace(/<h1>(.*?)<\/h1>/g, "# $1")
-  //     .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-  //     .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-  //     .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-  //     .replace(/<em>(.*?)<\/em>/g, "*$1*")
-  //     .replace(/<code>(.*?)<\/code>/g, "`$1`")
-  //     .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
-  //     .replace(/<br\s*\/?>/g, "\n")
-  //     .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-  //     .trim();
-  // };
-
   // Handle link insertion
   const handleLinkClick = () => {
     if (!editor) return;
