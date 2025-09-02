@@ -9,8 +9,9 @@ import SessionExpiredPopup from "@/components/session-expired-popup";
 import { getFileType } from "@/lib/utils";
 import { useInactivityTimer } from "@/hooks/useInactivityTimer";
 import { getServerURL } from "@/lib/server";
-import { storeAuthToken, removeAuthToken } from "@/lib/api/auth";
+import { storeAuthToken, removeAuthToken, refreshAuthToken } from "@/lib/api/auth";
 import { notifyAuthChange } from "@/hooks/useAuth";
+
 
 export default function Home() {
   const router = useRouter();
@@ -127,6 +128,10 @@ export default function Home() {
 
                 // Notify all components about the auth change
                 notifyAuthChange();
+
+                if (authData.refresh_token) {
+                 await refreshAuthToken(authData.refresh_token);
+                }
               } else {
                 console.error("Token validation failed");
                 removeAuthToken();

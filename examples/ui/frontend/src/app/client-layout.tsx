@@ -19,7 +19,7 @@ function ClientLayoutContent({
       posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
         api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
         loaded: (ph) => {
-          ph.register({ app_loaded_date: "2025-05-24" });
+          ph.register({ app_loaded_date: new Date().toISOString() });
         }
       });
     }
