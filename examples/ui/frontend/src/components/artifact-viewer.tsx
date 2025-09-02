@@ -3,7 +3,7 @@ import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { getApiHeaders } from "@/lib/api/common";
-import { updateArtifact } from "@/lib/api/artifacts";
+import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
 import {
@@ -23,6 +23,16 @@ import {
   Link2,
   Hash,
   Unlink,
+  Plus,
+  GripVertical,
+  GripHorizontal,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  Eraser,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useEditor, EditorContent, Editor } from "@tiptap/react";
@@ -34,9 +44,11 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import { createLowlight } from "lowlight";
 import Typography from "@tiptap/extension-typography";
 import Placeholder from "@tiptap/extension-placeholder";
+import { SlashCommand, slashCommandSuggestion } from "./slash-command-extension";
 import "./tiptap-editor.css";
 
 // Re-export from types for backward compatibility
@@ -46,6 +58,40 @@ interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   isOpen: boolean;
   onClose: () => void;
   artifact?: ArtifactData;
+}
+
+import { unified } from "unified"
+
+// Markdown → HTML
+import remarkParse from "remark-parse"
+import remarkRehype from "remark-rehype"
+import rehypeStringify from "rehype-stringify"
+
+// HTML → Markdown
+import rehypeParse from "rehype-parse"
+import rehypeRemark from "rehype-remark"
+import remarkStringify from "remark-stringify"
+
+// Markdown → HTML
+export async function markdownToHtml(markdown: string): Promise<string> {
+  const file = await unified()
+    .use(remarkParse)
+    .use(remarkRehype)
+    .use(rehypeStringify)
+    .process(markdown)
+
+  return String(file).trim()
+}
+
+// HTML → Markdown
+export async function htmlToMarkdown(html: string): Promise<string> {
+  const file = await unified()
+    .use(rehypeParse, { fragment: true })
+    .use(rehypeRemark) 
+    .use(remarkStringify)
+    .process(html)
+
+  return String(file)
 }
 
 const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
@@ -69,6 +115,12 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [linkUrl, setLinkUrl] = useState("");
   const [wordCount, setWordCount] = useState(0);
   const [, forceUpdate] = useState({});
+  const [hoveredTable, setHoveredTable] = useState<HTMLTableElement | null>(null);
+  const [tablePosition, setTablePosition] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<{ index: number; element: HTMLElement; top: number; height: number } | null>(null);
+  const [hoveredColumn, setHoveredColumn] = useState<{ index: number; left: number; width: number } | null>(null);
+  const [showRowDropdown, setShowRowDropdown] = useState<{ index: number; top: number; left: number } | null>(null);
+  const [showColumnDropdown, setShowColumnDropdown] = useState<{ index: number; top: number; left: number } | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
@@ -167,6 +219,8 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       );
       if (!confirmed) return;
     }
+    // Clean up table controls when closing
+    cleanupTableControls();
     onClose();
   };
 
@@ -178,7 +232,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       StarterKit,
       Typography,
       Placeholder.configure({
-        placeholder: "Click to start writing...",
+        placeholder: "Type '/' for commands or click to start writing...",
       }),
       Link.configure({
         openOnClick: false,
@@ -199,8 +253,12 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       TableRow,
       TableHeader,
       TableCell,
+      HorizontalRule,
+      SlashCommand.configure({
+        suggestion: slashCommandSuggestion,
+      }),
     ],
-    content: fileContent || "",
+    content: "",
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
       const hasChanges = content !== fileContent;
@@ -219,12 +277,356 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
       // Update button states
       forceUpdate({});
+
+      // Refresh table listeners after content changes
+      setTimeout(() => {
+        // Clean up any existing table controls first
+        cleanupTableControls();
+        setupTableHoverListeners();
+      }, 100);
     },
     onSelectionUpdate: () => {
       // Force re-render to update button states
       forceUpdate({});
     },
   });
+
+  // Clean up table controls when tables are removed
+  const cleanupTableControls = useCallback(() => {
+    setHoveredTable(null);
+    setTablePosition(null);
+    setHoveredRow(null);
+    setHoveredColumn(null);
+    setShowRowDropdown(null);
+    setShowColumnDropdown(null);
+  }, []);
+
+  // Set up row and column hover listeners
+  const setupRowColumnListeners = useCallback((table: HTMLTableElement, containerRect: DOMRect) => {
+    // Set up row listeners
+    const rows = table.querySelectorAll('tr');
+    rows.forEach((row, index) => {
+      const htmlRow = row as HTMLElement;
+      const rowRect = htmlRow.getBoundingClientRect();
+      
+      htmlRow.addEventListener('mouseenter', () => {
+        setHoveredRow({
+          index,
+          element: htmlRow,
+          top: rowRect.top - containerRect.top,
+          height: rowRect.height,
+        });
+      });
+      
+      htmlRow.addEventListener('mouseleave', () => {
+        // Don't hide immediately, let the invisible hover zone handle it
+      });
+    });
+
+    // Set up column listeners by tracking cell hovers
+    const firstRow = rows[0];
+    if (firstRow) {
+      const cells = firstRow.querySelectorAll('td, th');
+      cells.forEach((cell, index) => {
+        const htmlCell = cell as HTMLElement;
+        const cellRect = htmlCell.getBoundingClientRect();
+        
+        htmlCell.addEventListener('mouseenter', () => {
+          setHoveredColumn({
+            index,
+            left: cellRect.left - containerRect.left,
+            width: cellRect.width,
+          });
+        });
+        
+        htmlCell.addEventListener('mouseleave', () => {
+          // Don't hide immediately, let the invisible hover zone handle it
+        });
+      });
+    }
+  }, []);
+
+  // Set up table hover listeners
+  const setupTableHoverListeners = useCallback(() => {
+    if (!editor) return;
+
+    const editorElement = document.querySelector('.tiptap-editor .ProseMirror');
+    if (!editorElement) return;
+
+    const editorContainer = document.querySelector('.px-16.py-12');
+    if (!editorContainer) return;
+
+    const tables = editorElement.querySelectorAll('table');
+    
+    // If no tables exist, clean up any lingering controls
+    if (tables.length === 0) {
+      cleanupTableControls();
+      return;
+    }
+    
+    const handleMouseEnter = (table: HTMLTableElement) => {
+      const containerRect = editorContainer.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      
+      setHoveredTable(table);
+      setTablePosition({
+        top: tableRect.top - containerRect.top,
+        left: tableRect.left - containerRect.left,
+        width: tableRect.width,
+        height: tableRect.height,
+      });
+
+      // Set up row and column hover listeners
+      setupRowColumnListeners(table, containerRect);
+    };
+
+    const handleMouseLeave = () => {
+      // Don't hide immediately, let the invisible hover zone handle it
+    };
+
+    tables.forEach(table => {
+      const htmlTable = table as HTMLTableElement;
+      htmlTable.addEventListener('mouseenter', () => handleMouseEnter(htmlTable));
+      htmlTable.addEventListener('mouseleave', handleMouseLeave);
+    });
+
+    // Cleanup function
+    return () => {
+      tables.forEach(table => {
+        const htmlTable = table as HTMLTableElement;
+        htmlTable.removeEventListener('mouseenter', () => handleMouseEnter(htmlTable));
+        htmlTable.removeEventListener('mouseleave', handleMouseLeave);
+      });
+    };
+  }, [editor, setupRowColumnListeners, cleanupTableControls]);
+
+  // Add table controls
+  const handleAddRow = useCallback(() => {
+    if (!editor || !hoveredTable) return;
+    
+    // Move cursor to last cell of the table to ensure we add at the end
+    const rows = hoveredTable.querySelectorAll('tr');
+    if (rows.length > 0) {
+      const lastRow = rows[rows.length - 1];
+      const cells = lastRow.querySelectorAll('td, th');
+      if (cells.length > 0) {
+        const lastCell = cells[cells.length - 1];
+        // Focus the last cell and then add row after it
+        const pos = editor.view.posAtDOM(lastCell, 0);
+        editor.commands.setTextSelection(pos);
+      }
+    }
+    
+    editor.chain().focus().addRowAfter().run();
+    setTimeout(() => setupTableHoverListeners(), 100);
+  }, [editor, setupTableHoverListeners, hoveredTable]);
+
+  const handleAddColumn = useCallback(() => {
+    if (!editor || !hoveredTable) return;
+    
+    // Move cursor to last cell of the first row to ensure we add at the end
+    const rows = hoveredTable.querySelectorAll('tr');
+    if (rows.length > 0) {
+      const firstRow = rows[0];
+      const cells = firstRow.querySelectorAll('td, th');
+      if (cells.length > 0) {
+        const lastCell = cells[cells.length - 1];
+        // Focus the last cell of the first row and then add column after it
+        const pos = editor.view.posAtDOM(lastCell, 0);
+        editor.commands.setTextSelection(pos);
+      }
+    }
+    
+    editor.chain().focus().addColumnAfter().run();
+    setTimeout(() => setupTableHoverListeners(), 100);
+  }, [editor, setupTableHoverListeners, hoveredTable]);
+
+  // Dropdown handlers
+  const handleShowRowDropdown = useCallback((rowIndex: number, buttonTop: number, buttonLeft: number) => {
+    setShowRowDropdown({
+      index: rowIndex,
+      top: buttonTop,
+      left: buttonLeft + 25, // Position to the right of the button
+    });
+    setShowColumnDropdown(null); // Close other dropdown
+  }, []);
+
+  const handleShowColumnDropdown = useCallback((columnIndex: number, buttonTop: number, buttonLeft: number) => {
+    setShowColumnDropdown({
+      index: columnIndex,
+      top: buttonTop + 25, // Position below the button
+      left: buttonLeft,
+    });
+    setShowRowDropdown(null); // Close other dropdown
+  }, []);
+
+  // Table operation functions
+  const handleRowOperation = useCallback((operation: string, rowIndex: number) => {
+    if (!editor || !hoveredTable) return;
+    
+    const rows = hoveredTable.querySelectorAll('tr');
+    const targetRow = rows[rowIndex];
+    if (!targetRow) return;
+
+    // Position cursor in the target row
+    const cells = targetRow.querySelectorAll('td, th');
+    if (cells.length > 0) {
+      const pos = editor.view.posAtDOM(cells[0], 0);
+      editor.commands.setTextSelection(pos);
+    }
+
+    switch (operation) {
+      case 'addBefore':
+        editor.chain().focus().addRowBefore().run();
+        break;
+      case 'addAfter':
+        editor.chain().focus().addRowAfter().run();
+        break;
+      case 'duplicate':
+        // First add a row after
+        editor.chain().focus().addRowAfter().run();
+        
+        // Wait for the DOM to update, then copy content
+        setTimeout(() => {
+          const rows = hoveredTable.querySelectorAll('tr');
+          const sourceRow = rows[rowIndex];
+          const newRow = rows[rowIndex + 1];
+          
+          if (sourceRow && newRow) {
+            const sourceCells = sourceRow.querySelectorAll('td, th');
+            const newCells = newRow.querySelectorAll('td, th');
+            
+            // Copy each cell's content sequentially to avoid race conditions
+            let cellIndex = 0;
+            const copyCellContent = () => {
+              if (cellIndex < sourceCells.length) {
+                const sourceCell = sourceCells[cellIndex];
+                const newCell = newCells[cellIndex];
+                
+                if (sourceCell && newCell && sourceCell.textContent) {
+                  const content = sourceCell.textContent.trim();
+                  if (content) {
+                    // Clear and set content directly using innerHTML to avoid ProseMirror race conditions
+                    newCell.innerHTML = `<p>${content}</p>`;
+                  }
+                }
+                cellIndex++;
+                setTimeout(copyCellContent, 10); // Small delay between cells
+              }
+            };
+            copyCellContent();
+          }
+        }, 50);
+        break;
+      case 'clear':
+        // Clear all cells in the row
+        const cells = targetRow.querySelectorAll('td, th');
+        cells.forEach((cell) => {
+          if (cell.textContent && cell.textContent.trim() !== '') {
+            try {
+              const startPos = editor.view.posAtDOM(cell, 0);
+              const endPos = editor.view.posAtDOM(cell, cell.childNodes.length);
+              editor.commands.setTextSelection({ from: startPos, to: endPos });
+              editor.commands.deleteSelection();
+            } catch {
+              // Fallback: directly clear the cell content
+              cell.innerHTML = '';
+            }
+          }
+        });
+        break;
+      case 'delete':
+        editor.chain().focus().deleteRow().run();
+        break;
+    }
+    
+    setShowRowDropdown(null);
+    setTimeout(() => {
+      cleanupTableControls();
+      setupTableHoverListeners();
+    }, 100);
+  }, [editor, hoveredTable, setupTableHoverListeners, cleanupTableControls]);
+
+  const handleColumnOperation = useCallback((operation: string, columnIndex: number) => {
+    if (!editor || !hoveredTable) return;
+    
+    const rows = hoveredTable.querySelectorAll('tr');
+    if (rows.length === 0) return;
+
+    // Position cursor in the target column
+    const targetCell = rows[0].querySelectorAll('td, th')[columnIndex];
+    if (targetCell) {
+      const pos = editor.view.posAtDOM(targetCell, 0);
+      editor.commands.setTextSelection(pos);
+    }
+
+    switch (operation) {
+      case 'addBefore':
+        editor.chain().focus().addColumnBefore().run();
+        break;
+      case 'addAfter':
+        editor.chain().focus().addColumnAfter().run();
+        break;
+      case 'duplicate':
+        // First add a column after
+        editor.chain().focus().addColumnAfter().run();
+        
+        // Wait for the DOM to update, then copy content
+        setTimeout(() => {
+          const rows = hoveredTable.querySelectorAll('tr');
+          
+          // Copy each row's cell content sequentially to avoid race conditions
+          let rowIndex = 0;
+          const copyRowContent = () => {
+            if (rowIndex < rows.length) {
+              const row = rows[rowIndex];
+              const cells = row.querySelectorAll('td, th');
+              const sourceCell = cells[columnIndex];
+              const newCell = cells[columnIndex + 1];
+              
+              if (sourceCell && newCell && sourceCell.textContent) {
+                const content = sourceCell.textContent.trim();
+                if (content) {
+                  // Clear and set content directly using innerHTML to avoid ProseMirror race conditions
+                  newCell.innerHTML = `<p>${content}</p>`;
+                }
+              }
+              rowIndex++;
+              setTimeout(copyRowContent, 10); // Small delay between rows
+            }
+          };
+          copyRowContent();
+        }, 50);
+        break;
+      case 'clear':
+        // Clear all cells in the column
+        const allRows = hoveredTable.querySelectorAll('tr');
+        allRows.forEach((row) => {
+          const cell = row.querySelectorAll('td, th')[columnIndex];
+          if (cell && cell.textContent && cell.textContent.trim() !== '') {
+            try {
+              const startPos = editor.view.posAtDOM(cell, 0);
+              const endPos = editor.view.posAtDOM(cell, cell.childNodes.length);
+              editor.commands.setTextSelection({ from: startPos, to: endPos });
+              editor.commands.deleteSelection();
+            } catch {
+              // Fallback: directly clear the cell content
+              cell.innerHTML = '';
+            }
+          }
+        });
+        break;
+      case 'delete':
+        editor.chain().focus().deleteColumn().run();
+        break;
+    }
+    
+    setShowColumnDropdown(null);
+    setTimeout(() => {
+      cleanupTableControls();
+      setupTableHoverListeners();
+    }, 100);
+  }, [editor, hoveredTable, setupTableHoverListeners, cleanupTableControls]);
 
   // Custom markdown parser that preserves empty lines
   const parseMarkdownWithEmptyLines = (markdown: string): string => {
@@ -331,27 +733,46 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   // Update editor content when file content changes
   useEffect(() => {
     if (editor && fileContent !== null) {
-      // Use our custom parser that preserves empty lines
-      const htmlContent = parseMarkdownWithEmptyLines(fileContent);
-      editor.commands.setContent(htmlContent);
-      setHasUnsavedChanges(false);
+      // Convert markdown to HTML using the markdownToHtml function
+      const convertContent = async () => {
+        try {
+          const htmlContent = await markdownToHtml(fileContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error("Error converting markdown to HTML:", error);
+          // Fallback to the custom parser if markdownToHtml fails
+          const htmlContent = parseMarkdownWithEmptyLines(fileContent);
+          editor.commands.setContent(htmlContent);
+          setHasUnsavedChanges(false);
+          
+          // Focus the editor after content is set
+          if (isOpen) {
+            setTimeout(() => {
+              editor.commands.focus("start");
+            }, 200);
+          }
 
-      // Focus the editor after content is set
-      if (isOpen) {
-        setTimeout(() => {
-          editor.commands.focus("start");
-        }, 200);
-      }
+          // Update initial word count
+          const text = editor.getText();
+          const words = text
+            .trim()
+            .split(/\s+/)
+            .filter((word) => word.length > 0);
+          setWordCount(words.length);
 
-      // Update initial word count
-      const text = editor.getText();
-      const words = text
-        .trim()
-        .split(/\s+/)
-        .filter((word) => word.length > 0);
-      setWordCount(words.length);
+          // Set up table hover listeners
+          setTimeout(() => {
+            // Clean up any existing table controls first
+            cleanupTableControls();
+            setupTableHoverListeners();
+          }, 100);
+        }
+      };
+      
+      convertContent();
     }
-  }, [editor, fileContent, isOpen]);
+  }, [editor, fileContent, isOpen, setupTableHoverListeners, cleanupTableControls]);
 
   // Handle editing existing link URL
   const handleEditLinkUrl = useCallback(() => {
@@ -371,24 +792,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       // For now, let's save the raw content from the editor
       const content =
         getFileType(artifact.filepath) === "markdown"
-          ? htmlToMarkdown(editor.getHTML())
+          ? await htmlToMarkdown(editor.getHTML())
           : editor.getHTML();
 
-      const response = await fetch(
-        `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "text/plain",
-            ...(await getApiHeaders()),
-          },
-          body: content,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to save: ${response.status}`);
-      }
+      await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       setFileContent(content);
       setHasUnsavedChanges(false);
@@ -408,22 +815,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setIsSaving(false);
     }
   };
-
-  // Simple HTML to markdown converter
-  const htmlToMarkdown = (html: string): string => {
-    return html
-      .replace(/<h1>(.*?)<\/h1>/g, "# $1")
-      .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-      .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-      .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-      .replace(/<em>(.*?)<\/em>/g, "*$1*")
-      .replace(/<code>(.*?)<\/code>/g, "`$1`")
-      .replace(/<p>(.*?)<\/p>/g, "$1\n\n")
-      .replace(/<br\s*\/?>/g, "\n")
-      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-      .trim();
-  };
-
   // Handle link insertion
   const handleLinkClick = () => {
     if (!editor) return;
@@ -669,12 +1060,312 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
               <Toolbar editor={editor} />
               <div className="flex-1 p-6 overflow-auto">
-                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg">
+                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg relative">
                   <div className="px-16 py-12">
                     <EditorContent
                       editor={editor}
                       className="tiptap-editor focus:outline-none cursor-text"
                     />
+                    {/* Table Controls */}
+                    {hoveredTable && tablePosition && (
+                      <>
+                        {/* Invisible hover zone that extends beyond the table */}
+                        <div
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: tablePosition.left - 20,
+                            top: tablePosition.top - 20,
+                            width: tablePosition.width + 60,
+                            height: tablePosition.height + 60,
+                            zIndex: 1,
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredTable(null);
+                            setTablePosition(null);
+                          }}
+                        >
+                          {/* Only the outer border area should capture mouse events */}
+                          <div
+                            className="pointer-events-auto"
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '20px',
+                            }}
+                          />
+                          <div
+                            className="pointer-events-auto"
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: '20px',
+                            }}
+                          />
+                          <div
+                            className="pointer-events-auto"
+                            style={{
+                              position: 'absolute',
+                              top: '20px',
+                              bottom: '20px',
+                              left: 0,
+                              width: '20px',
+                            }}
+                          />
+                          <div
+                            className="pointer-events-auto"
+                            style={{
+                              position: 'absolute',
+                              top: '20px',
+                              bottom: '20px',
+                              right: 0,
+                              width: '20px',
+                            }}
+                          />
+                        </div>
+                        {/* Add Column Button (positioned on right side) */}
+                        <button
+                          onClick={handleAddColumn}
+                          className="absolute bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md p-1.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md"
+                          style={{
+                            left: tablePosition.left + tablePosition.width - 12,
+                            top: tablePosition.top + tablePosition.height / 2 - 12,
+                            zIndex: 20,
+                          }}
+                          title="Add column"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                        {/* Add Row Button (positioned on bottom) */}
+                        <button
+                          onClick={handleAddRow}
+                          className="absolute bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md p-1.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md"
+                          style={{
+                            left: tablePosition.left + tablePosition.width / 2 - 12,
+                            top: tablePosition.top + tablePosition.height - 12,
+                            zIndex: 20,
+                          }}
+                          title="Add row"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+
+                        {/* Row Selection Button */}
+                        {hoveredRow && (
+                          <>
+                            {/* Invisible hover zone for row */}
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                left: tablePosition.left - 15,
+                                top: hoveredRow.top - 5,
+                                width: tablePosition.width + 20,
+                                height: hoveredRow.height + 10,
+                                zIndex: 1,
+                              }}
+                              onMouseLeave={() => {
+                                setHoveredRow(null);
+                              }}
+                            >
+                              {/* Only the left margin area captures mouse events */}
+                              <div
+                                className="pointer-events-auto"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '15px',
+                                  height: '100%',
+                                }}
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleShowRowDropdown(
+                                hoveredRow.index,
+                                hoveredRow.top + hoveredRow.height / 2 - 8,
+                                tablePosition.left - 8
+                              )}
+                              className="absolute bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-200 dark:hover:border-gray-600 rounded-sm p-0.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md opacity-60 hover:opacity-100"
+                              style={{
+                                left: tablePosition.left - 8,
+                                top: hoveredRow.top + hoveredRow.height / 2 - 8,
+                                zIndex: 20,
+                              }}
+                              title="Row options"
+                            >
+                              <GripVertical className="w-2.5 h-2.5" />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Column Selection Button */}
+                        {hoveredColumn && (
+                          <>
+                            {/* Invisible hover zone for column */}
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                left: hoveredColumn.left - 5,
+                                top: tablePosition.top - 15,
+                                width: hoveredColumn.width + 10,
+                                height: tablePosition.height + 20,
+                                zIndex: 1,
+                              }}
+                              onMouseLeave={() => {
+                                setHoveredColumn(null);
+                              }}
+                            >
+                              {/* Only the top margin area captures mouse events */}
+                              <div
+                                className="pointer-events-auto"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '15px',
+                                }}
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleShowColumnDropdown(
+                                hoveredColumn.index,
+                                tablePosition.top - 8,
+                                hoveredColumn.left + hoveredColumn.width / 2 - 8
+                              )}
+                              className="absolute bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 border border-gray-200/50 dark:border-gray-600/50 hover:border-gray-200 dark:hover:border-gray-600 rounded-sm p-0.5 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md opacity-60 hover:opacity-100"
+                              style={{
+                                left: hoveredColumn.left + hoveredColumn.width / 2 - 8,
+                                top: tablePosition.top - 8,
+                                zIndex: 20,
+                              }}
+                              title="Column options"
+                            >
+                              <GripHorizontal className="w-2.5 h-2.5" />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Row Dropdown Menu */}
+                        {showRowDropdown && (
+                          <>
+                            {/* Backdrop to close dropdown */}
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setShowRowDropdown(null)}
+                            />
+                            <div
+                              className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-30 min-w-48"
+                              style={{
+                                top: showRowDropdown.top,
+                                left: showRowDropdown.left,
+                              }}
+                            >
+                              <div className="py-1">
+                                <button
+                                  onClick={() => handleRowOperation('addBefore', showRowDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                  <span>Add row above</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRowOperation('addAfter', showRowDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                  <span>Add row below</span>
+                                </button>
+                                <hr className="my-1 border-gray-200 dark:border-gray-600" />
+                                <button
+                                  onClick={() => handleRowOperation('duplicate', showRowDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  <span>Duplicate row</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRowOperation('clear', showRowDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <Eraser className="w-4 h-4" />
+                                  <span>Clear content</span>
+                                </button>
+                                <hr className="my-1 border-gray-200 dark:border-gray-600" />
+                                <button
+                                  onClick={() => handleRowOperation('delete', showRowDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete row</span>
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Column Dropdown Menu */}
+                        {showColumnDropdown && (
+                          <>
+                            {/* Backdrop to close dropdown */}
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setShowColumnDropdown(null)}
+                            />
+                            <div
+                              className="absolute bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-30 min-w-48"
+                              style={{
+                                top: showColumnDropdown.top,
+                                left: showColumnDropdown.left,
+                              }}
+                            >
+                              <div className="py-1">
+                                <button
+                                  onClick={() => handleColumnOperation('addBefore', showColumnDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <ArrowLeft className="w-4 h-4" />
+                                  <span>Add column left</span>
+                                </button>
+                                <button
+                                  onClick={() => handleColumnOperation('addAfter', showColumnDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <ArrowRight className="w-4 h-4" />
+                                  <span>Add column right</span>
+                                </button>
+                                <hr className="my-1 border-gray-200 dark:border-gray-600" />
+                                <button
+                                  onClick={() => handleColumnOperation('duplicate', showColumnDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  <span>Duplicate column</span>
+                                </button>
+                                <button
+                                  onClick={() => handleColumnOperation('clear', showColumnDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                                >
+                                  <Eraser className="w-4 h-4" />
+                                  <span>Clear content</span>
+                                </button>
+                                <hr className="my-1 border-gray-200 dark:border-gray-600" />
+                                <button
+                                  onClick={() => handleColumnOperation('delete', showColumnDropdown.index)}
+                                  className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete column</span>
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
