@@ -1,5 +1,4 @@
-from ast import Tuple
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 from services.files import FilesService
 from panda_agi.envs.base_env import BaseEnv
 from pxml import DashboardCompiler
@@ -12,7 +11,7 @@ class PXMLService:
 
     @staticmethod
     async def compile(
-        xml_content: str, get_file: Callable[[str, Optional[dict]], Tuple[bytes, str]]
+        xml_content: str, get_file: Callable[[str], Tuple[bytes, str]]
     ) -> str:
         """
         Compile a PXML file and return the compiled html file

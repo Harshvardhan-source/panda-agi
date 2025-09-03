@@ -11,7 +11,7 @@ import os
 import logging
 import traceback
 import mimetypes
-from typing import Optional
+from typing import Optional, Tuple
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from services.pxml import PXMLService
@@ -111,8 +111,6 @@ async def process_artifact_pxml_to_html(
     artifact_id: str,
     session: aiohttp.ClientSession,
     headers: Optional[dict],
-    is_public: bool = False,
-    base_source_url: str = None,
 ) -> Optional[Response]:
     """
     Process a PXML file from artifacts and return it as an HTML response.
@@ -131,7 +129,7 @@ async def process_artifact_pxml_to_html(
     logger.debug(f"Converting PXML file to HTML: {file_path}")
 
     # Define async function to fetch files
-    async def fetch_file(file_path: str, headers: dict = None) -> tuple[bytes, str]:
+    async def fetch_file(file_path: str) -> Tuple[bytes, str]:
         # For PXML files, we need to fetch referenced files (like CSV) from the artifact
         # This is a simplified implementation - in practice, you might need to handle
         # multiple file types and paths more robustly
@@ -556,15 +554,9 @@ async def serve_artifact_file(
                         return pdf_response
 
                 # Check if it's a pxml file
-                if file_path.lower().endswith((".pxml", ".xml")):
+                if file_path.lower().endswith((".pxml")):
                     html_response = await process_artifact_pxml_to_html(
-                        file_path,
-                        content_bytes,
-                        artifact_id,
-                        session,
-                        headers,
-                        is_public=is_public,
-                        base_source_url=base_source_url,
+                        file_path, content_bytes, artifact_id, session, headers
                     )
                     if html_response:
                         return html_response
