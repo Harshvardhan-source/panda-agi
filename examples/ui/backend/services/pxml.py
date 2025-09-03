@@ -28,4 +28,4 @@ class PXMLService:
             return html_content
         except Exception as e:
             logger.exception(f"Error compiling PXML file: {e}")
-            raise Exception(f"Fail to compile PXML file")
+            raise Exception(f"Failed to compile PXML file")
