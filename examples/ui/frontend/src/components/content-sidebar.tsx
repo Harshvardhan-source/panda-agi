@@ -302,6 +302,17 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             />
           </div>
         );
+      case "pxml":
+        return (
+          <div className="h-full rounded-md overflow-hidden border">
+            <iframe
+              src={previewData.url}
+              className="w-full h-full"
+              title={previewData.title}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
+          </div>
+        );
       case "markdown":
         const fileAbsUrl = getBackendServerURL(
           `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`

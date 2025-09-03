@@ -52,7 +52,7 @@ export default function Home() {
       url: fileUrl,
       content: "",
       title: filename,
-      type: "iframe",
+      type: "pxml",
       filename: filename
     });
   };
