@@ -14,7 +14,7 @@ class PXMLService:
         xml_content: str, get_file: Callable[[str], Tuple[bytes, str]]
     ) -> str:
         """
-        Compile a PXML file and return the compiled html file
+        Compile a PXML file and return the compiled HTML file
         """
         try:
             dashboard_compiler = DashboardCompiler()
