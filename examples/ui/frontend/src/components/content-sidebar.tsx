@@ -45,6 +45,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   onResize,
   conversationId,
 }) => {
+  // Define iframe-like content types that should be treated similarly
+  const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
+  
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
     if (!filename) return "";
@@ -86,7 +89,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
     let filename = previewData.filename || "index.html";
 
-    if (previewData.type === "iframe" && previewData.url) {
+    if (!previewData.filename && previewData.type === "iframe" && previewData.url) {
       // Extract the path from the URL and use it as filename
       const url = new URL(previewData.url);
       const path = url.pathname;
@@ -96,7 +99,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         filename = path.startsWith("/") ? path.substring(1) : path;
       }
     }
-
     if (filename) {
       const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
@@ -202,7 +204,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       type === "code" ||
       type === "html" ||
       type === "text" ||
-      type === "iframe" ||
+      IFRAME_LIKE_TYPES.includes(type as typeof IFRAME_LIKE_TYPES[number]) ||
       type === "table"
     );
   };
@@ -290,18 +292,24 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
+    // Helper function to render iframe content
+    const renderIframe = (url: string, title?: string) => (
+      <div className="h-full rounded-md overflow-hidden border">
+        <iframe
+          src={url}
+          className="w-full h-full"
+          title={title}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        />
+      </div>
+    );
+
     switch (type) {
+      
       case "iframe":
-        return (
-          <div className="h-full rounded-md overflow-hidden border">
-            <iframe
-              src={previewData.url}
-              className="w-full h-full"
-              title={previewData.title}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          </div>
-        );
+        return renderIframe(previewData.url!, previewData.title);
+      case "pxml":
+        return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         const fileAbsUrl = getBackendServerURL(
           `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
@@ -654,8 +662,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Create header actions
   const headerActions = (
     <>
-      {/* Save button - only show for markdown files when not saved */}
-      {(previewData.type === "markdown" || previewData.type === "iframe") && !isSaved && (
+      {/* Save button - only show for markdown files and iframe-like content when not saved */}
+      {(previewData.type === "markdown" || IFRAME_LIKE_TYPES.includes(previewData.type as any)) && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
           previewData={{
@@ -667,9 +675,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           onSave={handleArtifactSaved}
         />
       )}
-      {/* Download button - only show for actual files, not iframes */}
+      {/* Download button - only show for actual files, not iframe-like content */}
       {(normalizedFilename || previewData.url) &&
-        previewData.type !== "iframe" && (
+        !IFRAME_LIKE_TYPES.includes(previewData.type as any) && (
           <button
             onClick={handleFileDownload}
             className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center"
