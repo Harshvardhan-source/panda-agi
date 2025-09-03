@@ -404,7 +404,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
     if (extension === "md" || extension === "markdown") {
       return "markdown";
-    } else if (extension === "html" || extension === "htm") {
+    } else if (extension === "html" || extension === "htm" || extension === "pxml") {
       return "iframe";
     } else {
       return "markdown"; // Default to markdown for other file types
