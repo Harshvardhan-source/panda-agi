@@ -14,6 +14,7 @@ import mimetypes
 from typing import Optional
 
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
+from services.pxml import PXMLService
 from utils.markdown_utils import (
     convert_relative_links_to_absolute,
     process_markdown_to_pdf,
@@ -104,7 +105,80 @@ async def process_artifact_markdown_to_pdf(
         return None
 
 
-# Security scheme for bearer token
+async def process_artifact_pxml_to_html(
+    file_path: str,
+    content_bytes: bytes,
+    artifact_id: str,
+    session: aiohttp.ClientSession,
+    headers: Optional[dict],
+    is_public: bool = False,
+    base_source_url: str = None,
+) -> Optional[Response]:
+    """
+    Process a PXML file from artifacts and return it as an HTML response.
+
+    Args:
+        file_path: Path to the PXML file
+        content_bytes: The PXML content as bytes
+        artifact_id: The artifact ID
+        session: The aiohttp session for making requests
+        headers: Headers to use for requests
+        is_public: Whether this is a public artifact (affects base URL)
+
+    Returns:
+        Response: HTML response if conversion successful, None if should fall back
+    """
+    logger.debug(f"Converting PXML file to HTML: {file_path}")
+
+    # Define async function to fetch files
+    async def fetch_file(file_path: str, headers: dict = None) -> tuple[bytes, str]:
+        # For PXML files, we need to fetch referenced files (like CSV) from the artifact
+        # This is a simplified implementation - in practice, you might need to handle
+        # multiple file types and paths more robustly
+        try:
+            # Try to fetch the file from the artifact
+            file_url = (
+                f"{PANDA_AGI_SERVER_URL}/artifacts/serve/{artifact_id}/{file_path}"
+            )
+            async with session.get(file_url, headers=headers) as resp:
+                if resp.status == 200:
+                    file_bytes = await resp.read()
+                    return file_bytes, file_path
+                else:
+                    raise Exception(
+                        f"Failed to fetch file from {file_url}: {resp.status}"
+                    )
+        except Exception as e:
+            logger.error(f"Error fetching file {file_path}: {e}")
+            raise e
+
+    try:
+        # Decode PXML content
+        pxml_content = content_bytes.decode("utf-8")
+
+        # Use PXMLService.compile to convert PXML to HTML
+        html_content = await PXMLService.compile(pxml_content, fetch_file)
+
+        if html_content:
+            # Convert HTML content to bytes
+            html_bytes = html_content.encode("utf-8")
+            html_filename = file_path.replace(".pxml", ".html").replace(".xml", ".html")
+
+            return Response(
+                content=html_bytes,
+                media_type="text/html",
+                headers={"Content-Disposition": f"inline; filename={html_filename}"},
+            )
+        else:
+            # Fall back to regular PXML response if conversion fails
+            logger.debug("HTML conversion failed, falling back to PXML response")
+            return None
+
+    except Exception as e:
+        logger.error(f"Error converting PXML to HTML: {e}")
+        # Fall back to regular PXML response if conversion fails
+        logger.debug("HTML conversion failed, falling back to PXML response")
+        return None
 
 
 class ArtifactPayload(BaseModel):
@@ -480,6 +554,20 @@ async def serve_artifact_file(
                     )
                     if pdf_response:
                         return pdf_response
+
+                # Check if it's a pxml file
+                if file_path.lower().endswith((".pxml", ".xml")):
+                    html_response = await process_artifact_pxml_to_html(
+                        file_path,
+                        content_bytes,
+                        artifact_id,
+                        session,
+                        headers,
+                        is_public=is_public,
+                        base_source_url=base_source_url,
+                    )
+                    if html_response:
+                        return html_response
 
                 # Determine MIME type for non-markdown files
                 mime_type, _ = mimetypes.guess_type(file_path)
