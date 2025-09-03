@@ -10,7 +10,10 @@ interface FileExploreEventProps {
   onPreviewClick?: (previewData: unknown) => void;
 }
 
-const FileExploreEvent: React.FC<FileExploreEventProps> = ({ payload, onPreviewClick }) => {
+const FileExploreEvent: React.FC<FileExploreEventProps> = ({
+  payload,
+  onPreviewClick,
+}) => {
   if (!payload) return null;
 
   const filename = payload.file || payload.path;
@@ -29,7 +32,7 @@ const FileExploreEvent: React.FC<FileExploreEventProps> = ({ payload, onPreviewC
     if (onPreviewClick && filename) {
       onPreviewClick({
         filename: filename,
-        title: `exploring: ${filename.split("/").pop()}`,
+        title: filename.split("/").pop(),
         type: "text",
       });
     }

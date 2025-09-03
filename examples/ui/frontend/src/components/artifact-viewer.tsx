@@ -503,18 +503,13 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                   autoFocus
                 />
               ) : (
-                <div className="flex-1 min-w-0">
-                  <h1
-                    className="text-lg font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 inline-block"
-                    onClick={handleEditTitle}
-                    title="Click to edit title"
-                  >
-                    {artifact.name}
-                  </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                    {artifact.filepath}
-                  </p>
-                </div>
+                <h1
+                  className="text-lg font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-1 min-w-0"
+                  onClick={handleEditTitle}
+                  title="Click to edit title"
+                >
+                  {artifact.name}
+                </h1>
               )}
             </div>
 
