@@ -43,7 +43,7 @@ class PXMLService:
             async def get_file(file_path: str) -> Tuple[bytes, str]:
                 return await FilesService.get_file_from_env(file_path, env)
 
-            return PXMLService.compile(xml_content, get_file)
+            return await PXMLService.compile(xml_content, get_file)
         except Exception as e:
             logger.exception(f"Error compiling PXML file: {e}")
             raise Exception(f"Failed to compile PXML file")
