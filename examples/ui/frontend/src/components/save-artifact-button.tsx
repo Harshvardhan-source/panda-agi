@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveArtifact, suggestArtifactName, ArtifactResponse } from "@/lib/api/artifacts";
+import {
+  saveArtifact,
+  suggestArtifactName,
+  ArtifactResponse,
+} from "@/lib/api/artifacts";
 import { config } from "@/lib/config";
 
 import { toast } from "react-hot-toast";
@@ -26,14 +30,16 @@ interface SaveArtifactButtonProps {
     content?: string;
     type?: string;
   };
-  onSave?: (artifactData: { artifact: ArtifactResponse, detail: string }) => void;
+  onSave?: (artifactData: {
+    artifact: ArtifactResponse;
+    detail: string;
+  }) => void;
 }
 
-const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
-  conversationId,
-  previewData,
-  onSave,
-}) => {
+const SaveArtifactButton = React.forwardRef<
+  HTMLButtonElement,
+  SaveArtifactButtonProps
+>(({ conversationId, previewData, onSave }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -60,10 +66,10 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         name: artifactName.trim(),
         filepath: previewData?.filename || previewData?.url || ""
       });
-      toast.success("Creation saved successfully!");
+      // toast.success("Creation saved successfully!");
       setIsOpen(false);
       setArtifactName("");
-      
+
       // Call the onSave callback with the saved artifact data
       if (onSave) {
         onSave(savedArtifact);
@@ -84,15 +90,23 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     setIsOpen(true);
     setArtifactName("");
     setUserHasEdited(false);
-    
+
     // Automatically suggest a name if we have the required data
-    if (conversationId && previewData?.type && (previewData?.url || previewData?.filename)) {
+    if (
+      conversationId &&
+      previewData?.type &&
+      (previewData?.url || previewData?.filename)
+    ) {
       await suggestName();
     }
   };
 
   const suggestName = async () => {
-    if (!conversationId || !previewData?.type || (!previewData?.url && !previewData?.filename)) {
+    if (
+      !conversationId ||
+      !previewData?.type ||
+      (!previewData?.url && !previewData?.filename)
+    ) {
       return;
     }
 
@@ -106,12 +120,19 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
 
     setIsSuggestingName(true);
     try {
-      const response = await suggestArtifactName(conversationId, {
-        type: previewData.type,
-        filepath: previewData.filename || previewData.url || "",
-        content: (previewData.content || "").substring(0, config.markdown.maxContentLength)
-      }, abortControllerRef.current.signal);
-      
+      const response = await suggestArtifactName(
+        conversationId,
+        {
+          type: previewData.type,
+          filepath: previewData.filename || previewData.url || "",
+          content: (previewData.content || "").substring(
+            0,
+            config.markdown.maxContentLength
+          ),
+        },
+        abortControllerRef.current.signal
+      );
+
       // Check if user has started typing during the API call
       if (response.suggested_name && !userHasEdited) {
         setArtifactName(response.suggested_name);
@@ -125,7 +146,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       }
     } catch (error) {
       // Only log error if it's not an abort error
-      if (error instanceof Error && error.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== "AbortError") {
         console.error("Name suggestion error:", error);
       }
       // Don't show error toast for name suggestion failures - just use default
@@ -138,13 +159,13 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setArtifactName(newValue);
-    
+
     // If user starts typing and we're currently suggesting a name, cancel the request
     if (isSuggestingName && abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsSuggestingName(false);
     }
-    
+
     setUserHasEdited(true);
   };
 
@@ -152,6 +173,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button
+          ref={ref}
           variant="ghost"
           size="sm"
           onClick={handleOpenDialog}
@@ -165,7 +187,8 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         <DialogHeader>
           <DialogTitle>Save Creation</DialogTitle>
           <DialogDescription>
-            Enter a name for this creation. It will be saved to your list of creations.
+            Enter a name for this creation. It will be saved to your list of
+            creations.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -213,6 +236,8 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       </DialogContent>
     </Dialog>
   );
-};
+});
 
-export default SaveArtifactButton; 
+SaveArtifactButton.displayName = "SaveArtifactButton";
+
+export default SaveArtifactButton;
