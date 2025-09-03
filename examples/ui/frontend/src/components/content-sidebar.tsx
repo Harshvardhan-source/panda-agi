@@ -204,7 +204,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       type === "code" ||
       type === "html" ||
       type === "text" ||
-      IFRAME_LIKE_TYPES.includes(type as any) ||
+      IFRAME_LIKE_TYPES.includes(type as typeof IFRAME_LIKE_TYPES[number]) ||
       type === "table"
     );
   };
