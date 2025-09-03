@@ -101,10 +101,11 @@ class XMLParser:
             "<": "&lt;",
             ">": "&gt;",
             "&": "&amp;",
+            '"': "&quot;",
         }
 
     def _preprocess_xml_content(self, content: str) -> str:
-        """Preprocess XML content to escape comparison operators in formula tags and {{}} expressions"""
+        """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
 
         # Find all formula tags and escape operators within them
         def escape_formula_content(match):
@@ -140,6 +141,33 @@ class XMLParser:
             processed_content,
             flags=re.DOTALL,
         )
+
+        # Handle formula attributes - use a more targeted approach
+        # Process each line individually to avoid greedy matching across the entire file
+        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2" 
+        # which breaks standard XML parsing without proper escaping
+        def process_formula_attributes_line_by_line(content):
+            lines = content.split('\n')
+            result = []
+            
+            for line in lines:
+                # Look for formula attributes in this line only
+                if 'formula="' in line:
+                    # Use a simpler approach for single-line formulas
+                    pattern = r'formula="([^"]*(?:"[^"]*"[^"]*)*)"'
+                    def escape_line_formula(match):
+                        formula_content = match.group(1)
+                        for operator, escaped in sorted(self.formula_operators.items(), key=len, reverse=True):
+                            formula_content = formula_content.replace(operator, escaped)
+                        return f'formula="{formula_content}"'
+                    
+                    line = re.sub(pattern, escape_line_formula, line)
+                
+                result.append(line)
+            
+            return '\n'.join(result)
+        
+        processed_content = process_formula_attributes_line_by_line(processed_content)
 
         return processed_content
 
@@ -223,8 +251,12 @@ class XMLParser:
         if transformations_elem is not None:
             for define_col in transformations_elem.findall("define_column"):
                 name = define_col.get("name", "")
-                formula_elem = define_col.find("formula")
-                formula = formula_elem.text if formula_elem is not None else ""
+                
+                # Check for formula as attribute first, then as element
+                formula = define_col.get("formula", "")
+                if not formula:
+                    formula_elem = define_col.find("formula")
+                    formula = formula_elem.text if formula_elem is not None else ""
 
                 # Unescape comparison operators in formula
                 formula = self._unescape_formula(formula)
