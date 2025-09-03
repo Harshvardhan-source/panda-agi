@@ -425,6 +425,11 @@
   resolved "https://registry.yarnpkg.com/@popperjs/core/-/core-2.11.8.tgz#6b79032e760a0899cd4204710beede972a3a185f"
   integrity sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==
 
+"@posthog/core@1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.0.2.tgz#8e6125d271348f646f51269c0b7b9bbf6549f984"
+  integrity sha512-hWk3rUtJl2crQK0WNmwg13n82hnTwB99BT99/XI5gZSvIlYZ1TPmMZE8H2dhJJ98J/rm9vYJ/UXNzw3RV5HTpQ==
+
 "@radix-ui/primitive@1.1.3":
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/@radix-ui/primitive/-/primitive-1.1.3.tgz#e2dbc13bdc5e4168f4334f75832d7bdd3e2de5ba"
@@ -1780,6 +1785,11 @@ concat-map@0.0.1:
   resolved "https://registry.yarnpkg.com/concat-map/-/concat-map-0.0.1.tgz#d8a96bd77fd68df7793a73036a3ba0d5405d477b"
   integrity sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==
 
+core-js@^3.38.1:
+  version "3.45.1"
+  resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.45.1.tgz#5810e04a1b4e9bc5ddaa4dd12e702ff67300634d"
+  integrity sha512-L4NPsJlCfZsPeXukyzHFlg/i7IIVwHSItR0wg0FLNqYClJ4MQYTYLbC7EkjKYRLZF2iof2MUgN0EGy7MdQFChg==
+
 crc-32@~1.2.0, crc-32@~1.2.1:
   version "1.2.2"
   resolved "https://registry.yarnpkg.com/crc-32/-/crc-32-1.2.2.tgz#3cad35a934b8bf71f25ca524b6da51fb7eace2ff"
@@ -2358,6 +2368,11 @@ fdir@^6.4.4:
   version "6.5.0"
   resolved "https://registry.yarnpkg.com/fdir/-/fdir-6.5.0.tgz#ed2ab967a331ade62f18d077dae192684d50d350"
   integrity sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==
+
+fflate@^0.4.8:
+  version "0.4.8"
+  resolved "https://registry.yarnpkg.com/fflate/-/fflate-0.4.8.tgz#f90b82aefbd8ac174213abb338bd7ef848f0f5ae"
+  integrity sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==
 
 file-entry-cache@^8.0.0:
   version "8.0.0"
@@ -4094,6 +4109,22 @@ postcss@^8.4.41:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
+posthog-js@^1.261.0:
+  version "1.261.0"
+  resolved "https://registry.yarnpkg.com/posthog-js/-/posthog-js-1.261.0.tgz#1e9618b7810db81f6eed94ec251724639d92f95e"
+  integrity sha512-jyiXqyrCU+VlpbNNVRA6OQYAVut0XZMYNELCZH+XvTd981VqbE4jXn4XCBreo7XCL2gdPgDVxUVOuzNvEuKcmw==
+  dependencies:
+    "@posthog/core" "1.0.2"
+    core-js "^3.38.1"
+    fflate "^0.4.8"
+    preact "^10.19.3"
+    web-vitals "^4.2.4"
+
+preact@^10.19.3:
+  version "10.27.1"
+  resolved "https://registry.yarnpkg.com/preact/-/preact-10.27.1.tgz#c391dcad5813b67d9e04655d844d8fdc307d4252"
+  integrity sha512-V79raXEWch/rbqoNc7nT9E4ep7lu+mI3+sBmfRD4i1M73R3WLYcCtdI0ibxGVf4eQL8ZIz2nFacqEC+rmnOORQ==
+
 prelude-ls@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.2.1.tgz#debc6489d7a6e6b0e7611888cec880337d316396"
@@ -5196,6 +5227,11 @@ web-namespaces@^2.0.0:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/web-namespaces/-/web-namespaces-2.0.1.tgz#1010ff7c650eccb2592cebeeaf9a1b253fd40692"
   integrity sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==
+
+web-vitals@^4.2.4:
+  version "4.2.4"
+  resolved "https://registry.yarnpkg.com/web-vitals/-/web-vitals-4.2.4.tgz#1d20bc8590a37769bd0902b289550936069184b7"
+  integrity sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==
 
 which-boxed-primitive@^1.1.0, which-boxed-primitive@^1.1.1:
   version "1.1.1"

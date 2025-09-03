@@ -1,5 +1,6 @@
 import { getServerURL } from "@/lib/server";
 import { PLATFORM_MODE } from "@/lib/config";
+import { identifyUser, resetUser } from "./posthog";
 
 /**
  * Cookie utility functions
@@ -132,6 +133,15 @@ export interface AuthToken {
   refresh_token?: string | null;
   token_type?: string | null;
   provider_token?: string | null;
+  user?: User;
+}
+
+/**
+ * User interface based on the stored user data structure
+ */
+export interface User {
+  id: string;
+  email: string;
 }
 
 /**
@@ -160,6 +170,11 @@ export function storeAuthToken(token: string | AuthToken): void {
 
   // Store in cookies
   setCookie(COOKIE_NAME, JSON.stringify(tokenData), COOKIE_EXPIRY_DAYS);
+
+  // Identify the user
+  if (tokenData?.user) {
+    identifyUser(tokenData.user);
+  }
 }
 
 /**
@@ -206,6 +221,18 @@ export function getAccessToken(): string | null {
   const authToken = getAuthToken();
   const token = authToken?.access_token || null;
   return token;
+}
+
+/**
+ * Gets the user data from the stored authentication token
+ * @returns The user object if it exists, null otherwise
+ */
+export function getUser(): User | null {
+  const authToken = getAuthToken();
+  return {
+    id: authToken?.user?.id || "",
+    email: authToken?.user?.email || "",
+  };
 }
 
 /**
@@ -353,6 +380,9 @@ export async function ensureValidToken(): Promise<boolean> {
 export function logout(): void {
   // Clear authentication data from localStorage
   removeAuthToken();
+
+  // Reset the user
+  resetUser();
 
   // Explicitly dispatch auth change event to ensure all components update
   if (typeof window !== "undefined") {
