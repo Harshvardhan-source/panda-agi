@@ -116,7 +116,6 @@ class FormulaEvaluator:
             start_name = match.group(1)
             start_row = match.group(2)
             end_name = match.group(3)
-
             # If start and end names are similar (like survival_rate2:survival_rate), use the base name
             if start_name.startswith(end_name) or end_name.startswith(start_name):
                 base_name = end_name if len(end_name) <= len(start_name) else start_name

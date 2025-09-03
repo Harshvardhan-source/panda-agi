@@ -64,7 +64,7 @@ const SaveArtifactButton = React.forwardRef<
       const savedArtifact = await saveArtifact(conversationId, {
         type: previewData?.type || "text",
         name: artifactName.trim(),
-        filepath: previewData?.url || previewData?.filename || "",
+        filepath: previewData?.filename || previewData?.url || ""
       });
       // toast.success("Creation saved successfully!");
       setIsOpen(false);
@@ -124,7 +124,7 @@ const SaveArtifactButton = React.forwardRef<
         conversationId,
         {
           type: previewData.type,
-          filepath: previewData.url || previewData.filename || "",
+          filepath: previewData.filename || previewData.url || "",
           content: (previewData.content || "").substring(
             0,
             config.markdown.maxContentLength
