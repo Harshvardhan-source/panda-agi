@@ -46,7 +46,7 @@ import "./tiptap-editor.css";
 
 interface MarkdownEditorProps {
   content: string;
-  onChange?: (html: string) => void;
+  onChange?: (html: string, hasChanges: boolean) => void;
   onSave?: () => void;
   hasUnsavedChanges?: boolean;
   isSaving?: boolean;
@@ -246,6 +246,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [, forceUpdate] = useState({});
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const originalContentRef = useRef<string>("");
+  const isInitializingRef = useRef(false);
   
   // Table control states
   const [hoveredTable, setHoveredTable] = useState<HTMLTableElement | null>(null);
@@ -292,7 +294,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     content,
     onUpdate: ({ editor }) => {
       const htmlContent = editor.getHTML();
-      onChange?.(htmlContent);
+      
+      // If we're initializing, set the original content and don't call onChange yet
+      if (isInitializingRef.current) {
+        originalContentRef.current = htmlContent;
+        isInitializingRef.current = false;
+        return;
+      }
+      
+      const hasChanges = htmlContent !== originalContentRef.current;
+      onChange?.(htmlContent, hasChanges);
 
       // Update word count
       const text = editor.getText();
@@ -685,6 +696,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // Update editor content when content prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
+      isInitializingRef.current = true;
       editor.commands.setContent(content);
       
       // Update initial word count
@@ -702,6 +714,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }, 100);
     }
   }, [editor, content, setupTableHoverListeners, cleanupTableControls]);
+
+  // Reset original content reference when content is saved
+  useEffect(() => {
+    if (justSaved && editor) {
+      originalContentRef.current = editor.getHTML();
+    }
+  }, [justSaved, editor]);
 
   return (
     <div className={`h-full flex flex-col bg-gray-50 dark:bg-gray-900 ${className}`}>

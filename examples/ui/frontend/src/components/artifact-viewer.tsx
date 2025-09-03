@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { getApiHeaders } from "@/lib/api/common";
@@ -197,20 +197,36 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   };
 
   // Handle close with confirmation
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (hasUnsavedChanges) {
       const confirmed = window.confirm(
         "You have unsaved changes. Are you sure you want to close?"
       );
       if (!confirmed) return;
     }
-      onClose();
-  };
+    onClose();
+  }, [hasUnsavedChanges, onClose]);
+
+  // Handle ESC key press
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, handleClose]);
 
   // Handle editor content changes
-  const handleEditorChange = (html: string) => {
+  const handleEditorChange = (html: string, hasChanges: boolean) => {
     setEditorContent(html);
-    const hasChanges = html !== fileContent;
     setHasUnsavedChanges(hasChanges);
     if (hasChanges) {
       setJustSaved(false);
