@@ -10,6 +10,15 @@ logger = logging.getLogger(__name__)
 class PXMLService:
 
     @staticmethod
+    def sanitize_csv_path(csv_path: str) -> str:
+        """
+        Sanitize a CSV path by removing the ./ prefix if it exists.
+        """
+        if csv_path.startswith("./"):
+            return csv_path[2:]
+        return csv_path
+
+    @staticmethod
     async def compile(
         xml_content: str, get_file: Callable[[str], Tuple[bytes, str]]
     ) -> str:
@@ -21,6 +30,11 @@ class PXMLService:
             dashboard_data = dashboard_compiler.xml_parser.parse(xml_content)
 
             csv_file_path = dashboard_data["metadata"].file_path
+
+            # check if csv path starts with ./ remove it
+            csv_file_path = PXMLService.sanitize_csv_path(csv_file_path)
+
+            logger.info(f"PXML CSV file path: {csv_file_path}")
 
             file_bytes, _ = await get_file(csv_file_path)
             csv_content = file_bytes.decode("utf-8")
@@ -58,6 +72,11 @@ class PXMLService:
             dashboard_data = dashboard_compiler.xml_parser.parse(xml_content)
 
             csv_file_path = dashboard_data["metadata"].file_path
+
+            # check if csv path starts with ./ remove it
+            csv_file_path = PXMLService.sanitize_csv_path(csv_file_path)
+
+            logger.info(f"PXML CSV file path: {csv_file_path}")
 
             # Get the CSV file content
             csv_content_bytes, _ = await FilesService.get_file_from_env(
