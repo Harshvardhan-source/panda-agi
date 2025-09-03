@@ -18,7 +18,7 @@ from .chat_env import get_env
 
 logger = logging.getLogger("panda_agi_api")
 
-MODEL = "annie-pro"
+MODEL = "annie-lite"
 
 
 async def get_or_create_agent(

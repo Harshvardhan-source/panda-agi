@@ -38,14 +38,11 @@ class CSVProcessor:
 
     def excel_time(self, hours, minutes, seconds=0):
         """Excel TIME function - returns decimal hours"""
-        # Handle parameter order differences in TIME function calls
-        # Parameters may be in different positions depending on the formula structure
-
         try:
             # Convert parameters, handling empty strings
-            actual_minutes = int(hours) if hours and str(hours).strip() else 0
-            actual_seconds = int(minutes) if minutes and str(minutes).strip() else 0
-            actual_hours = int(seconds) if seconds and str(seconds).strip() else 0
+            actual_hours = int(hours) if hours and str(hours).strip() else 0
+            actual_minutes = int(minutes) if minutes and str(minutes).strip() else 0
+            actual_seconds = int(seconds) if seconds and str(seconds).strip() else 0
 
             # Return hours + minutes/60 + seconds/3600
             return actual_hours + actual_minutes / 60 + actual_seconds / 3600
@@ -581,7 +578,6 @@ class CSVProcessor:
                 "TEXT": self.excel_text,
                 "TODAY": self.excel_today,
             }
-
             result = eval(eval_formula, safe_dict)
             return result
         except Exception as e:

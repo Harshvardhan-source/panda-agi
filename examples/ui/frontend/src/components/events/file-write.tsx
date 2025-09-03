@@ -75,7 +75,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({
 
       onPreviewClick({
         filename: filePath,
-        title: `Created file: ${filename.split("/").pop()}`,
+        title: filename.split("/").pop(),
         type: getFileType(filename),
       });
     }

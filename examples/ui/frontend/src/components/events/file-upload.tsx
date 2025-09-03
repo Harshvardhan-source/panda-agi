@@ -1,5 +1,15 @@
 import React from "react";
-import { FileText, Image, File, Code, Archive, Database, FileAudio, FileVideo, Eye } from "lucide-react";
+import {
+  FileText,
+  Image,
+  File,
+  Code,
+  Archive,
+  Database,
+  FileAudio,
+  FileVideo,
+  Eye,
+} from "lucide-react";
 import { getFileType } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -23,16 +33,49 @@ const getFileTypeIcon = (filename: string) => {
   }
 
   // Images
-  if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"].includes(extension)) {
+  if (
+    ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"].includes(
+      extension
+    )
+  ) {
     return <Image className={cn(iconClass, "text-blue-500")} />;
   }
 
   // Code files
-  if ([
-    "js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "go", "rb", "php", 
-    "css", "scss", "sass", "html", "htm", "json", "xml", "yaml", "yml", 
-    "sh", "bash", "sql", "r", "swift", "kt", "rs", "dart", "vue", "svelte"
-  ].includes(extension)) {
+  if (
+    [
+      "js",
+      "jsx",
+      "ts",
+      "tsx",
+      "py",
+      "java",
+      "c",
+      "cpp",
+      "go",
+      "rb",
+      "php",
+      "css",
+      "scss",
+      "sass",
+      "html",
+      "htm",
+      "json",
+      "xml",
+      "yaml",
+      "yml",
+      "sh",
+      "bash",
+      "sql",
+      "r",
+      "swift",
+      "kt",
+      "rs",
+      "dart",
+      "vue",
+      "svelte",
+    ].includes(extension)
+  ) {
     return <Code className={cn(iconClass, "text-green-500")} />;
   }
 
@@ -42,7 +85,9 @@ const getFileTypeIcon = (filename: string) => {
   }
 
   // Spreadsheets and databases
-  if (["csv", "xls", "xlsx", "ods", "db", "sqlite", "sql"].includes(extension)) {
+  if (
+    ["csv", "xls", "xlsx", "ods", "db", "sqlite", "sql"].includes(extension)
+  ) {
     return <Database className={cn(iconClass, "text-purple-500")} />;
   }
 
@@ -88,7 +133,7 @@ const FileUploadEvent: React.FC<FileUploadEventProps> = ({
 
       onPreviewClick({
         filename: filename,
-        title: `uploaded: ${filename}`,
+        title: filename,
         type: fileType,
       });
     }
@@ -97,16 +142,17 @@ const FileUploadEvent: React.FC<FileUploadEventProps> = ({
   // Truncate filename if too long
   const truncateFilename = (name: string, maxLength: number = 30) => {
     if (name.length <= maxLength) return name;
-    
-    const extension = name.split('.').pop();
-    const nameWithoutExt = name.slice(0, name.lastIndexOf('.'));
-    
+
+    const extension = name.split(".").pop();
+    const nameWithoutExt = name.slice(0, name.lastIndexOf("."));
+
     if (extension) {
-      const truncatedName = nameWithoutExt.slice(0, maxLength - extension.length - 4) + '...';
+      const truncatedName =
+        nameWithoutExt.slice(0, maxLength - extension.length - 4) + "...";
       return `${truncatedName}.${extension}`;
     }
-    
-    return name.slice(0, maxLength - 3) + '...';
+
+    return name.slice(0, maxLength - 3) + "...";
   };
 
   const displayFilename = truncateFilename(filename || "");

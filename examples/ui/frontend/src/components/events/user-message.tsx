@@ -95,7 +95,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     if (onPreviewClick) {
       onPreviewClick({
         url: url,
-        title: `Server URL: ${url}`,
+        title: url,
         type: "iframe",
       });
     }

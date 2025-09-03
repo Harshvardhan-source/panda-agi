@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import {
   X,
-  ExternalLink,
   Loader2,
   Maximize2,
   Minimize2,
@@ -418,28 +417,6 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
                 )}
               </div>
             </div>
-            {subtitle && (
-              <div className="mt-1">
-                {subtitle.href ? (
-                  <a
-                    href={subtitle.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "text-sm text-muted-foreground hover:text-primary",
-                      "flex items-center gap-1 transition-colors"
-                    )}
-                  >
-                    <span className="truncate">{subtitle.text}</span>
-                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  </a>
-                ) : (
-                  <p className="text-sm text-muted-foreground truncate">
-                    {subtitle.text}
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
