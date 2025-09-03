@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class PXMLService:
 
     @staticmethod
-    def sanitize_csv_path(csv_path: str) -> str:
+    def normalize_csv_path(csv_path: str) -> str:
         """
         Sanitize a CSV path by removing the ./ prefix if it exists.
         """
@@ -32,7 +32,7 @@ class PXMLService:
             csv_file_path = dashboard_data["metadata"].file_path
 
             # check if csv path starts with ./ remove it
-            csv_file_path = PXMLService.sanitize_csv_path(csv_file_path)
+            csv_file_path = PXMLService.normalize_csv_path(csv_file_path)
 
             logger.info(f"PXML CSV file path: {csv_file_path}")
 
@@ -74,7 +74,7 @@ class PXMLService:
             csv_file_path = dashboard_data["metadata"].file_path
 
             # check if csv path starts with ./ remove it
-            csv_file_path = PXMLService.sanitize_csv_path(csv_file_path)
+            csv_file_path = PXMLService.normalize_csv_path(csv_file_path)
 
             logger.info(f"PXML CSV file path: {csv_file_path}")
 
