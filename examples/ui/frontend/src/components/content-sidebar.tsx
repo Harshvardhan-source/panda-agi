@@ -45,6 +45,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   onResize,
   conversationId,
 }) => {
+  // Define iframe-like content types that should be treated similarly
+  const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
+  
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
     if (!filename) return "";
@@ -201,7 +204,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       type === "code" ||
       type === "html" ||
       type === "text" ||
-      type === "iframe" ||
+      IFRAME_LIKE_TYPES.includes(type as any) ||
       type === "table"
     );
   };
@@ -659,8 +662,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Create header actions
   const headerActions = (
     <>
-      {/* Save button - only show for markdown files when not saved */}
-      {(previewData.type === "markdown" || previewData.type === "iframe") && !isSaved && (
+      {/* Save button - only show for markdown files and iframe-like content when not saved */}
+      {(previewData.type === "markdown" || IFRAME_LIKE_TYPES.includes(previewData.type as any)) && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
           previewData={{
@@ -672,9 +675,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           onSave={handleArtifactSaved}
         />
       )}
-      {/* Download button - only show for actual files, not iframes */}
+      {/* Download button - only show for actual files, not iframe-like content */}
       {(normalizedFilename || previewData.url) &&
-        previewData.type !== "iframe" && (
+        !IFRAME_LIKE_TYPES.includes(previewData.type as any) && (
           <button
             onClick={handleFileDownload}
             className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center"
