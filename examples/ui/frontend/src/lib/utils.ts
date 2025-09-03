@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { getApiOptions } from "./api/common";
+import { getBackendServerURL } from "./server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -145,6 +146,7 @@ export const getFileType = (filename: string) => {
   const extension = filename.split(".").pop()?.toLowerCase() || "";
 
   if (["csv", "xls", "xlsx"].includes(extension)) return "table";
+  if (["pxml"].includes(extension)) return "pxml";
   if (["md", "markdown", "txt"].includes(extension)) return "markdown";
   if (["html", "htm"].includes(extension)) return "html";
   if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
@@ -239,4 +241,10 @@ export const getLanguage = (language?: string): string => {
   };
 
   return languageMap[language.toLowerCase()] || "javascript";
+};
+
+
+export const getFileUrl = (filename: string, conversationId: string, raw: boolean=false) => {
+  const baseUrl = getBackendServerURL(`/${conversationId}/files/${encodeURIComponent(filename)}`);
+  return raw ? `${baseUrl}?raw=true` : baseUrl;
 };

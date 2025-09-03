@@ -17,7 +17,7 @@ function setCookie(name: string, value: string, days: number): void {
   const isLocalhost =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
-  const domain = isLocalhost ? "" : `;domain=${window.location.hostname}`;
+  const domain = isLocalhost ? "" : `;domain=.pandas-ai.com`;
 
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax${domain}`;
 }

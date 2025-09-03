@@ -6,10 +6,10 @@ import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import ChatBox, { ChatBoxRef } from "@/components/chatbox";
 import Header, { HeaderRef } from "@/components/header";
 import SessionExpiredPopup from "@/components/session-expired-popup";
-import { getFileType } from "@/lib/utils";
+import { getFileType, getFileUrl } from "@/lib/utils";
 import { useInactivityTimer } from "@/hooks/useInactivityTimer";
-import { getServerURL } from "@/lib/server";
 import { storeAuthToken, removeAuthToken, refreshAuthToken } from "@/lib/api/auth";
+import { getServerURL } from "@/lib/server";
 import { notifyAuthChange } from "@/hooks/useAuth";
 
 
@@ -29,7 +29,12 @@ export default function Home() {
   const { showInactivityPopup, trackUserMessage } = useInactivityTimer();
 
   const handlePreviewClick = (data: PreviewData) => {
-    setPreviewData(data);
+
+    if (data.type === "pxml" && data.filename && conversationId) {
+      handlePxmlClick(data.filename, conversationId);
+    } else {
+      setPreviewData(data);
+    }
     setSidebarOpen(true);
   };
 
@@ -38,15 +43,34 @@ export default function Home() {
     setPreviewData(undefined);
   };
 
+  const handlePxmlClick = (filename: string, conversationId: string) => {
+    if (!conversationId) {
+      console.error("DEBUG: No conversation ID");
+      return;
+    }
+    const fileUrl = getFileUrl(filename, conversationId);
+    setPreviewData({
+      url: fileUrl,
+      content: "",
+      title: filename,
+      type: "pxml",
+      filename: filename
+    });
+  };
+
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
   const handleFileClick = (filename: string) => {
     const fileType = getFileType(filename);
 
-    setPreviewData({
-      filename: filename,
-      title: `File: ${filename.split("/").pop()}`,
-      type: fileType,
-    });
+    if (fileType === "pxml" && filename && conversationId) {
+      handlePxmlClick(filename, conversationId);
+    } else {
+      setPreviewData({
+        filename: filename,
+        title: `File: ${filename.split("/").pop()}`,
+        type: fileType,
+      });
+    }
     setSidebarOpen(true);
   };
 

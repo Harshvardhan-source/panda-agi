@@ -195,6 +195,12 @@ Suggested name:"""
                 relative_path,
             ) in ArtifactsService.get_files_for_iframe(filepath, env, artifact_id):
                 yield file_bytes, relative_path
+        elif type == "pxml":
+            async for (
+                file_bytes,
+                relative_path,
+            ) in ArtifactsService.get_files_for_pxml(filepath, env, artifact_id):
+                yield file_bytes, relative_path
         else:
             raise ValueError(f"Error: Unsupported creation type provided {type}")
 
@@ -381,3 +387,44 @@ Suggested name:"""
                     f"Error getting file {file_path}: {traceback.format_exc()}"
                 )
                 continue
+
+    @staticmethod
+    async def get_files_for_pxml(filepath: str, env: BaseEnv, artifact_id: str = None):
+        """
+        Get all relevant files for PXML files:
+        1. Parse the PXML file to extract CSV file references
+        2. Get the CSV file content using PXMLService
+        3. Yield the CSV file content along with its filepath
+        """
+        try:
+            # Get the PXML file content
+            pxml_content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
+            pxml_content = pxml_content_bytes.decode("utf-8")
+
+            # Use PXMLService to get CSV files
+            from services.pxml import PXMLService
+
+            # Get CSV files using the PXMLService method
+            async for (
+                csv_content_bytes,
+                csv_file_path,
+            ) in PXMLService.get_csv_files_for_pxml(pxml_content, env):
+                logger.info(f"TEST DEBUG: PXML CSV file path: {csv_file_path}")
+                # Yield the CSV file content with its filepath
+                yield csv_content_bytes, csv_file_path
+
+            # Also yield the PXML file itself
+            yield pxml_content_bytes, filepath
+
+        except Exception as e:
+            logger.error(f"Error getting files for PXML {filepath}: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # If there's an error, still try to yield the PXML file itself
+            try:
+                pxml_content_bytes, _ = await FilesService.get_file_from_env(
+                    filepath, env
+                )
+                yield pxml_content_bytes, filepath
+            except Exception:
+                logger.error(f"Failed to get PXML file {filepath} as fallback")
+                pass

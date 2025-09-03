@@ -8,12 +8,18 @@ interface ImageGenerationEventProps {
   onPreviewClick?: (previewData: unknown) => void;
 }
 
-const ImageGenerationEvent: React.FC<ImageGenerationEventProps> = ({ payload, onPreviewClick }) => {
+const ImageGenerationEvent: React.FC<ImageGenerationEventProps> = ({
+  payload,
+  onPreviewClick,
+}) => {
   if (!payload) return null;
 
   const filename = payload["images"]?.[0];
 
-  const truncateFilename = (filename: string | undefined, maxLength = 50): string => {
+  const truncateFilename = (
+    filename: string | undefined,
+    maxLength = 50
+  ): string => {
     if (!filename) return "Unknown file";
     return filename.length > maxLength
       ? `${filename.substring(0, maxLength)}...`
@@ -24,7 +30,7 @@ const ImageGenerationEvent: React.FC<ImageGenerationEventProps> = ({ payload, on
     if (onPreviewClick && filename) {
       onPreviewClick({
         filename: filename,
-        title: `Generated image: ${filename}`,
+        title: filename,
         type: "image",
       });
     }

@@ -1,5 +1,6 @@
 import React from "react";
 import { Eye } from "lucide-react";
+import { getFileType } from "@/lib/utils";
 
 interface FileReadEventProps {
   payload?: {
@@ -12,64 +13,36 @@ interface FileReadEventProps {
   onPreviewClick?: (previewData: unknown) => void;
 }
 
-const FileReadEvent: React.FC<FileReadEventProps> = ({ payload, onPreviewClick }) => {
+const FileReadEvent: React.FC<FileReadEventProps> = ({
+  payload,
+  onPreviewClick,
+}) => {
   if (!payload) return null;
 
-  // Helper function to determine file type based on extension
-  const getFileType = (filePath: string | undefined): string => {
-    if (!filePath) return "text";
-    const extension = filePath.split(".").pop()?.toLowerCase();
-
-    if (extension && ["csv"].includes(extension)) return "table";
-    if (extension && ["md", "markdown", "txt"].includes(extension)) return "markdown";
-    if (extension && ["html", "htm"].includes(extension)) return "html";
-    if (
-      extension &&
-      [
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "c",
-        "cpp",
-        "go",
-        "rb",
-        "php",
-        "css",
-        "scss",
-        "json",
-        "xml",
-        "yaml",
-        "yml",
-      ].includes(extension)
-    )
-      return "code";
-    if (extension && ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
-      return "image";
-    if (extension === "pdf") return "pdf";
-    return "not-supported";
-  };
-
   const filename = payload.file || payload.path;
+
+  if (!filename) return null;
+
   const fileType = getFileType(filename);
 
   // Helper function to trim long strings from center
   const trimFromCenter = (str: string, maxLength: number = 50): string => {
     if (str.length <= maxLength) return str;
-    
+
     const halfLength = Math.floor((maxLength - 3) / 2);
     const start = str.substring(0, halfLength);
     const end = str.substring(str.length - halfLength);
-    
+
     return `${start}...${end}`;
   };
 
   // Format filename with line range for file_read operations
   const getDisplayFilename = (): string => {
     if (payload.start_line && payload.end_line) {
-      const shortFilename = trimFromCenter(filename?.split("/").pop() || "", 50);
+      const shortFilename = trimFromCenter(
+        filename?.split("/").pop() || "",
+        50
+      );
       return `${shortFilename} (lines ${payload.start_line}-${payload.end_line})`;
     }
     const shortFilename = filename?.split("/").pop() || "";
@@ -80,7 +53,7 @@ const FileReadEvent: React.FC<FileReadEventProps> = ({ payload, onPreviewClick }
     if (onPreviewClick && filename) {
       onPreviewClick({
         filename: filename,
-        title: `read: ${filename.split("/").pop()}`,
+        title: filename.split("/").pop(),
         type: fileType,
       });
     }
