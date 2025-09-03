@@ -121,7 +121,6 @@ async def process_artifact_pxml_to_html(
         artifact_id: The artifact ID
         session: The aiohttp session for making requests
         headers: Headers to use for requests
-        is_public: Whether this is a public artifact (affects base URL)
 
     Returns:
         Response: HTML response if conversion successful, None if should fall back
