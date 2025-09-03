@@ -14,13 +14,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface ArtifactActionsProps {
-  artifact: ArtifactData;
+  artifact: ArtifactData | null;
   onArtifactUpdated?: (artifact: ArtifactData) => void;
   onArtifactDeleted?: (artifactId: string) => void;
   onClose?: () => void;
   onEditName?: (() => void) | null;
   showShare?: boolean;
   showDelete?: boolean;
+  isSaved?: boolean;
+  previewData?: any;
+  conversationId?: string;
 }
 
 const ArtifactActions: React.FC<ArtifactActionsProps> = ({
@@ -31,6 +34,9 @@ const ArtifactActions: React.FC<ArtifactActionsProps> = ({
   onEditName,
   showShare = true,
   showDelete = true,
+  isSaved = false,
+  previewData,
+  conversationId,
 }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   

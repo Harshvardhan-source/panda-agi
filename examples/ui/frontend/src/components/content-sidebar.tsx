@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { Download, FileImage, File } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { FileImage, File } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import MarkdownRenderer from "./ui/markdown-renderer";
+import MarkdownEditor from "./markdown-editor";
+import { markdownToHtml, htmlToMarkdown } from "./artifact-viewer";
+import { updateArtifactFile } from "@/lib/api/artifacts";
 import SaveArtifactButton from "./save-artifact-button";
+import { Button } from "./ui/button";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
@@ -12,7 +15,6 @@ import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
 import {
-  downloadWithCheck,
   getFileExtension,
   isExcelFile,
   validateContentType,
@@ -71,15 +73,59 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
   const [savedArtifact, setSavedArtifact] = useState<ArtifactData | null>(null);
+
+  // Markdown editor state
+  const [editorContent, setEditorContent] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   
+  // State to trigger SaveArtifactButton dialog programmatically
+  const [shouldOpenSaveDialog, setShouldOpenSaveDialog] = useState(false);
+  const saveArtifactButtonRef = useRef<HTMLButtonElement>(null);
 
   // Reset saved state when sidebar closes
   useEffect(() => {
     if (!isOpen) {
       setIsSaved(false);
       setSavedArtifact(null);
+      setHasUnsavedChanges(false);
+      setIsSaving(false);
+      setJustSaved(false);
     }
   }, [isOpen]);
+
+  // Convert markdown content to HTML for editor
+  useEffect(() => {
+    if (fileContent && previewData?.type === "markdown") {
+      const convertContent = async () => {
+        try {
+          const htmlContent = await markdownToHtml(fileContent as string);
+          setEditorContent(htmlContent);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error("Error converting markdown to HTML:", error);
+          setEditorContent(fileContent as string);
+          setHasUnsavedChanges(false);
+        }
+      };
+
+      convertContent();
+    }
+  }, [fileContent, previewData?.type]);
+
+  // Effect to trigger SaveArtifactButton click when shouldOpenSaveDialog becomes true
+  useEffect(() => {
+    if (shouldOpenSaveDialog && saveArtifactButtonRef.current) {
+      // Use setTimeout to ensure the button is rendered before clicking
+      setTimeout(() => {
+        if (saveArtifactButtonRef.current) {
+          saveArtifactButtonRef.current.click();
+          setShouldOpenSaveDialog(false);
+        }
+      }, 100);
+    }
+  }, [shouldOpenSaveDialog]);
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -93,7 +139,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       // Extract the path from the URL and use it as filename
       const url = new URL(previewData.url);
       const path = url.pathname;
-      
+
       if (path && path !== "/") {
         // Remove leading slash and use as filename
         filename = path.startsWith("/") ? path.substring(1) : path;
@@ -120,6 +166,88 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setError(null);
     }
   }, [previewData]);
+
+  // Handle editor content changes
+  const handleEditorChange = (html: string, hasChanges: boolean) => {
+    setEditorContent(html);
+    setHasUnsavedChanges(hasChanges);
+    if (hasChanges) {
+      setJustSaved(false);
+    }
+  };
+
+  /**
+   * UNIFIED SAVE WORKFLOW FOR MARKDOWN EDITOR
+   * 
+   * This function handles saving markdown content with different behaviors based on whether
+   * the content has been saved as a creation before or not.
+   * 
+   * WORKFLOW SCENARIOS:
+   * 
+   * 1. FIRST TIME SAVE (No creation exists):
+   *    - User clicks "Save" → Opens creation dialog (SaveArtifactButton)
+   *    - User enters name and confirms
+   *    - handleArtifactSaved is called with the new creation
+   *    - If user had unsaved changes, handleArtifactSaved automatically updates the creation
+   *      with the current editor content via updateArtifactFile
+   * 
+   * 2. SUBSEQUENT SAVES (Creation already exists):
+   *    - User clicks "Save" → Directly updates existing creation
+   *    - Calls updateArtifactFile API to update the creation content
+   *    - No dialog shown, immediate save operation
+   * 
+   * SAVE BUTTON VISIBILITY:
+   * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
+   * - This allows saving original content as creation even without modifications
+   */
+  const handleSaveContent = async () => {
+    if (isSaving) return;
+    
+    // Skip if already saved and no changes
+    if (isSaved && !hasUnsavedChanges) return;
+
+    // FIRST TIME SAVE: No creation exists yet
+    if (!isSaved || !savedArtifact) {
+      // Update preview data with current editor content before opening dialog
+      if (previewData) {
+        const markdownContent = await htmlToMarkdown(editorContent);
+        previewData.content = markdownContent;
+        
+        // Trigger the SaveArtifactButton dialog to create new creation
+        // Note: handleArtifactSaved will handle any unsaved changes after creation
+        setShouldOpenSaveDialog(true);
+      }
+      return;
+    }
+
+    // SUBSEQUENT SAVES: Update existing creation directly
+    setIsSaving(true);
+    try {
+      // Convert HTML back to markdown
+      const markdownContent = await htmlToMarkdown(editorContent);
+
+      // Update the existing creation file
+      await updateArtifactFile(savedArtifact.id, savedArtifact.filepath, markdownContent);
+
+      setFileContent(markdownContent);
+      setHasUnsavedChanges(false);
+      setJustSaved(true);
+      toast.success("Creation updated successfully");
+
+      // Reset the "just saved" state after 2 seconds
+      setTimeout(() => {
+        setJustSaved(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Error saving content:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to save content";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Function to fetch file content
   const fetchFileContent = async (filename: string) => {
@@ -160,7 +288,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setIsLoading(false);
     }
   };
-
 
   if (!previewData) return null;
 
@@ -205,7 +332,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       type === "html" ||
       type === "text" ||
       IFRAME_LIKE_TYPES.includes(type as typeof IFRAME_LIKE_TYPES[number]) ||
-      type === "table"
+      type === "table" ||
+      type === "markdown"
     );
   };
 
@@ -311,15 +439,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       case "pxml":
         return renderIframe(previewData.url!, previewData.title);
       case "markdown":
-        const fileAbsUrl = getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
-        );
         return (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <MarkdownRenderer baseUrl={fileAbsUrl}>
-              {content as string}
-            </MarkdownRenderer>
-          </div>
+          <MarkdownEditor
+            content={editorContent}
+            onChange={handleEditorChange}
+            onSave={handleSaveContent}
+            hasUnsavedChanges={hasUnsavedChanges}
+            isSaving={isSaving}
+            justSaved={justSaved}
+          />
         );
       case "table":
         // Check if it's an Excel file
@@ -602,49 +730,61 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Handle file download
-  const handleFileDownload = async () => {
-    if (!normalizedFilename || !conversationId) {
-      toast.error("Missing file information");
-      return;
-    }
 
-    try {
-      const filename = previewData.filename || normalizedFilename;
-      const downloadUrl = getBackendServerURL(
-        `/${conversationId}/files/download?file_path=${encodeURIComponent(
-          filename
-        )}`
-      );
-      try {
-        let fileName = filename.split("/").pop();
-
-        if (fileName && fileName.endsWith(".md")) {
-          fileName = fileName.replace(".md", ".pdf");
-        }
-
-        await downloadWithCheck(downloadUrl, fileName || "download");
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Download failed: File not found or access denied";
-        toast.error(errorMessage);
-      }
-    } catch (error) {
-      console.error("Download error:", error);
-      if (error instanceof Error) {
-        toast.error(`Download failed: ${error.message}`);
-      } else {
-        toast.error("Download failed: Unknown error");
-      }
-    }
-  };
-
-  // Handle artifact saved
-  const handleArtifactSaved = (artifactData: { artifact: ArtifactData, detail: string }) => {
+  /**
+   * HANDLES COMPLETION OF FIRST-TIME SAVE WORKFLOW
+   * 
+   * This function is called after the SaveArtifactButton successfully creates a new creation.
+   * It handles the critical case where users made changes BEFORE saving the creation for the first time.
+   * 
+   * WORKFLOW:
+   * 1. Creation is initially saved with original file content (via SaveArtifactButton)
+   * 2. This function checks if user had unsaved changes in the editor
+   * 3. If yes, immediately sends a second request to update the creation with editor content
+   * 4. This ensures user changes are never lost, regardless of when they made them
+   * 
+   * SCENARIOS HANDLED:
+   * - User opens file → clicks Save → creation saved with original content
+   * - User opens file → makes changes → clicks Save → creation saved + updated with changes
+   */
+  const handleArtifactSaved = async (artifactData: {
+    artifact: ArtifactData;
+    detail: string;
+  }) => {
     setIsSaved(true);
     setSavedArtifact(artifactData.artifact);
+    
+    // CRITICAL: Check if user made changes before first save
+    // If yes, we need to update the creation with current editor content
+    if (hasUnsavedChanges) {
+      try {
+        // Convert current editor content to markdown
+        const markdownContent = await htmlToMarkdown(editorContent);
+        
+        // Send immediate update to the newly created artifact
+        await updateArtifactFile(artifactData.artifact.id, artifactData.artifact.filepath, markdownContent);
+        
+        setFileContent(markdownContent);
+        setHasUnsavedChanges(false);
+        setJustSaved(true);
+        toast.success("Creation saved and updated with your changes");
+      } catch (error) {
+        console.error("Error updating artifact with changes:", error);
+        toast.error("Creation saved but failed to update with your changes");
+        // Keep hasUnsavedChanges true so user can manually retry
+        return;
+      }
+    } else {
+      // No changes were made, just mark as saved
+      setHasUnsavedChanges(false);
+      setJustSaved(true);
+      toast.success("Creation saved successfully");
+    }
+    
+    // Reset the "just saved" state after 2 seconds
+    setTimeout(() => {
+      setJustSaved(false);
+    }, 2000);
   };
 
   // Handle artifact updated
@@ -653,7 +793,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Handle artifact deleted
-  const handleArtifactDeleted = (_artifactId: string) => {
+  const handleArtifactDeleted = () => {
     setIsSaved(false);
     setSavedArtifact(null);
     onClose();
@@ -662,44 +802,66 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Create header actions
   const headerActions = (
     <>
-      {/* Save button - only show for markdown files and iframe-like content when not saved */}
-      {(previewData.type === "markdown" || (previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number]))) && !isSaved && (
+      {/* Save button for markdown editor - show when there are unsaved changes OR creation has never been saved */}
+      {previewData.type === "markdown" && (hasUnsavedChanges || !isSaved) && (
+        <Button
+          onClick={handleSaveContent}
+          disabled={isSaving}
+          size="sm"
+          variant="default"
+          title={!isSaved ? "Save as creation" : "Update creation"}
+        >
+          {isSaving && (
+            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          <span>{isSaving ? "Saving..." : "Save"}</span>
+        </Button>
+      )}
+      {/* Just saved indicator */}
+      {previewData.type === "markdown" && justSaved && !hasUnsavedChanges && (
+        <span className="text-sm text-green-600 dark:text-green-400 px-3 py-1">
+          Saved
+        </span>
+      )}
+      {/* Hidden SaveArtifactButton for first-time saves - only for markdown files */}
+      {previewData.type === "markdown" && !isSaved && (
+        <div style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', left: '-9999px' }}>
+          <SaveArtifactButton
+            ref={saveArtifactButtonRef}
+            conversationId={conversationId}
+            previewData={{
+              type: previewData.type,
+              url: previewData.url,
+              filename: previewData.filename,
+              content: previewData.content || (fileContent as string) || "",
+            }}
+            onSave={handleArtifactSaved}
+          />
+        </div>
+      )}
+      {/* Save artifact button - only show for iframe-like content when not saved */}
+      {(previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number])) && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
           previewData={{
             type: previewData.type,
             url: previewData.url,
             filename: previewData.filename,
-            content: previewData.content || (fileContent as string || ""),
+            content: previewData.content || (fileContent as string) || "",
           }}
           onSave={handleArtifactSaved}
         />
       )}
-      {/* Download button - only show for actual files, not iframe-like content */}
-      {(normalizedFilename || previewData.url) &&
-        !(previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number])) && (
-          <button
-            onClick={handleFileDownload}
-            className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center"
-            title={`Download as ${(
-              (normalizedFilename || previewData.url || "").split(".").pop() ||
-              ""
-            )
-              .replace("md", "pdf")
-              .toUpperCase()}`}
-          >
-            <Download className="h-4 w-4 text-muted-foreground" />
-          </button>
-        )}
-      {/* Artifact actions - only show when saved */}
-      {isSaved && savedArtifact && (
-        <ArtifactActions
-          artifact={savedArtifact}
-          onArtifactUpdated={handleArtifactUpdated}
-          onArtifactDeleted={handleArtifactDeleted}
-          onClose={onClose}
-        />
-      )}
+      {/* Artifact actions - unified download/share/ellipsis */}
+      <ArtifactActions
+        artifact={savedArtifact}
+        onArtifactUpdated={handleArtifactUpdated}
+        onArtifactDeleted={handleArtifactDeleted}
+        onClose={onClose}
+        isSaved={isSaved}
+        previewData={previewData}
+        conversationId={conversationId}
+      />
     </>
   );
 
@@ -743,13 +905,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
       >
         {isFullHeightContent() ? (
-          <div className="h-full p-6">{renderContent()}</div>
+          <div className="h-full">{renderContent()}</div>
         ) : (
           renderContent()
         )}
       </ResizableSidebar>
-      
-
     </>
   );
 };

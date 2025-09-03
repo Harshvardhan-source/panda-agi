@@ -29,11 +29,11 @@ interface SaveArtifactButtonProps {
   onSave?: (artifactData: { artifact: ArtifactResponse, detail: string }) => void;
 }
 
-const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
+const SaveArtifactButton = React.forwardRef<HTMLButtonElement, SaveArtifactButtonProps>(({
   conversationId,
   previewData,
   onSave,
-}) => {
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -152,6 +152,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button
+          ref={ref}
           variant="ghost"
           size="sm"
           onClick={handleOpenDialog}
@@ -213,6 +214,8 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       </DialogContent>
     </Dialog>
   );
-};
+});
+
+SaveArtifactButton.displayName = "SaveArtifactButton";
 
 export default SaveArtifactButton; 
