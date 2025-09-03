@@ -79,7 +79,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
-  
+
   // State to trigger SaveArtifactButton dialog programmatically
   const [shouldOpenSaveDialog, setShouldOpenSaveDialog] = useState(false);
   const saveArtifactButtonRef = useRef<HTMLButtonElement>(null);
@@ -178,31 +178,31 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
   /**
    * UNIFIED SAVE WORKFLOW FOR MARKDOWN EDITOR
-   * 
+   *
    * This function handles saving markdown content with different behaviors based on whether
    * the content has been saved as a creation before or not.
-   * 
+   *
    * WORKFLOW SCENARIOS:
-   * 
+   *
    * 1. FIRST TIME SAVE (No creation exists):
    *    - User clicks "Save" → Opens creation dialog (SaveArtifactButton)
    *    - User enters name and confirms
    *    - handleArtifactSaved is called with the new creation
    *    - If user had unsaved changes, handleArtifactSaved automatically updates the creation
    *      with the current editor content via updateArtifactFile
-   * 
+   *
    * 2. SUBSEQUENT SAVES (Creation already exists):
    *    - User clicks "Save" → Directly updates existing creation
    *    - Calls updateArtifactFile API to update the creation content
    *    - No dialog shown, immediate save operation
-   * 
+   *
    * SAVE BUTTON VISIBILITY:
    * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
    * - This allows saving original content as creation even without modifications
    */
   const handleSaveContent = async () => {
     if (isSaving) return;
-    
+
     // Skip if already saved and no changes
     if (isSaved && !hasUnsavedChanges) return;
 
@@ -212,7 +212,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       if (previewData) {
         const markdownContent = await htmlToMarkdown(editorContent);
         previewData.content = markdownContent;
-        
+
         // Trigger the SaveArtifactButton dialog to create new creation
         // Note: handleArtifactSaved will handle any unsaved changes after creation
         setShouldOpenSaveDialog(true);
@@ -227,7 +227,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       const markdownContent = await htmlToMarkdown(editorContent);
 
       // Update the existing creation file
-      await updateArtifactFile(savedArtifact.id, savedArtifact.filepath, markdownContent);
+      await updateArtifactFile(
+        savedArtifact.id,
+        savedArtifact.filepath,
+        markdownContent
+      );
 
       setFileContent(markdownContent);
       setHasUnsavedChanges(false);
@@ -731,18 +735,19 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
 
+
   /**
    * HANDLES COMPLETION OF FIRST-TIME SAVE WORKFLOW
-   * 
+   *
    * This function is called after the SaveArtifactButton successfully creates a new creation.
    * It handles the critical case where users made changes BEFORE saving the creation for the first time.
-   * 
+   *
    * WORKFLOW:
    * 1. Creation is initially saved with original file content (via SaveArtifactButton)
    * 2. This function checks if user had unsaved changes in the editor
    * 3. If yes, immediately sends a second request to update the creation with editor content
    * 4. This ensures user changes are never lost, regardless of when they made them
-   * 
+   *
    * SCENARIOS HANDLED:
    * - User opens file → clicks Save → creation saved with original content
    * - User opens file → makes changes → clicks Save → creation saved + updated with changes
@@ -753,17 +758,21 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   }) => {
     setIsSaved(true);
     setSavedArtifact(artifactData.artifact);
-    
+
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
     if (hasUnsavedChanges) {
       try {
         // Convert current editor content to markdown
         const markdownContent = await htmlToMarkdown(editorContent);
-        
+
         // Send immediate update to the newly created artifact
-        await updateArtifactFile(artifactData.artifact.id, artifactData.artifact.filepath, markdownContent);
-        
+        await updateArtifactFile(
+          artifactData.artifact.id,
+          artifactData.artifact.filepath,
+          markdownContent
+        );
+
         setFileContent(markdownContent);
         setHasUnsavedChanges(false);
         setJustSaved(true);
@@ -780,7 +789,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setJustSaved(true);
       toast.success("Creation saved successfully");
     }
-    
+
     // Reset the "just saved" state after 2 seconds
     setTimeout(() => {
       setJustSaved(false);
@@ -825,7 +834,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       )}
       {/* Hidden SaveArtifactButton for first-time saves - only for markdown files */}
       {previewData.type === "markdown" && !isSaved && (
-        <div style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', left: '-9999px' }}>
+        <div
+          style={{
+            position: "absolute",
+            visibility: "hidden",
+            pointerEvents: "none",
+            left: "-9999px",
+          }}
+        >
           <SaveArtifactButton
             ref={saveArtifactButtonRef}
             conversationId={conversationId}
@@ -910,6 +926,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           renderContent()
         )}
       </ResizableSidebar>
+
     </>
   );
 };

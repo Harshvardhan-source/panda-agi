@@ -538,6 +538,13 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                 onArtifactDeleted={onArtifactDeleted}
                 onClose={onClose}
                 onEditName={handleEditTitle}
+                isSaved={true}
+                previewData={{
+                  type: "markdown",
+                  filename: artifact.filepath,
+                  content: fileContent || ""
+                }}
+                conversationId={artifact.id}
               />
               <button
                 onClick={handleClose}
