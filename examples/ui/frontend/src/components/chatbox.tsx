@@ -244,17 +244,39 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           }
         }
 
+        // Filter files to only allow CSV files
+        const csvFiles = files.filter(file => 
+          file.name.toLowerCase().endsWith(".csv")
+        );
+        
+        const nonCsvFiles = files.filter(file => 
+          !file.name.toLowerCase().endsWith(".csv")
+        );
+
+        // Show error message for non-CSV files
+        if (nonCsvFiles.length > 0) {
+          const errorMessage: Message = {
+            id: Date.now(),
+            type: "error",
+            content: `Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}. You can upload only CSV files.`,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          
+          // If no CSV files, return early
+          if (csvFiles.length === 0) {
+            return;
+          }
+        }
+
         // Create new file previews to add to existing ones (cumulative)
         const baseId = Date.now();
         const newFilePreviews = await Promise.all(
-          Array.from(files).map(async (file, index) => {
+          Array.from(csvFiles).map(async (file, index) => {
             let content = undefined;
 
             // Read CSV files for preview
-            if (
-              file.name.toLowerCase().endsWith(".csv") &&
-              file.size < 1024 * 1024
-            ) {
+            if (file.size < 1024 * 1024) {
               // Only read CSV files under 1MB
               try {
                 content = await readCSVFile(file);
@@ -898,10 +920,10 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               <div className="text-center p-8 rounded-2xl bg-white/90 shadow-2xl border border-slate-200/50 backdrop-blur-sm">
                 <Paperclip className="w-16 h-16 text-slate-700 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                  Drop files here
+                  Drop CSV files here
                 </h3>
                 <p className="text-sm text-slate-600">
-                  Release to upload your files
+                  Only CSV files are supported
                 </p>
               </div>
             </div>
@@ -1260,7 +1282,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                   multiple
                   className="hidden"
                   onChange={handleFileChange}
-                  accept="*/*"
+                  accept=".csv"
                 />
 
                 {/* Upload button */}
@@ -1268,7 +1290,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                   onClick={handleFileUpload}
                   disabled={uploadingFiles || isInitialLoading}
                   className="p-3.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 rounded-2xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
-                  title={uploadingFiles ? "Uploading..." : "Upload files"}
+                  title={uploadingFiles ? "Uploading..." : "Upload CSV files"}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
                   <Paperclip className="w-5 h-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />

@@ -74,7 +74,7 @@ const FileReplaceEvent: React.FC<FileReplaceEventProps> = ({
 
       onPreviewClick({
         filename: filename,
-        title: `Edited file: ${filename.split("/").pop()}`,
+        title: filename.split("/").pop(),
         type: getFileType(filename),
       });
     }

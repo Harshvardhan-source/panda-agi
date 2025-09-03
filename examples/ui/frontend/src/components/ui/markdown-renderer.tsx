@@ -1,7 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import remarkBreaks from 'remark-breaks'
+import remarkBreaks from "remark-breaks";
 import { getServerURL } from "@/lib/server";
 
 interface MarkdownRendererProps {
@@ -37,11 +37,15 @@ const isHostedUrl = (url: string): boolean => {
 function truncateMiddle(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   const half = Math.floor((maxLength - 3) / 2);
-  return text.slice(0, half) + '...' + text.slice(text.length - half);
+  return text.slice(0, half) + "..." + text.slice(text.length - half);
 }
 
 // Function to manually detect and convert plain URLs to links as a fallback
-const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkStyle?: string): string | React.ReactNode => {
+const linkifyText = (
+  text: string | React.ReactNode,
+  onPreviewClick?: MarkdownRendererProps["onPreviewClick"],
+  linkStyle?: string
+): string | React.ReactNode => {
   if (typeof text !== "string") return text;
 
   // Comprehensive URL regex that properly captures full URLs
@@ -71,7 +75,7 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
             onPreviewClick({
               url: url,
               content: "", // Will be loaded via iframe
-              title: `Preview: ${new URL(url).hostname}${
+              title: `${new URL(url).hostname}${
                 new URL(url).port ? ":" + new URL(url).port : ""
               }`,
               type: "iframe",
@@ -108,7 +112,11 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
 };
 
 // Helper function to process children and linkify text
-const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"], linkStyle?: string): React.ReactNode => {
+const processChildren = (
+  children: React.ReactNode,
+  onPreviewClick?: MarkdownRendererProps["onPreviewClick"],
+  linkStyle?: string
+): React.ReactNode => {
   if (typeof children === "string") {
     return linkifyText(children, onPreviewClick, linkStyle);
   }
@@ -127,25 +135,23 @@ const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRen
   return children;
 };
 
-
 // Reusable markdown renderer component
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   children,
   baseUrl = null,
-  className = "", 
+  className = "",
   linkStyle = "text-blue-600",
-  onPreviewClick
+  onPreviewClick,
 }) => {
-
   if (!baseUrl) {
-    baseUrl = getServerURL()
+    baseUrl = getServerURL();
   }
 
   const transformUrl = (url: string) => {
     if (
-      url.startsWith("http") || 
-      url.startsWith("/") || 
-      url.startsWith("#") || 
+      url.startsWith("http") ||
+      url.startsWith("/") ||
+      url.startsWith("#") ||
       url.startsWith("mailto:")
     ) {
       return url;
@@ -158,7 +164,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       className={`text-sm rounded prose prose-sm prose-gray max-w-none ${className}`}
     >
       <ReactMarkdown
-        remarkPlugins={[[remarkGfm, {singleTilde: false}], remarkBreaks]}
+        remarkPlugins={[[remarkGfm, { singleTilde: false }], remarkBreaks]}
         components={{
           // Add manual URL detection for text nodes
           text: ({ children }) => {
@@ -174,7 +180,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           ),
           tbody: ({ children }) => <tbody>{children}</tbody>,
           tr: ({ children }) => (
-            <tr className="border-b border-gray-300 last:border-0">{children}</tr>
+            <tr className="border-b border-gray-300 last:border-0">
+              {children}
+            </tr>
           ),
           th: ({ children }) => (
             <th className="px-3 py-2 text-left text-sm font-semibold border border-gray-300">
@@ -233,13 +241,18 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             </blockquote>
           ),
           img: ({ node, ...props }) => {
-            return <img {...props} src={transformUrl(props.src?.toString() || "")} />
+            return (
+              <img {...props} src={transformUrl(props.src?.toString() || "")} />
+            );
           },
           // Style all links consistently, opening all links in content sidebar
           a: ({ href, children }) => {
             if (href) {
               const isLocal = isHostedUrl(href);
-              const displayHref = typeof children === 'string' ? truncateMiddle(children, 80) : children;
+              const displayHref =
+                typeof children === "string"
+                  ? truncateMiddle(children, 80)
+                  : children;
 
               const transformedHref = transformUrl(href) as string;
               if (!transformedHref) {
@@ -250,17 +263,24 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 return (
                   <button
                     onClick={() => {
-                      if (transformedHref?.toString().endsWith(".pdf") || !isLocal) {
-                        window.open(transformedHref, '_blank');
+                      if (
+                        transformedHref?.toString().endsWith(".pdf") ||
+                        !isLocal
+                      ) {
+                        window.open(transformedHref, "_blank");
                       } else {
-                      onPreviewClick({
-                        url: transformedHref,
-                        content: "", // Will be loaded via iframe
-                        title: isLocal 
-                          ? `Preview: ${new URL(transformedHref).hostname}${new URL(transformedHref).port ? ":" + new URL(transformedHref).port : ""}`
-                          : `External: ${transformedHref}`,
-                        type: "iframe",
-                      })
+                        onPreviewClick({
+                          url: transformedHref,
+                          content: "", // Will be loaded via iframe
+                          title: isLocal
+                            ? `Preview: ${new URL(transformedHref).hostname}${
+                                new URL(transformedHref).port
+                                  ? ":" + new URL(transformedHref).port
+                                  : ""
+                              }`
+                            : `External: ${transformedHref}`,
+                          type: "iframe",
+                        });
                       }
                     }}
                     className={`${linkStyle} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}
@@ -275,16 +295,23 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                     onClick={() => {
                       // Try to communicate with parent window to open in sidebar
                       if (window.parent && window.parent !== window) {
-                        window.parent.postMessage({
-                          type: 'OPEN_IN_SIDEBAR',
-                          url: transformedHref,
-                          title: isLocal 
-                            ? `Preview: ${new URL(transformedHref).hostname}${new URL(transformedHref).port ? ":" + new URL(transformedHref).port : ""}`
-                            : `External: ${transformedHref}`
-                        }, '*');
+                        window.parent.postMessage(
+                          {
+                            type: "OPEN_IN_SIDEBAR",
+                            url: transformedHref,
+                            title: isLocal
+                              ? `Preview: ${new URL(transformedHref).hostname}${
+                                  new URL(transformedHref).port
+                                    ? ":" + new URL(transformedHref).port
+                                    : ""
+                                }`
+                              : `External: ${transformedHref}`,
+                          },
+                          "*"
+                        );
                       } else {
                         // Last resort - open in same window
-                        window.open(transformedHref, '_blank');
+                        window.open(transformedHref, "_blank");
                       }
                     }}
                     className={`${linkStyle} hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap`}

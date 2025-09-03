@@ -10,7 +10,10 @@ interface FileFindEventProps {
   onPreviewClick?: (previewData: unknown) => void;
 }
 
-const FileFindEvent: React.FC<FileFindEventProps> = ({ payload, onPreviewClick }) => {
+const FileFindEvent: React.FC<FileFindEventProps> = ({
+  payload,
+  onPreviewClick,
+}) => {
   if (!payload) return null;
 
   const filename = payload.file || payload.path;
@@ -19,7 +22,7 @@ const FileFindEvent: React.FC<FileFindEventProps> = ({ payload, onPreviewClick }
     if (onPreviewClick && filename) {
       onPreviewClick({
         filename: filename,
-        title: `finding: ${filename.split("/").pop()}`,
+        title: filename.split("/").pop(),
         type: "text",
       });
     }
