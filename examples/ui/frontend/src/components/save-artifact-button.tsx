@@ -58,7 +58,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
       const savedArtifact = await saveArtifact(conversationId, {
         type: previewData?.type || "text",
         name: artifactName.trim(),
-        filepath: previewData?.url || previewData?.filename || ""
+        filepath: previewData?.filename || previewData?.url || ""
       });
       toast.success("Creation saved successfully!");
       setIsOpen(false);
@@ -108,7 +108,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     try {
       const response = await suggestArtifactName(conversationId, {
         type: previewData.type,
-        filepath: previewData.url || previewData.filename || "",
+        filepath: previewData.filename || previewData.url || "",
         content: (previewData.content || "").substring(0, config.markdown.maxContentLength)
       }, abortControllerRef.current.signal);
       

@@ -29,3 +29,26 @@ class PXMLService:
         except Exception as e:
             logger.exception(f"Error compiling PXML file: {e}")
             raise Exception(f"Failed to compile PXML file")
+
+    @staticmethod
+    async def get_csv_files_for_pxml(xml_content: str, env: BaseEnv):
+        """
+        Get CSV files referenced in PXML content and yield (content, filepath) tuples.
+        """
+        try:
+            dashboard_compiler = DashboardCompiler()
+            dashboard_data = dashboard_compiler.xml_parser.parse(xml_content)
+
+            csv_file_path = dashboard_data["metadata"].file_path
+
+            # Get the CSV file content
+            csv_content_bytes, _ = await FilesService.get_file_from_env(
+                csv_file_path, env
+            )
+
+            # Yield the CSV content and filepath
+            yield csv_content_bytes, csv_file_path
+
+        except Exception as e:
+            logger.exception(f"Error getting CSV files for PXML: {e}")
+            raise Exception(f"Failed to get CSV files for PXML")
