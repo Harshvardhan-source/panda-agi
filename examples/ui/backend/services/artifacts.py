@@ -409,8 +409,7 @@ Suggested name:"""
                 csv_content_bytes,
                 csv_file_path,
             ) in PXMLService.get_csv_files_for_pxml(pxml_content, env):
-                print(f"TEST DEBUG: CSV file path: {csv_file_path}")
-
+                logger.info(f"TEST DEBUG: PXML CSV file path: {csv_file_path}")
                 # Yield the CSV file content with its filepath
                 yield csv_content_bytes, csv_file_path
 
