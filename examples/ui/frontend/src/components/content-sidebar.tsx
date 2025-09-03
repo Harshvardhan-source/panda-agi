@@ -663,7 +663,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const headerActions = (
     <>
       {/* Save button - only show for markdown files and iframe-like content when not saved */}
-      {(previewData.type === "markdown" || IFRAME_LIKE_TYPES.includes(previewData.type as any)) && !isSaved && (
+      {(previewData.type === "markdown" || (previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number]))) && !isSaved && (
         <SaveArtifactButton
           conversationId={conversationId}
           previewData={{
@@ -677,7 +677,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       )}
       {/* Download button - only show for actual files, not iframe-like content */}
       {(normalizedFilename || previewData.url) &&
-        !IFRAME_LIKE_TYPES.includes(previewData.type as any) && (
+        !(previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number])) && (
           <button
             onClick={handleFileDownload}
             className="h-8 w-8 rounded-md hover:bg-accent transition-colors flex items-center justify-center"
