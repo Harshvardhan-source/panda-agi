@@ -5,7 +5,7 @@ import LogoutModal from "@/components/logout-modal";
 import { useLogout } from "@/hooks/useLogout";
 import { GlobalModalsProvider } from "@/contexts/global-modals-context";
 import { useEffect } from "react";
-import posthog from "posthog-js";
+import { initializePostHog } from "@/lib/api/posthog";
 
 
 
@@ -15,14 +15,7 @@ function ClientLayoutContent({
   children: React.ReactNode;
 }) {
   useEffect(() => {
-    if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        loaded: (ph) => {
-          ph.register({ app_loaded_date: new Date().toISOString() });
-        }
-      });
-    }
+    initializePostHog();
   }, []);
   const { showLogoutModal, handleLogoutCancel, handleLogoutConfirm } = useLogout();
 
