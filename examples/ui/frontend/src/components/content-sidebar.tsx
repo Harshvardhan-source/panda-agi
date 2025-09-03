@@ -289,30 +289,24 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
+    // Helper function to render iframe content
+    const renderIframe = (url: string, title?: string) => (
+      <div className="h-full rounded-md overflow-hidden border">
+        <iframe
+          src={url}
+          className="w-full h-full"
+          title={title}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        />
+      </div>
+    );
+
     switch (type) {
       
       case "iframe":
-        return (
-          <div className="h-full rounded-md overflow-hidden border">
-            <iframe
-              src={previewData.url}
-              className="w-full h-full"
-              title={previewData.title}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          </div>
-        );
+        return renderIframe(previewData.url!, previewData.title);
       case "pxml":
-        return (
-          <div className="h-full rounded-md overflow-hidden border">
-            <iframe
-              src={previewData.url}
-              className="w-full h-full"
-              title={previewData.title}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          </div>
-        );
+        return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         const fileAbsUrl = getBackendServerURL(
           `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
