@@ -86,7 +86,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
     let filename = previewData.filename || "index.html";
 
-    if (previewData.type === "iframe" && previewData.url) {
+    if (!previewData.filename && previewData.type === "iframe" && previewData.url) {
       // Extract the path from the URL and use it as filename
       const url = new URL(previewData.url);
       const path = url.pathname;
@@ -96,7 +96,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         filename = path.startsWith("/") ? path.substring(1) : path;
       }
     }
-
     if (filename) {
       const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
@@ -291,6 +290,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
 
     switch (type) {
+      
       case "iframe":
         return (
           <div className="h-full rounded-md overflow-hidden border">

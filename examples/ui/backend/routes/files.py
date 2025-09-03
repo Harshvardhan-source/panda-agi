@@ -11,6 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from services.pxml import PXMLService
 from utils.exceptions import RestrictedAccessError, FileNotFoundError
 from utils.markdown_utils import process_markdown_to_pdf
 from services.files import FilesService
@@ -331,6 +332,13 @@ async def read_file(
             content_bytes, mime_type = await FilesService.get_file_from_env(
                 file_path, local_env
             )
+
+            if file_path.lower().endswith((".pxml")):
+                content_bytes = content_bytes.decode("utf-8")
+                print(f"TEST DEBUG: Compiling PXML file: {content_bytes}")
+                html_content = await PXMLService.compile_pxml(content_bytes, local_env)
+                return Response(content=html_content, media_type="text/html")
+
         except RestrictedAccessError as e:
             raise HTTPException(status_code=403, detail=str(e))
         except FileNotFoundError as e:

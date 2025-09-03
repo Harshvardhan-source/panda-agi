@@ -1,5 +1,6 @@
 import React from "react";
 import { Eye } from "lucide-react";
+import { getFileType } from "@/lib/utils";
 
 interface FileReadEventProps {
   payload?: {
@@ -15,44 +16,10 @@ interface FileReadEventProps {
 const FileReadEvent: React.FC<FileReadEventProps> = ({ payload, onPreviewClick }) => {
   if (!payload) return null;
 
-  // Helper function to determine file type based on extension
-  const getFileType = (filePath: string | undefined): string => {
-    if (!filePath) return "text";
-    const extension = filePath.split(".").pop()?.toLowerCase();
-
-    if (extension && ["csv"].includes(extension)) return "table";
-    if (extension && ["md", "markdown", "txt"].includes(extension)) return "markdown";
-    if (extension && ["html", "htm"].includes(extension)) return "html";
-    if (
-      extension &&
-      [
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "c",
-        "cpp",
-        "go",
-        "rb",
-        "php",
-        "css",
-        "scss",
-        "json",
-        "xml",
-        "yaml",
-        "yml",
-      ].includes(extension)
-    )
-      return "code";
-    if (extension && ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
-      return "image";
-    if (extension === "pdf") return "pdf";
-    return "not-supported";
-  };
-
   const filename = payload.file || payload.path;
+
+  if (!filename) return null;
+
   const fileType = getFileType(filename);
 
   // Helper function to trim long strings from center
