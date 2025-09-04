@@ -26,9 +26,6 @@ function createKPICardHTML(kpiId, config) {
                             </span>
                             ${unit ? `<span class="ml-1 text-sm text-gray-500 kpi-unit" data-kpi-id="${kpiId}">${unit}</span>` : ''}
                         </div>
-                        <button onclick="editKPI('${kpiId}')" class="text-gray-400 hover:text-gray-600 kpi-edit-btn" title="Edit KPI">
-                            <i class="fas fa-edit text-sm"></i>
-                        </button>
                     </div>
                     <div id="${kpiId}_change" class="text-xs text-gray-500 mt-1">
                         <!-- Change indicator will be added here -->

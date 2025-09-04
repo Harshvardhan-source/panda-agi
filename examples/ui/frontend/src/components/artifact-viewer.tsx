@@ -8,6 +8,7 @@ import ArtifactActions from "./artifact-actions";
 import { X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import MarkdownEditor from "./markdown-editor";
+import DashboardEditor from "./editor/dashboard-editor";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -130,9 +131,11 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setError(null);
 
       try {
-        const fileUrl = `${fileBaseUrl}${encodeURIComponent(
-          artifact.filepath
-        )}?raw=true`;
+        // For PXML files, fetch compiled version by default (not raw)
+        const isPXMLFile = artifact.filepath.toLowerCase().endsWith('.pxml');
+        const fileUrl = `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}${
+          isPXMLFile ? '' : '?raw=true'
+        }`;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const apiHeaders: any = await getApiHeaders();
@@ -407,12 +410,15 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
     if (extension === "md" || extension === "markdown") {
       return "markdown";
-    } else if (extension === "html" || extension === "htm" || extension === "pxml") {
+    } else if (extension === "pxml") {
+      return "dashboard";
+    } else if (extension === "html" || extension === "htm") {
       return "iframe";
     } else {
       return "markdown"; // Default to markdown for other file types
     }
   };
+
 
   // Render content based on type
   const renderContent = () => {
@@ -428,6 +434,18 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             hasUnsavedChanges={hasUnsavedChanges}
             isSaving={isSaving}
             justSaved={justSaved}
+          />
+        );
+      case "dashboard":
+        return (
+          <DashboardEditor
+            content={fileContent || ""}
+            artifact={artifact}
+            onChange={(newContent) => {
+              setFileContent(newContent);
+              setHasUnsavedChanges(true);
+              setJustSaved(false);
+            }}
           />
         );
       case "iframe":

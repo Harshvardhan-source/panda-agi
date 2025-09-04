@@ -27,9 +27,6 @@ function createChartCardHTML(chartId, config) {
                 <h3 id="${chartId}_title" class="text-lg font-semibold text-gray-900 chart-title" data-chart-id="${chartId}">${chart_name}</h3>
                 <div class="flex items-center space-x-2">
                     ${topNFilterHTML}
-                    <button onclick="editChart('${chartId}')" class="text-gray-400 hover:text-gray-600 chart-edit-btn" title="Edit Chart">
-                        <i class="fas fa-edit text-sm"></i>
-                    </button>
                 </div>
             </div>
             <div class="relative flex-1 min-h-80" style="max-height: 400px; max-width: 100%; overflow: hidden;">
@@ -48,12 +45,13 @@ function createChartCardHTML(chartId, config) {
 function renderChartCard(chartId, config) {
     const container = document.getElementById(chartId + '_container');
     if (!container) {
-        console.error('Chart container not found:', chartId + '_container');
+        console.error('❌ Chart container not found:', chartId + '_container');
         return;
     }
     
     // Render the chart card HTML
-    container.innerHTML = createChartCardHTML(chartId, config);
+    const html = createChartCardHTML(chartId, config);
+    container.innerHTML = html;
     
     // Register the chart
     registerChart(chartId, config);
@@ -743,13 +741,21 @@ function updateTopNFilterVisibility(chartId, config, totalLabels) {
 
 // Chart editing functions (hooks for future implementation)
 function editChart(chartId) {
-    console.log('Edit chart:', chartId);
     const chartInfo = window.registeredCharts[chartId];
     if (!chartInfo) return;
     
-    // TODO: Implement chart editing modal/interface
-    // This is where you'll add the dynamic editing functionality
-    alert(`Chart editing will be implemented here for: ${chartInfo.config.name}`);
+    // Check if we're in an iframe and can send messages to parent
+    if (window.parent && window.parent !== window) {
+        // Send message to parent window (dashboard editor)
+        window.parent.postMessage({ 
+            type: "chart-edit", 
+            chartId: chartId,
+            config: chartInfo.config 
+        }, "*");
+    } else {
+        // Fallback for standalone usage
+        alert(`Chart editing will be implemented here for: ${chartInfo.config.name}`);
+    }
 }
 
 function updateChartProperty(chartId, property, value) {

@@ -559,8 +559,8 @@ async def serve_artifact_file(
                     if pdf_response:
                         return pdf_response
 
-                # Check if it's a pxml file
-                if file_path.lower().endswith((".pxml")):
+                # Check if it's a pxml file and raw mode is not requested
+                if file_path.lower().endswith((".pxml")) and not raw:
                     html_response = await process_artifact_pxml_to_html(
                         file_path, content_bytes, artifact_id, session, headers
                     )
