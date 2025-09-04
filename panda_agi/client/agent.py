@@ -429,6 +429,9 @@ class Agent:
                                                 "result": tool_event["data"].get(
                                                     "output_params"
                                                 ),
+                                                "arguments": tool_event["data"].get(
+                                                    "input_params"
+                                                ),
                                             }
                                         )
                                     elif tool_event.get("event_type") == "error":
@@ -783,7 +786,17 @@ class Agent:
         list_breaking_tools = self.tool_registry.list_breaking_tools()
         tool_names = [tool_call.get("function_name") for tool_call in tool_results]
 
-        return any(tool_name in list_breaking_tools for tool_name in tool_names)
+        # Check if <user_send_message completed="true"/>
+        user_send_message_completed = any(
+            tool_call.get("function_name") == "user_send_message"
+            and tool_call.get("arguments", {}).get("completed") == "true"
+            for tool_call in tool_results
+        )
+
+        return (
+            any(tool_name in list_breaking_tools for tool_name in tool_names)
+            or user_send_message_completed
+        )
 
     async def _execute_collected_tools_with_breaking_check(
         self,
