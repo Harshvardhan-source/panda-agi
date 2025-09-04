@@ -84,6 +84,29 @@ class HTMLGenerator:
         .kpi-updating {
             opacity: 0.6;
         }
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .kpi-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .chart-component {
+            height: 100%;
+            max-height: 500px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 100%;
+            overflow: hidden;
+        }
         """
 
     def _generate_header(self, metadata: Dict[str, Any]) -> str:
@@ -302,68 +325,21 @@ class HTMLGenerator:
         return row_html
 
     def _generate_kpi_component(self, kpi_config: Dict[str, Any]) -> str:
-        """Generate KPI component HTML"""
+        """Generate simple KPI container - rendering logic moved to frontend"""
         kpi_id = kpi_config["id"]
-        kpi_name = kpi_config["name"]
-        fa_icon = kpi_config["fa_icon"]
-        unit = kpi_config.get("unit", "")
-
+        
         return f"""
-        <div class="bg-white rounded-lg shadow-sm border p-6 kpi-component h-full flex flex-col justify-center" id="{kpi_id}_container">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas {fa_icon} text-blue-600 text-xl"></i>
-                    </div>
-                </div>
-                <div class="ml-4 flex-1">
-                    <h3 class="text-sm font-medium text-gray-900 mb-1">{kpi_name}</h3>
-                    <div class="flex items-baseline">
-                        <span id="{kpi_id}_value" class="text-2xl font-bold text-gray-900 kpi-value">
-                            Loading...
-                        </span>
-                        {f'<span class="ml-1 text-sm text-gray-500">{unit}</span>' if unit else ''}
-                    </div>
-                    <div id="{kpi_id}_change" class="text-xs text-gray-500 mt-1">
-                        <!-- Change indicator will be added here -->
-                    </div>
-                </div>
-            </div>
+        <div id="{kpi_id}_container" class="kpi-container h-full flex flex-col">
+            <!-- KPI content will be rendered by JavaScript -->
         </div>"""
 
     def _generate_chart_component(self, chart_config: Dict[str, Any]) -> str:
-        """Generate Chart component HTML"""
+        """Generate simple chart container - rendering logic moved to frontend"""
         chart_id = chart_config["id"]
-        chart_name = chart_config["name"]
-        chart_type = chart_config["chart_type"]
-
-        # Generate top N filter for bar and horizontal_bar charts
-        top_n_filter_html = ""
-        if chart_type in ["bar", "horizontal_bar"]:
-            top_n_filter_html = f"""
-            <div id="{chart_id}_top_n_container" class="mb-3" style="display: none;">
-                <select id="{chart_id}_top_n" class="text-sm border border-gray-300 rounded px-2 py-1 bg-white" onchange="updateChartTopN('{chart_id}')">
-                    <option value="0">All</option>
-                    <option value="5">Top 5</option>
-                    <option value="10" selected>Top 10</option>
-                </select>
-            </div>"""
-
+        
         return f"""
-        <div class="bg-white rounded-lg shadow-sm border p-6 chart-component h-full flex flex-col" id="{chart_id}_container">
-            <div class="flex justify-between items-start mb-4">
-                <h3 id="{chart_id}_title" class="text-lg font-semibold text-gray-900">{chart_name}</h3>
-                {top_n_filter_html}
-            </div>
-            <div class="relative flex-1 min-h-80">
-                <canvas id="{chart_id}_canvas" class="w-full h-full"></canvas>
-                <div id="{chart_id}_loading" class="absolute inset-0 flex items-center justify-center bg-gray-50 rounded">
-                    <div class="text-center">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                        <p class="text-sm text-gray-600">Loading chart...</p>
-                    </div>
-                </div>
-            </div>
+        <div id="{chart_id}_container" class="chart-container h-full flex flex-col">
+            <!-- Chart content will be rendered by JavaScript -->
         </div>"""
 
     def _generate_data_modal(self) -> str:

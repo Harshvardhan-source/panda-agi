@@ -35,9 +35,6 @@ class DashboardCore {
         window.registeredCharts = this.registeredCharts;
         window.filterToColumnMap = this.config.filter_to_column_mapping;
 
-        // Add Excel helper functions to global scope
-        eval(this.config.excel_helpers);
-
         // Debug helper function
         window.debugDashboard = () => {
             console.log('Dashboard Debug Info:');
@@ -74,7 +71,7 @@ class DashboardCore {
      */
     initializeComponent(component) {
         if (component.type === 'kpi') {
-            this.registerKPI(component.id, component.value_formula, component.format_type, component.unit);
+            this.registerKPI(component.id, component);
         } else if (component.type === 'chart') {
             this.registerChart(component.id, component);
         } else if (component.type === 'row') {
@@ -113,22 +110,26 @@ class DashboardCore {
     }
 
     /**
-     * Register a KPI
+     * Register and render a KPI
      */
-    registerKPI(kpiId, formula, formatType, unit) {
+    registerKPI(kpiId, config) {
+        // Render the KPI card HTML first, then register
+        window.renderKPICard(kpiId, config);
+        
+        // Store in local registry
         this.registeredKPIs[kpiId] = {
-            formula: formula,
-            formatType: formatType,
-            unit: unit
+            formula: config.value_formula,
+            formatType: config.format_type,
+            unit: config.unit
         };
-        window.registerKPI(kpiId, formula, formatType, unit);
     }
 
     /**
-     * Register a chart
+     * Register and render a chart
      */
     registerChart(chartId, config) {
-        window.registerChart(chartId, config);
+        // Render the chart card HTML first, then register
+        window.renderChartCard(chartId, config);
     }
 
     /**

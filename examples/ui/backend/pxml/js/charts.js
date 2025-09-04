@@ -1,9 +1,64 @@
 /**
  * Chart Management Module
- * Handles chart registration, updates, and Chart.js integration
+ * Handles chart registration, rendering, updates, and Chart.js integration
  */
 
+// Chart card HTML template
+function createChartCardHTML(chartId, config) {
+    const chart_name = config.name;
+    const chart_type = config.chart_type;
+    
+    // Generate top N filter for bar and horizontal_bar charts
+    let topNFilterHTML = "";
+    if (chart_type === "bar" || chart_type === "horizontal_bar") {
+        topNFilterHTML = `
+            <div id="${chartId}_top_n_container" class="mb-3" style="display: none;">
+                <select id="${chartId}_top_n" class="text-sm border border-gray-300 rounded px-2 py-1 bg-white" onchange="updateChartTopN('${chartId}')">
+                    <option value="0">All</option>
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                </select>
+            </div>`;
+    }
+    
+    return `
+        <div class="bg-white rounded-lg shadow-sm border p-6 chart-component h-full flex flex-col">
+            <div class="flex justify-between items-start mb-4">
+                <h3 id="${chartId}_title" class="text-lg font-semibold text-gray-900 chart-title" data-chart-id="${chartId}">${chart_name}</h3>
+                <div class="flex items-center space-x-2">
+                    ${topNFilterHTML}
+                    <button onclick="editChart('${chartId}')" class="text-gray-400 hover:text-gray-600 chart-edit-btn" title="Edit Chart">
+                        <i class="fas fa-edit text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="relative flex-1 min-h-80" style="max-height: 400px; max-width: 100%; overflow: hidden;">
+                <canvas id="${chartId}_canvas" class="w-full h-full" style="max-width: 100%; max-height: 100%;"></canvas>
+                <div id="${chartId}_loading" class="absolute inset-0 flex items-center justify-center bg-gray-50 rounded">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                        <p class="text-sm text-gray-600">Loading chart...</p>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
 // Chart Management Functions
+function renderChartCard(chartId, config) {
+    const container = document.getElementById(chartId + '_container');
+    if (!container) {
+        console.error('Chart container not found:', chartId + '_container');
+        return;
+    }
+    
+    // Render the chart card HTML
+    container.innerHTML = createChartCardHTML(chartId, config);
+    
+    // Register the chart
+    registerChart(chartId, config);
+}
+
 function registerChart(chartId, config) {
     window.registeredCharts[chartId] = {
         config: config,
@@ -378,6 +433,9 @@ function getChartOptions(config, labels) {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+        },
         plugins: {
             legend: {
                 position: 'top',
@@ -386,7 +444,13 @@ function getChartOptions(config, labels) {
                 display: false
             }
         },
-        scales: {}
+        scales: {},
+        onResize: function(chart, size) {
+            // Ensure chart respects container bounds
+            if (size.width > chart.canvas.parentNode.clientWidth) {
+                chart.resize(chart.canvas.parentNode.clientWidth, size.height);
+            }
+        }
     };
     
     // Configure scales for bar, line, scatter, bubble, and combo charts
@@ -676,3 +740,41 @@ function updateTopNFilterVisibility(chartId, config, totalLabels) {
     // Update the chart title to reflect the current state
     updateChartTitle(chartId, config);
 }
+
+// Chart editing functions (hooks for future implementation)
+function editChart(chartId) {
+    console.log('Edit chart:', chartId);
+    const chartInfo = window.registeredCharts[chartId];
+    if (!chartInfo) return;
+    
+    // TODO: Implement chart editing modal/interface
+    // This is where you'll add the dynamic editing functionality
+    alert(`Chart editing will be implemented here for: ${chartInfo.config.name}`);
+}
+
+function updateChartProperty(chartId, property, value) {
+    const chartInfo = window.registeredCharts[chartId];
+    if (!chartInfo) return;
+    
+    // Update chart config
+    chartInfo.config[property] = value;
+    
+    // Update UI element if needed
+    if (property === 'name') {
+        const titleElement = document.getElementById(chartId + '_title');
+        if (titleElement) {
+            titleElement.textContent = value;
+        }
+    }
+    
+    // Re-render chart with new settings
+    updateChart(chartId);
+}
+
+// Make functions globally available
+window.renderChartCard = renderChartCard;
+window.updateChart = updateChart;
+window.updateChartTopN = updateChartTopN;
+window.updateChartTitle = updateChartTitle;
+window.editChart = editChart;
+window.updateChartProperty = updateChartProperty;

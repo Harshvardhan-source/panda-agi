@@ -295,6 +295,14 @@ const ExcelHelpers = {
             }
         }
         return value == criteria;
+    },
+
+    // Array utility functions
+    arrayUnique: function(arr) {
+        if (!Array.isArray(arr)) {
+            return [];
+        }
+        return [...new Set(arr.filter(item => item !== null && item !== undefined))];
     }
 };
 
