@@ -12,6 +12,7 @@ from .files import FilesService
 from panda_agi.envs.base_env import BaseEnv
 import logging
 import traceback
+from services.pxml import PXMLService
 
 # Try to import OpenAI, but don't fail if it's not available
 try:
@@ -401,20 +402,21 @@ Suggested name:"""
             pxml_content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
             pxml_content = pxml_content_bytes.decode("utf-8")
 
-            # Use PXMLService to get CSV files
-            from services.pxml import PXMLService
+            pxml_content = await PXMLService.process_xml_content_for_csv_file_path(
+                pxml_content, env
+            )
 
             # Get CSV files using the PXMLService method
             async for (
                 csv_content_bytes,
                 csv_file_path,
             ) in PXMLService.get_csv_files_for_pxml(pxml_content, env):
-                logger.info(f"TEST DEBUG: PXML CSV file path: {csv_file_path}")
+                logger.info(f"Uploading PXML CSV file path: {csv_file_path}")
                 # Yield the CSV file content with its filepath
                 yield csv_content_bytes, csv_file_path
 
             # Also yield the PXML file itself
-            yield pxml_content_bytes, filepath
+            yield pxml_content.encode("utf-8"), filepath
 
         except Exception as e:
             logger.error(f"Error getting files for PXML {filepath}: {e}")
