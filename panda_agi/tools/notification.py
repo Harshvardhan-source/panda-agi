@@ -52,16 +52,12 @@ class ErrorHandler(ToolHandler):
 
 
 @ToolRegistry.register(
-    "completed_task",
-    xml_tag="completed_task",
-    required_params=["success"],
-    attribute_mappings={
-        "success": "success",
-    },
+    "set_idle",
+    xml_tag="set_idle",
     is_breaking=True,  # This tool should break execution as it indicates completion
 )
-class CompletedTaskHandler(ToolHandler):
-    """Handler for completed task messages"""
+class SetIdleHandler(ToolHandler):
+    """Handler for set idle messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         return ToolResult(success=True, data={})
