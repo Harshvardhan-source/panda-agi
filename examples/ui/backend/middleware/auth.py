@@ -139,7 +139,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not api_key and auth_token:
             try:
                 api_key = await get_api_key(auth_token)
-                if not api_key:
+                if not api_key and not is_artifact_route:
                     return JSONResponse(
                         status_code=401,
                         content={
@@ -147,6 +147,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                             "detail": "Invalid Authorization token",
                         },
                     )
+
             except HTTPException as e:
                 return JSONResponse(
                     status_code=e.status_code,
