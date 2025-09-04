@@ -789,7 +789,7 @@ class Agent:
         # Check if <user_send_message completed="true"/>
         user_send_message_completed = any(
             tool_call.get("function_name") == "user_send_message"
-            and tool_call.get("arguments").get("completed") == "true"
+            and tool_call.get("arguments", {}).get("completed") == "true"
             for tool_call in tool_results
         )
 
