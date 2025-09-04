@@ -28,6 +28,7 @@ import rehypeStringify from "rehype-stringify"
 // HTML → Markdown
 import rehypeParse from "rehype-parse"
 import rehypeRemark from "rehype-remark"
+import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify"
 
 // Markdown → HTML with empty line preservation
@@ -43,6 +44,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
   
   const file = await unified()
     .use(remarkParse)
+    .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(processedMarkdown);
@@ -67,6 +69,7 @@ export async function htmlToMarkdown(html: string): Promise<string> {
   const file = await unified()
     .use(rehypeParse, { fragment: true })
     .use(rehypeRemark)
+    .use(remarkGfm)
     .use(remarkStringify)
     .process(processedHtml);
   
