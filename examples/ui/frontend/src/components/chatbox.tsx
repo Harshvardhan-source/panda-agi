@@ -256,7 +256,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
         // Show error message for non-CSV files
         if (nonCsvFiles.length > 0) {
-          toast.error(`Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}. You can upload only CSV files.`);
+          toast.error(`Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}: only CSV files are allowed.`);
           
           // If no CSV files, return early
           if (csvFiles.length === 0) {
