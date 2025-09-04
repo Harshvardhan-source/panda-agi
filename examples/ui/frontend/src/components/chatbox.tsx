@@ -245,12 +245,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         }
 
         // Filter files to only allow CSV files
-        const csvFiles = files.filter(file => 
+        const csvFiles = files.filter((file) =>
           file.name.toLowerCase().endsWith(".csv")
         );
-        
-        const nonCsvFiles = files.filter(file => 
-          !file.name.toLowerCase().endsWith(".csv")
+
+        const nonCsvFiles = files.filter(
+          (file) => !file.name.toLowerCase().endsWith(".csv")
         );
 
         // Show error message for non-CSV files
@@ -258,11 +258,13 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           const errorMessage: Message = {
             id: Date.now(),
             type: "error",
-            content: `Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}. You can upload only CSV files.`,
+            content: `Unsupported file${
+              nonCsvFiles.length > 1 ? "s" : ""
+            }. You can upload only CSV files.`,
             timestamp: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, errorMessage]);
-          
+
           // If no CSV files, return early
           if (csvFiles.length === 0) {
             return;
@@ -902,7 +904,9 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         {/* Messages - full height with top padding for header */}
         <div
           ref={dropZoneRef}
-          className={`absolute inset-0 ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'} scrollbar-hide ${
+          className={`absolute inset-0 ${
+            messages.length === 0 ? "overflow-hidden" : "overflow-y-auto"
+          } scrollbar-hide ${
             isDragging
               ? "bg-blue-50/50 border-2 border-dashed border-blue-300 rounded-lg"
               : ""
@@ -1044,7 +1048,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               ) : null;
             })()}
 
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-20 sm:h-32" />
           </div>
         </div>
 

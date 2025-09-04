@@ -43,7 +43,7 @@ const WebSearchResultEvent: React.FC<WebSearchResultEventProps> = ({ payload }) 
                 >
                   {result.title}
                 </a>
-                <p className="text-xs text-green-700 font-mono">{result.url}</p>
+                <p className="text-xs text-green-700 font-mono truncate">{result.url}</p>
               </div>
             ))}
             {payload.results.length > 5 && (
