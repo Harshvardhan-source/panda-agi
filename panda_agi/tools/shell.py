@@ -1,4 +1,5 @@
 import logging
+import re
 import shlex
 import uuid
 from typing import Any, Dict, Optional
@@ -145,10 +146,51 @@ class ExecuteScriptHandler(ToolHandler):
             return f"Missing required parameters: {', '.join(missing)}"
 
         # Validate supported languages
-        supported_languages = ["python", "bash", "javascript", "powershell"]
+        supported_languages = ["python"]
         language = params.get("language")
         if language not in supported_languages:
             return f"Unsupported language: {language}. Supported languages: {', '.join(supported_languages)}"
+
+        # Validate libraries used in code
+        allowed_libraries = [
+            # analysis
+            "pandas",
+            "numpy",
+            "scikit-learn",
+            "scipy",
+            "statsmodels",
+            # utils and python standard libraries
+            "datetime",
+            "os",
+            "sys",
+            "json",
+            "csv",
+            "io",
+            "time",
+            "random",
+            "math",
+        ]
+
+        # Search for import statements (import <lib_name> or from <lib_name> import <any>)
+        import_statements = re.findall(
+            r"import (\w+)|from (\w+) import (\w+|\*)", params["code"]
+        )
+        import_statements = [lib for _, lib, _ in import_statements]
+
+        # Custom errors for disallowed libraries
+        graph_libraries = [
+            "matplotlib",
+            "seaborn",
+            "plotly",
+        ]
+
+        if any(lib in import_statements for lib in graph_libraries):
+            return f"Disallowed library used: {', '.join(graph_libraries)}. Use pxml language to create visualizations."
+
+        # Check if any disallowed libraries are used
+        for lib in import_statements:
+            if lib not in allowed_libraries:
+                return f"Disallowed library used: {lib}. Allowed libraries: {', '.join(allowed_libraries)}"
 
         return None
 

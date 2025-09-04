@@ -8,11 +8,12 @@ from .registry import ToolRegistry
     "user_send_message",
     xml_tag="user_send_message",
     required_params=["text"],
-    optional_params=["attachments"],
+    optional_params=["attachments", "completed"],
     content_param="text",
     attribute_mappings={
         "text": "text",
         "attachments": "attachments",
+        "completed": "completed",
     },
     is_breaking=False,
 )
