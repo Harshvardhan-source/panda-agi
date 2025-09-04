@@ -246,12 +246,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         }
 
         // Filter files to only allow CSV files
-        const csvFiles = files.filter(file => 
+        const csvFiles = files.filter((file) =>
           file.name.toLowerCase().endsWith(".csv")
         );
-        
-        const nonCsvFiles = files.filter(file => 
-          !file.name.toLowerCase().endsWith(".csv")
+
+        const nonCsvFiles = files.filter(
+          (file) => !file.name.toLowerCase().endsWith(".csv")
         );
 
         // Show error message for non-CSV files
@@ -897,7 +897,9 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         {/* Messages - full height with top padding for header */}
         <div
           ref={dropZoneRef}
-          className={`absolute inset-0 overflow-y-auto scrollbar-hide ${
+          className={`absolute inset-0 ${
+            messages.length === 0 ? "overflow-hidden" : "overflow-y-auto"
+          } scrollbar-hide ${
             isDragging
               ? "bg-blue-50/50 border-2 border-dashed border-blue-300 rounded-lg"
               : ""
@@ -923,9 +925,9 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               </div>
             </div>
           )}
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-4 h-full">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center min-h-[65vh] px-4">
+              <div className="flex flex-col items-center justify-center h-full px-4">
                 {/* Clean Welcome */}
                 <div className="text-center mb-16">
                   <h3 className="text-5xl font-bold text-slate-900 mb-4 tracking-tight">
@@ -1039,19 +1041,19 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               ) : null;
             })()}
 
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-20 sm:h-32" />
           </div>
         </div>
 
         {/* Input - positioned absolutely at bottom */}
         <div
-          className="absolute bottom-0 left-0 right-0 p-8"
+          className="absolute bottom-0 left-0 right-0 sm:p-8 p-3"
           style={{
             width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
           }}
         >
           <div className="max-w-3xl mx-auto">
-            <div className="bg-white/98 backdrop-blur-3xl border border-slate-200/40 rounded-[2rem] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.08)] ring-1 ring-slate-900/2 relative overflow-hidden transition-all duration-500 hover:shadow-[0_25px_50px_rgba(0,0,0,0.12)]">
+            <div className="bg-white/98 backdrop-blur-3xl border border-slate-200/40 rounded-[2rem] sm:p-5 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.08)] ring-1 ring-slate-900/2 relative overflow-hidden transition-all duration-500 hover:shadow-[0_25px_50px_rgba(0,0,0,0.12)]">
               {/* Subtle activity indicator */}
               {(isLoading || uploadingFiles) && (
                 <div className="absolute top-0 left-0 right-0 h-0.5">
@@ -1269,7 +1271,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                 </div>
               )}
 
-              <div className="flex items-center space-x-5">
+              <div className="flex items-center sm:space-x-5 space-x-2">
                 {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
@@ -1284,7 +1286,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                 <button
                   onClick={handleFileUpload}
                   disabled={uploadingFiles || isInitialLoading}
-                  className="p-3.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 rounded-2xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
+                  className="sm:p-3.5 p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 rounded-2xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
                   title={uploadingFiles ? "Uploading..." : "Upload CSV files"}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
@@ -1317,7 +1319,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                         : uploadingFilesPreviews.some(
                             (f) => f.status === "uploading"
                           )
-                        ? "Please wait for files to finish uploading"
+                        ? "Uploading files..."
                         : "How can I help you?"
                     }
                     className={`w-full bg-transparent text-slate-900 placeholder-slate-500/70 resize-none border-none outline-none text-base leading-relaxed font-medium py-1 selection:bg-blue-100/50 transition-colors duration-200 ${
@@ -1339,7 +1341,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                     autoComplete="off"
                   />
                   {/* Optional: Show character count if desired */}
-                  <div className="absolute bottom-1 right-2 text-xs text-slate-400 select-none pointer-events-none">
+                  <div className="absolute bottom-1 right-2 text-xs text-slate-400 select-none pointer-events-none hidden sm:block">
                     {inputValue.length > 0 && `${inputValue.length} chars`}
                   </div>
                 </div>

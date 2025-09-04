@@ -216,7 +216,7 @@ export default function CreationsPage() {
       <>
         <Header
           title="My Creations"
-          subtitle="View and manage your saved creations"
+          subtitle="Edit and share your creations"
           variant="page"
         />
         <div className="pt-32 px-6">

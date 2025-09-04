@@ -4,12 +4,19 @@ import { Toaster } from "react-hot-toast";
 import LogoutModal from "@/components/logout-modal";
 import { useLogout } from "@/hooks/useLogout";
 import { GlobalModalsProvider } from "@/contexts/global-modals-context";
+import { useEffect } from "react";
+import { initializePostHog } from "@/lib/api/posthog";
+
+
 
 function ClientLayoutContent({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    initializePostHog();
+  }, []);
   const { showLogoutModal, handleLogoutCancel, handleLogoutConfirm } = useLogout();
 
   return (

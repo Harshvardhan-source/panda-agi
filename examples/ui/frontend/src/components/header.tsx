@@ -1,6 +1,6 @@
 "use client";
 import React, { forwardRef, useImperativeHandle } from "react";
-import { Plus, Coins } from "lucide-react";
+import { Plus, Coins, Edit3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/user-menu";
 import Avatar from "@/components/ui/avatar";
@@ -194,22 +194,22 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 <span className="text-xl select-none">🐼</span>
               </Avatar>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
                   {title || "Annie"}
                 </h1>
-                <p className="text-xs text-slate-600 font-medium">
+                <p className="hidden sm:block text-xs text-slate-600 font-medium">
                   {subtitle || (isConnected ? "Thinking..." : "Ready to help")}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Credits Display */}
+              {/* Credits Display - Hidden on mobile, shown on desktop */}
               {PLATFORM_MODE && isAuthenticated && userCredits && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-md transition-all duration-300 cursor-pointer ${
+                      className={`hidden sm:flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-md transition-all duration-300 cursor-pointer ${
                         creditsError
                           ? "bg-destructive/10 hover:bg-destructive/20"
                           : creditsLoading
@@ -256,10 +256,11 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 <Button
                   onClick={handleNewConversation}
                   variant="default"
-                  size="action"
+                  className="px-2 py-1.5 sm:px-5 sm:py-2.5 h-8 sm:h-auto text-sm rounded-lg"
                 >
-                  <Plus className="w-4 h-4" />
-                  New Chat
+                  <Edit3 className="w-4 h-4 sm:hidden" />
+                  <Plus className="hidden sm:inline w-4 h-4" />
+                  <span className="hidden sm:inline">New Chat</span>
                 </Button>
               )}
 
@@ -267,6 +268,9 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 onUpgradeClick={handleUpgradeClick}
                 onShowLogin={handleShowLogin}
                 onShowLogout={handleLogout}
+                userCredits={userCredits}
+                creditsLoading={creditsLoading}
+                creditsError={creditsError}
               />
             </div>
           </div>

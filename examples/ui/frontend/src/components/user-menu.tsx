@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LogOut, Crown, Menu, CreditCard, LogIn, Sparkles } from "lucide-react";
+import { LogOut, Crown, Menu, CreditCard, LogIn, Sparkles, Coins } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   DropdownMenu,
@@ -18,12 +18,18 @@ interface UserMenuProps {
   onUpgradeClick: () => void;
   onShowLogin?: () => void;
   onShowLogout?: () => void;
+  userCredits?: any;
+  creditsLoading?: boolean;
+  creditsError?: string | null;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({
   onUpgradeClick,
   onShowLogin,
   onShowLogout,
+  userCredits,
+  creditsLoading,
+  creditsError,
 }) => {
   const [hasInvoices, setHasInvoices] = useState(false);
   const { isAuthenticated } = useAuth();
@@ -85,27 +91,53 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <Menu className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent 
+        align="end" 
+        className="w-[calc(100vw-1rem)] sm:w-52 mx-2 sm:mx-0 border-0 shadow-xl bg-white rounded-xl p-1"
+        sideOffset={8}
+      >
         {!isAuthenticated && isAuthRequired() ? (
           // Show only login option when not authenticated
-          <DropdownMenuItem onClick={onShowLogin}>
-            <LogIn className="w-4 h-4 mr-2" />
-            <span>Login</span>
+          <DropdownMenuItem 
+            onClick={onShowLogin}
+            className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <LogIn className="w-4 h-4 text-slate-600" />
+            <span className="font-medium text-slate-900">Login</span>
           </DropdownMenuItem>
         ) : (
           <>
+            {/* Credits Display - Only show on mobile when authenticated and credits available */}
+            {PLATFORM_MODE && isAuthenticated && userCredits && (
+              <div className="sm:hidden">
+                <div className="flex items-center justify-between py-2.5 px-3 bg-slate-50 rounded-lg mb-1">
+                  <div className="flex items-center gap-2.5">
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm text-slate-600">Credits</span>
+                  </div>
+                  <span className="font-semibold text-slate-900">
+                    {creditsLoading ? "..." : userCredits.credits_left}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Creations link - show as first option */}
             <DropdownMenuItem
               onClick={() => (window.location.href = "/creations")}
+              className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              <span>My creations</span>
+              <Sparkles className="w-4 h-4 text-slate-600" />
+              <span className="font-medium text-slate-900">My creations</span>
             </DropdownMenuItem>
 
             {/* Manage Plan option - show when authenticated or auth not required */}
-            <DropdownMenuItem onClick={handleUpgradeClick}>
-              <Crown className="w-4 h-4 mr-2" />
-              <span>Manage Plan</span>
+            <DropdownMenuItem 
+              onClick={handleUpgradeClick}
+              className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <Crown className="w-4 h-4 text-slate-600" />
+              <span className="font-medium text-slate-900">Manage Plan</span>
             </DropdownMenuItem>
 
             {/* Platform mode specific options */}
@@ -113,21 +145,25 @@ const UserMenu: React.FC<UserMenuProps> = ({
               <>
                 {/* Invoices and Billing - only show if user has subscription */}
                 {hasInvoices && (
-                  <DropdownMenuItem onClick={handleInvoicesClick}>
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    <span>Invoices & Billing</span>
+                  <DropdownMenuItem 
+                    onClick={handleInvoicesClick}
+                    className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-600" />
+                    <span className="font-medium text-slate-900">Invoices & Billing</span>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-1" />
                 <DropdownMenuItem
                   onClick={() => {
                     if (onShowLogout) {
                       onShowLogout();
                     }
                   }}
+                  className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  <span>Logout</span>
+                  <LogOut className="w-4 h-4 text-slate-600" />
+                  <span className="font-medium text-slate-900">Logout</span>
                 </DropdownMenuItem>
               </>
             )}
