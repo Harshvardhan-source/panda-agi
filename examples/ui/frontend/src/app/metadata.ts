@@ -47,7 +47,7 @@ export function generateMetadata(pageKey: string): Metadata {
     };
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://annie.ai';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const fullUrl = `${baseUrl}${page.path}`;
 
   return {
