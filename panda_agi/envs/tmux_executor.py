@@ -3,6 +3,7 @@ Tmux-based command structuring and session management.
 """
 
 import logging
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -457,7 +458,8 @@ set-option -g detach-on-destroy off
             if end_line_idx + 1 < len(lines):
                 exit_code_line = lines[end_line_idx + 1]
                 if "FINAL_EXIT_CODE:" in exit_code_line:
-                    exit_code = exit_code_line.split("FINAL_EXIT_CODE:")[-1].strip()
+                    match = re.search(r'FINAL_EXIT_CODE:([^"]*)', exit_code_line)
+                    exit_code = match.group(1) if match else None
                 else:
                     exit_code = None
             else:

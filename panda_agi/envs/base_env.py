@@ -62,7 +62,13 @@ class BaseEnv(ABC):
             timeout: Optional timeout in seconds (max timeout when running commands)
         """
         self.base_path = Path(base_path).resolve()
-        self.working_directory = self.base_path
+        # Remove leading dot if present
+        working_dir = str(base_path)
+        if working_dir.startswith("./"):
+            working_dir = working_dir[1:]
+        elif working_dir == ".":
+            working_dir = ""
+        self.working_directory = working_dir
         self.metadata = metadata
         self.timeout = timeout
 
@@ -95,8 +101,8 @@ class BaseEnv(ABC):
         if not new_path.exists():
             new_path.mkdir(parents=True, exist_ok=True)
 
-        self.working_directory = new_path
-        return self.working_directory
+        self.base_path = new_path
+        return self.base_path
 
     def _resolve_path(self, path: Union[str, Path]) -> Path:
         """
@@ -119,7 +125,7 @@ class BaseEnv(ABC):
                 relative_path = str(path).lstrip("/")
                 return self.base_path / relative_path
         else:
-            return self.working_directory / path
+            return self.base_path / path
 
     @abstractmethod
     async def _run_command(self, command: str, timeout: int = 30) -> ExecutionResult:
@@ -196,7 +202,6 @@ class BaseEnv(ABC):
         if session_id is None:
             session_id = self.tmux_executor.generate_session_id()
 
-        original_dir = self.current_directory
         if exec_dir is None:
             exec_dir = self.working_directory
 
@@ -289,8 +294,6 @@ class BaseEnv(ABC):
                     f"cleaning up session {session_id} after command completion"
                 )
                 await self.kill_background_process(session_id)
-
-            await self.change_directory(original_dir)
 
             if parse_result.exit_code == "0":
                 status = "success"

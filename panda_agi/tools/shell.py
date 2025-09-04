@@ -156,7 +156,7 @@ class ExecuteScriptHandler(ToolHandler):
             # analysis
             "pandas",
             "numpy",
-            "scikit-learn",
+            "sklearn",
             "scipy",
             "statsmodels",
             # utils and python standard libraries
@@ -173,9 +173,12 @@ class ExecuteScriptHandler(ToolHandler):
 
         # Search for import statements (import <lib_name> or from <lib_name> import <any>)
         import_statements = re.findall(
-            r"import (\w+)|from (\w+) import (\w+|\*)", params["code"]
+            r"(?:from (\w+)(?:\.\w+)* import|import (\w+))", params["code"]
         )
-        import_statements = [lib for _, lib, _ in import_statements]
+
+        import_statements = list(
+            set([lib for group in import_statements for lib in group if lib])
+        )
 
         # Custom errors for disallowed libraries
         graph_libraries = [
@@ -225,12 +228,14 @@ class ExecuteScriptHandler(ToolHandler):
             "powershell": "powershell -File",
         }
 
-        execution_id = f"script_{uuid.uuid4().hex[:8]}"
+        execution_id = f"{uuid.uuid4().hex[:8]}"
         temp_filename = f"temp_script_{execution_id}{extensions[language]}"
 
         try:
             # Write code to temporary file
-            write_result = await self.environment.write_file(temp_filename, code)
+            write_result = await self.environment.write_file(
+                path=temp_filename, content=code, mode="w"
+            )
             if write_result.get("status") != "success":
                 return ToolResult(
                     success=False,
@@ -245,6 +250,7 @@ class ExecuteScriptHandler(ToolHandler):
                 command=command,
                 session_id=execution_id,
                 blocking=True,
+                exec_dir=self.environment.working_directory,
             )
 
             return result.to_tool_result()
