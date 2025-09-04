@@ -72,6 +72,7 @@ class FileWriteHandler(ToolHandler):
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         # await self.add_event(EventType.FILE_WRITE, params)
+        params["append"] = params.get("append", "false") == "true"  # Convert to boolean
         result = await file_write(self.environment, **params)
         await self.add_event(EventType.FILE_WRITE, params)
 
