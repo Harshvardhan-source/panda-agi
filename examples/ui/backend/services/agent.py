@@ -50,7 +50,7 @@ async def get_or_create_agent(
     if api_key is not None:
         agent_kwargs["api_key"] = api_key
 
-    agent = Agent(**agent_kwargs, base_url="http://localhost:8000")
+    agent = Agent(**agent_kwargs)
 
     return agent, new_conversation_id
 
