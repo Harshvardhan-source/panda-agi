@@ -30,6 +30,8 @@ class FilesService:
         """
         Read the content of a file.
         """
+
+        file_path = os.path.normpath(file_path)
         # Check if the file exists in the environment
         path_exists = await env.path_exists(file_path)
         if path_exists:
@@ -76,7 +78,7 @@ class FilesService:
                 env, file_path, str(base)
             )
             if not file_path:
-                raise FileNotFoundError("File not found")
+                raise FileNotFoundError(f"File not found {file_path}")
 
             # Read file as binary to preserve any type
             read_res = await env.read_file(file_path, mode="rb")

@@ -399,6 +399,7 @@ Suggested name:"""
         """
         try:
             # Get the PXML file content
+            filepath = await FilesService.validate_and_correct_file_path(env, filepath)
             pxml_content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
             pxml_content = pxml_content_bytes.decode("utf-8")
 
