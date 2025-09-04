@@ -11,19 +11,24 @@ from .formula_evaluator import FormulaEvaluator
 
 class HTMLGenerator:
     """Generates HTML structure for dashboard components"""
-    
+
     def __init__(self):
         self.formula_evaluator = FormulaEvaluator()
-    
-    def generate_dashboard_html(self, dashboard_data: Dict[str, Any], csv_data_json: str, column_mapping: Dict[str, str] = None) -> str:
+
+    def generate_dashboard_html(
+        self,
+        dashboard_data: Dict[str, Any],
+        csv_data_json: str,
+        column_mapping: Dict[str, str] = None,
+    ) -> str:
         """Generate complete dashboard HTML"""
-        metadata = dashboard_data['metadata']
-        filters = dashboard_data['filters']
-        
+        metadata = dashboard_data["metadata"]
+        filters = dashboard_data["filters"]
+
         # Use provided column mapping or extract from CSV data
         if column_mapping is None:
             column_mapping = self._extract_column_mapping_from_csv_data(csv_data_json)
-        
+
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -71,7 +76,7 @@ class HTMLGenerator:
 </body>
 </html>"""
         return html
-    
+
     def _generate_header(self, metadata: DashboardMetadata) -> str:
         """Generate dashboard header"""
         return f"""
@@ -87,17 +92,105 @@ class HTMLGenerator:
                     </div>
                     <div class="flex items-center space-x-2 text-sm text-gray-500">
                         <i class="fas fa-database"></i>
-                        <span>Data: {metadata.file_path}</span>
+                        <span class="cursor-pointer hover:text-blue-600 hover:underline" onclick="openDataModal()">Data: {metadata.file_path}</span>
                     </div>
                 </div>
             </div>
-        </header>"""
-    
-    def _generate_filters_section(self, filters: List[FilterSpec], column_mapping: Dict[str, str]) -> str:
+        </header>
+        {self._generate_data_modal()}"""
+
+    def _generate_data_modal(self) -> str:
+        """Generate data modal HTML"""
+        return """
+        <!-- Data Modal -->
+        <div id="dataModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between pb-4 border-b">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-database text-2xl text-blue-600"></i>
+                            <div>
+                                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Data File</h3>
+                                <p class="text-sm text-gray-600">Complete dataset used in this dashboard</p>
+                            </div>
+                        </div>
+                        <button onclick="closeDataModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Modal Content -->
+                    <div class="mt-4">
+                        <!-- Data Controls -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="text-sm text-gray-600">
+                                    <span id="dataRowCount">0</span> rows, <span id="dataColumnCount">0</span> columns
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" id="dataSearch" placeholder="Search data..." 
+                                           class="px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           onkeyup="filterDataTable()">
+                                    <button onclick="exportData()" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                        <i class="fas fa-download mr-1"></i>Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <label class="text-sm text-gray-600">Rows per page:</label>
+                                <select id="rowsPerPage" class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateRowsPerPage()">
+                                    <option value="10">10</option>
+                                    <option value="25" selected>25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Table Container -->
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="overflow-x-auto max-h-96">
+                                <table id="dataTable" class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr id="dataTableHeader">
+                                            <!-- Headers will be populated by JavaScript -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                                        <!-- Data rows will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="flex items-center justify-between mt-4">
+                            <div class="text-sm text-gray-600">
+                                Showing <span id="showingStart">0</span> to <span id="showingEnd">0</span> of <span id="totalRows">0</span> entries
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <span id="pageInfo" class="px-3 py-1 text-sm text-gray-600">Page 1 of 1</span>
+                                <button id="nextPage" onclick="changePage(1)" class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>"""
+
+    def _generate_filters_section(
+        self, filters: List[FilterSpec], column_mapping: Dict[str, str]
+    ) -> str:
         """Generate filters section"""
         if not filters:
             return ""
-        
+
         filters_html = """
         <section class="bg-white shadow-sm border-b">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -111,34 +204,44 @@ class HTMLGenerator:
                     </button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">"""
-        
+
         for filter_spec in filters:
             filters_html += self._generate_filter_component(filter_spec, column_mapping)
-        
+
         filters_html += """
                 </div>
             </div>
         </section>"""
-        
+
         return filters_html
-    
-    def _generate_filter_component(self, filter_spec: FilterSpec, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_filter_component(
+        self, filter_spec: FilterSpec, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate individual filter component"""
         filter_id = f"filter_{filter_spec.name.lower().replace(' ', '_')}"
-        
+
         if filter_spec.type == "list":
             return self._generate_list_filter(filter_spec, filter_id, column_mapping)
         elif filter_spec.type == "number_range":
-            return self._generate_number_range_filter(filter_spec, filter_id, column_mapping)
+            return self._generate_number_range_filter(
+                filter_spec, filter_id, column_mapping
+            )
         elif filter_spec.type == "date_range":
-            return self._generate_date_range_filter(filter_spec, filter_id, column_mapping)
+            return self._generate_date_range_filter(
+                filter_spec, filter_id, column_mapping
+            )
         else:
             return self._generate_list_filter(filter_spec, filter_id, column_mapping)
-    
-    def _generate_list_filter(self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_list_filter(
+        self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate list/dropdown filter"""
-        js_formula = self.formula_evaluator.get_filter_values_js(filter_spec.values_formula, column_mapping)
-        
+        js_formula = self.formula_evaluator.get_filter_values_js(
+            filter_spec.values_formula, column_mapping
+        )
+
         return f"""
         <div class="filter-component">
             <label class="block text-sm font-medium text-gray-700 mb-2">{filter_spec.name}</label>
@@ -184,11 +287,15 @@ class HTMLGenerator:
                 }}
             }});
         </script>"""
-    
-    def _generate_number_range_filter(self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_number_range_filter(
+        self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate number range filter"""
-        js_formula = self.formula_evaluator.get_filter_values_js(filter_spec.values_formula, column_mapping)
-        
+        js_formula = self.formula_evaluator.get_filter_values_js(
+            filter_spec.values_formula, column_mapping
+        )
+
         return f"""
         <div class="filter-component">
             <label class="block text-sm font-medium text-gray-700 mb-2">{filter_spec.name}</label>
@@ -228,11 +335,15 @@ class HTMLGenerator:
                 }}
             }});
         </script>"""
-    
-    def _generate_date_range_filter(self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_date_range_filter(
+        self, filter_spec: FilterSpec, filter_id: str, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate date range filter"""
-        js_formula = self.formula_evaluator.get_filter_values_js(filter_spec.values_formula, column_mapping)
-        
+        js_formula = self.formula_evaluator.get_filter_values_js(
+            filter_spec.values_formula, column_mapping
+        )
+
         return f"""
         <div class="filter-component">
             <label class="block text-sm font-medium text-gray-700 mb-2">{filter_spec.name}</label>
@@ -267,55 +378,69 @@ class HTMLGenerator:
                 }}
             }});
         </script>"""
-    
-    def _generate_content_section(self, dashboard_data: Dict[str, Any], column_mapping: Dict[str, str]) -> str:
+
+    def _generate_content_section(
+        self, dashboard_data: Dict[str, Any], column_mapping: Dict[str, str]
+    ) -> str:
         """Generate main dashboard content including KPIs"""
-        grid_data = dashboard_data.get('grid', {})
-        
+        grid_data = dashboard_data.get("grid", {})
+
         content_html = """
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">"""
-        
+
         # Generate grid rows
-        for row_data in grid_data.get('rows', []):
+        for row_data in grid_data.get("rows", []):
             content_html += self._generate_grid_row(row_data, column_mapping)
-        
+
         content_html += """
         </main>"""
-        
+
         return content_html
-    
-    def _generate_grid_row(self, row_data: Dict[str, Any], column_mapping: Dict[str, str]) -> str:
+
+    def _generate_grid_row(
+        self, row_data: Dict[str, Any], column_mapping: Dict[str, str]
+    ) -> str:
         """Generate a grid row with columns"""
-        columns = row_data.get('columns', [])
-        
+        columns = row_data.get("columns", [])
+
         # Calculate total size for proportional widths
-        total_size = sum(int(col.get('size', '1')) for col in columns)
-        
+        total_size = sum(int(col.get("size", "1")) for col in columns)
+
         # Generate unique row ID for CSS targeting
         import uuid
+
         row_id = f"row_{uuid.uuid4().hex[:8]}"
-        
+
         row_html = f"""
             <div class="flex flex-col md:flex-row gap-6 mb-6 md:items-stretch" id="{row_id}">"""
-        
+
         for i, column_data in enumerate(columns):
-            row_html += self._generate_grid_column(column_data, column_mapping, total_size, row_id, i)
-        
+            row_html += self._generate_grid_column(
+                column_data, column_mapping, total_size, row_id, i
+            )
+
         row_html += """
             </div>"""
-        
+
         return row_html
-    
-    def _generate_grid_column(self, column_data: Dict[str, Any], column_mapping: Dict[str, str], total_size: int, row_id: str, col_index: int) -> str:
+
+    def _generate_grid_column(
+        self,
+        column_data: Dict[str, Any],
+        column_mapping: Dict[str, str],
+        total_size: int,
+        row_id: str,
+        col_index: int,
+    ) -> str:
         """Generate a grid column with its content"""
-        size = int(column_data.get('size', '1'))
-        
+        size = int(column_data.get("size", "1"))
+
         # Calculate proportional flex grow value instead of fixed width
         flex_grow = size
-        
+
         # Create unique column identifier
         col_id = f"{row_id}_col_{col_index}"
-        
+
         # Use flex-grow for proportional sizing that works with gaps
         column_html = f"""
             <div class="w-full md:w-auto" id="{col_id}">
@@ -325,26 +450,34 @@ class HTMLGenerator:
                     }}
                 </style>
                 <div class="h-full flex flex-col">"""
-        
+
         # Generate content for this column
-        for content_item in column_data.get('content', []):
-            if content_item['type'] == 'kpi':
-                column_html += self._generate_kpi_component(content_item['spec'], column_mapping)
-            elif content_item['type'] == 'chart':
-                column_html += self._generate_chart_component(content_item['spec'], column_mapping)
+        for content_item in column_data.get("content", []):
+            if content_item["type"] == "kpi":
+                column_html += self._generate_kpi_component(
+                    content_item["spec"], column_mapping
+                )
+            elif content_item["type"] == "chart":
+                column_html += self._generate_chart_component(
+                    content_item["spec"], column_mapping
+                )
             # Other content types can be added here later
-        
+
         column_html += """
                 </div>
             </div>"""
-        
+
         return column_html
-    
-    def _generate_kpi_component(self, kpi_spec: KPISpec, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_kpi_component(
+        self, kpi_spec: KPISpec, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate KPI component HTML"""
         kpi_id = f"kpi_{kpi_spec.name.lower().replace(' ', '_').replace('(', '').replace(')', '')}"
-        js_formula = self.formula_evaluator.convert_formula_to_js(kpi_spec.value_formula, column_mapping)
-        
+        js_formula = self.formula_evaluator.convert_formula_to_js(
+            kpi_spec.value_formula, column_mapping
+        )
+
         return f"""
         <div class="bg-white rounded-lg shadow-sm border p-6 kpi-component h-full flex flex-col justify-center" id="{kpi_id}_container">
             <div class="flex items-center">
@@ -374,15 +507,17 @@ class HTMLGenerator:
                 updateKPI('{kpi_id}');
             }});
         </script>"""
-    
-    def _generate_chart_component(self, chart_spec: ChartSpec, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_chart_component(
+        self, chart_spec: ChartSpec, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate Chart component HTML"""
         chart_id = f"chart_{chart_spec.name.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('-', '_')}"
-        
+
         # Generate top N filter for bar and horizontal_bar charts (will be shown/hidden dynamically)
         top_n_filter_html = ""
         chart_title = chart_spec.name
-        if chart_spec.chart_type in ['bar', 'horizontal_bar']:
+        if chart_spec.chart_type in ["bar", "horizontal_bar"]:
             top_n_filter_html = f"""
             <div id="{chart_id}_top_n_container" class="mb-3" style="display: none;">
                 <select id="{chart_id}_top_n" class="text-sm border border-gray-300 rounded px-2 py-1 bg-white" onchange="updateChartTopN('{chart_id}')">
@@ -391,7 +526,7 @@ class HTMLGenerator:
                     <option value="10" selected>Top 10</option>
                 </select>
             </div>"""
-        
+
         return f"""
         <div class="bg-white rounded-lg shadow-sm border p-6 chart-component h-full flex flex-col" id="{chart_id}_container">
             <div class="flex justify-between items-start mb-4">
@@ -433,8 +568,10 @@ class HTMLGenerator:
                 updateChart('{chart_id}');
             }});
         </script>"""
-    
-    def _generate_chart_series_config(self, series_list, column_mapping: Dict[str, str]) -> str:
+
+    def _generate_chart_series_config(
+        self, series_list, column_mapping: Dict[str, str]
+    ) -> str:
         """Generate JavaScript config for chart series"""
         series_configs = []
         for series in series_list:
@@ -448,52 +585,54 @@ class HTMLGenerator:
                 axis: '{series.axis}'
             }}"""
             series_configs.append(config)
-        return ',\n                        '.join(series_configs)
-    
-    def _generate_filter_to_column_mapping(self, filters: List[FilterSpec], column_mapping: Dict[str, str]) -> str:
+        return ",\n                        ".join(series_configs)
+
+    def _generate_filter_to_column_mapping(
+        self, filters: List[FilterSpec], column_mapping: Dict[str, str]
+    ) -> str:
         """Generate JavaScript object mapping filter names to actual column names and transformation functions"""
         import json
-        
+
         mapping = {}
         reverse_column_mapping = {v: k for k, v in column_mapping.items()}
-        
+
         for filter_spec in filters:
             filter_name = filter_spec.name
             # Try to determine the column name from the filter's values formula
             formula = filter_spec.values_formula
-            
+
             # Handle computed filters with functions like YEAR(C2:C)
             import re
-            
+
             # Check for YEAR function
-            year_match = re.search(r'YEAR\(([A-Z]+)(?:\d*):?(?:[A-Z]+)?\)', formula)
+            year_match = re.search(r"YEAR\(([A-Z]+)(?:\d*):?(?:[A-Z]+)?\)", formula)
             if year_match:
                 col_letter = year_match.group(1)
                 if col_letter in column_mapping:
                     # This is a computed filter that applies YEAR to a column
                     mapping[filter_name] = {
-                        'column': column_mapping[col_letter], 
-                        'transform': 'YEAR'
+                        "column": column_mapping[col_letter],
+                        "transform": "YEAR",
                     }
                     continue
-            
+
             # Check if the formula contains direct column name references
             column_name_found = None
-            
+
             # Look for column names that exist in our column mapping
             all_column_names = set(column_mapping.values())
             for col_name in all_column_names:
                 if col_name in formula:
                     column_name_found = col_name
                     break
-            
+
             if column_name_found:
                 # Direct column name reference found
                 mapping[filter_name] = column_name_found
             else:
                 # Excel-style reference like A2:A, B:B, etc.
                 # Extract column letter and map to column name
-                col_match = re.search(r'([A-Z]+)(?:\d*):?(?:[A-Z]+)?', formula)
+                col_match = re.search(r"([A-Z]+)(?:\d*):?(?:[A-Z]+)?", formula)
                 if col_match:
                     col_letter = col_match.group(1)
                     column_name = column_mapping.get(col_letter, filter_name)
@@ -501,62 +640,86 @@ class HTMLGenerator:
                 else:
                     # Fallback: assume filter name matches column name
                     mapping[filter_name] = filter_name
-        
+
         return json.dumps(mapping)
-    
-    def _format_default_filter_conditions(self, conditions: List[str], column_mapping: Dict[str, str]) -> str:
+
+    def _format_default_filter_conditions(
+        self, conditions: List[str], column_mapping: Dict[str, str]
+    ) -> str:
         """Format default filter conditions as JavaScript array"""
         if not conditions:
-            return 'null'
-        
+            return "null"
+
         import re
-        
+
         formatted_conditions = []
         for condition in conditions:
             # Convert Excel column references (like S>0, N2:N="Male") to column names
             js_condition = condition
-            
+
             # Sort column letters by length (descending) to handle longer letters first
             # This prevents partial matches (e.g., 'A' replacing 'AA')
-            sorted_columns = sorted(column_mapping.items(), key=lambda x: len(x[0]), reverse=True)
-            
+            sorted_columns = sorted(
+                column_mapping.items(), key=lambda x: len(x[0]), reverse=True
+            )
+
             for col_letter, col_name in sorted_columns:
                 # Replace Excel patterns like N2:N, N:N, N>, N=, N<, N>=, etc.
                 # This handles specific Excel range and comparison patterns
                 patterns = [
-                    r'\b' + re.escape(col_letter) + r'(\d+):' + re.escape(col_letter) + r'\b',  # N2:N
-                    r'\b' + re.escape(col_letter) + r':' + re.escape(col_letter) + r'\b',     # N:N
-                    r'\b' + re.escape(col_letter) + r'(?=\s*[><=!])',                        # N> N= N< etc.
-                    r'\b' + re.escape(col_letter) + r'(?=\s*$)',                             # N at end
+                    r"\b"
+                    + re.escape(col_letter)
+                    + r"(\d+):"
+                    + re.escape(col_letter)
+                    + r"\b",  # N2:N
+                    r"\b"
+                    + re.escape(col_letter)
+                    + r":"
+                    + re.escape(col_letter)
+                    + r"\b",  # N:N
+                    r"\b" + re.escape(col_letter) + r"(?=\s*[><=!])",  # N> N= N< etc.
+                    r"\b" + re.escape(col_letter) + r"(?=\s*$)",  # N at end
                 ]
-                
+
                 for pattern in patterns:
-                    if col_letter + '2:' + col_letter in condition:
+                    if col_letter + "2:" + col_letter in condition:
                         # Special case for N2:N patterns - replace both instances
-                        js_condition = re.sub(col_letter + r'2:' + col_letter, col_name + '2:' + col_name, js_condition)
+                        js_condition = re.sub(
+                            col_letter + r"2:" + col_letter,
+                            col_name + "2:" + col_name,
+                            js_condition,
+                        )
                     else:
                         js_condition = re.sub(pattern, col_name, js_condition)
-            
+
             # Escape quotes in the condition to prevent JavaScript syntax errors
             escaped_condition = js_condition.replace('"', '\\"')
             formatted_conditions.append(f'"{escaped_condition}"')
-        
-        return '[' + ', '.join(formatted_conditions) + ']'
-    
-    def _generate_scripts(self, csv_data_json: str, column_mapping: Dict[str, str], dashboard_data: Dict[str, Any] = None) -> str:
+
+        return "[" + ", ".join(formatted_conditions) + "]"
+
+    def _generate_scripts(
+        self,
+        csv_data_json: str,
+        column_mapping: Dict[str, str],
+        dashboard_data: Dict[str, Any] = None,
+    ) -> str:
         """Generate JavaScript code for dashboard functionality"""
         excel_helpers = self.formula_evaluator.generate_js_helper_functions()
-        
+
         # Convert column mapping to JSON
         import json
+
         column_mapping_json = json.dumps(column_mapping)
-        
+
         # Generate filter to column mapping
-        if dashboard_data and 'filters' in dashboard_data:
-            filter_to_column_mapping = self._generate_filter_to_column_mapping(dashboard_data['filters'], column_mapping)
+        if dashboard_data and "filters" in dashboard_data:
+            filter_to_column_mapping = self._generate_filter_to_column_mapping(
+                dashboard_data["filters"], column_mapping
+            )
         else:
             filter_to_column_mapping = "{}"
-        
+
         return f"""
     <script>
         // Global variables
@@ -1596,6 +1759,178 @@ class HTMLGenerator:
             }}
         }});
         
+        // Data Modal Functions
+        let currentPage = 1;
+        let rowsPerPage = 25;
+        let filteredData = [];
+        let allData = [];
+        
+        function openDataModal() {{
+            // Store all data for modal
+            allData = [...window.dashboardData];
+            filteredData = [...allData];
+            
+            // Set modal title with filename
+            const dataSpan = document.querySelector('span[onclick="openDataModal()"]');
+            if (dataSpan) {{
+                const filename = dataSpan.textContent.replace('Data: ', '');
+                document.getElementById('modalTitle').textContent = filename;
+            }}
+            
+            // Show modal
+            document.getElementById('dataModal').classList.remove('hidden');
+            
+            // Initialize data table
+            initializeDataTable();
+            
+            // Update pagination
+            updatePagination();
+        }}
+        
+        function closeDataModal() {{
+            document.getElementById('dataModal').classList.add('hidden');
+        }}
+        
+        function initializeDataTable() {{
+            if (allData.length === 0) return;
+            
+            // Get column names
+            const columns = Object.keys(allData[0]);
+            
+            // Update counts
+            document.getElementById('dataRowCount').textContent = allData.length;
+            document.getElementById('dataColumnCount').textContent = columns.length;
+            
+            // Create table header
+            const headerRow = document.getElementById('dataTableHeader');
+            headerRow.innerHTML = columns.map(col => 
+                `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${{col}}</th>`
+            ).join('');
+            
+            // Render current page
+            renderCurrentPage();
+        }}
+        
+        function renderCurrentPage() {{
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+            
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = pageData.map(row => {{
+                const cells = Object.values(row).map(value => 
+                    `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{formatCellValue(value)}}</td>`
+                ).join('');
+                return `<tr class="hover:bg-gray-50">${{cells}}</tr>`;
+            }}).join('');
+            
+            // Update pagination info
+            document.getElementById('showingStart').textContent = filteredData.length > 0 ? startIndex + 1 : 0;
+            document.getElementById('showingEnd').textContent = endIndex;
+            document.getElementById('totalRows').textContent = filteredData.length;
+        }}
+        
+        function formatCellValue(value) {{
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'number') {{
+                return new Intl.NumberFormat('en-US').format(value);
+            }}
+            return String(value);
+        }}
+        
+        function filterDataTable() {{
+            const searchTerm = document.getElementById('dataSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {{
+                filteredData = [...allData];
+            }} else {{
+                filteredData = allData.filter(row => {{
+                    return Object.values(row).some(value => 
+                        String(value).toLowerCase().includes(searchTerm)
+                    );
+                }});
+            }}
+            
+            currentPage = 1;
+            renderCurrentPage();
+            updatePagination();
+        }}
+        
+        function updateRowsPerPage() {{
+            rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
+            currentPage = 1;
+            renderCurrentPage();
+            updatePagination();
+        }}
+        
+        function changePage(direction) {{
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            const newPage = currentPage + direction;
+            
+            if (newPage >= 1 && newPage <= totalPages) {{
+                currentPage = newPage;
+                renderCurrentPage();
+                updatePagination();
+            }}
+        }}
+        
+        function updatePagination() {{
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            
+            // Update page info
+            document.getElementById('pageInfo').textContent = `Page ${{currentPage}} of ${{totalPages}}`;
+            
+            // Update button states
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+        }}
+        
+        function exportData() {{
+            // Create CSV content
+            if (filteredData.length === 0) return;
+            
+            const columns = Object.keys(filteredData[0]);
+            const csvContent = [
+                columns.join(','),
+                ...filteredData.map(row => 
+                    columns.map(col => {{
+                        const value = row[col];
+                        // Escape commas and quotes in CSV
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {{
+                            return `"${{value.replace(/"/g, '""')}}"`;
+                        }}
+                        return value;
+                    }}).join(',')
+                )
+            ].join('\\n');
+            
+            // Create and download file
+            const blob = new Blob([csvContent], {{ type: 'text/csv' }});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dashboard_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }}
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {{
+            const modal = document.getElementById('dataModal');
+            if (event.target === modal) {{
+                closeDataModal();
+            }}
+        }});
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {{
+            if (event.key === 'Escape') {{
+                closeDataModal();
+            }}
+        }});
+        
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {{
             console.log('Dashboard initialized with', window.dashboardData.length, 'rows of data');
@@ -1610,11 +1945,14 @@ class HTMLGenerator:
             }});
         }});
     </script>"""
-    
-    def _extract_column_mapping_from_csv_data(self, csv_data_json: str) -> Dict[str, str]:
+
+    def _extract_column_mapping_from_csv_data(
+        self, csv_data_json: str
+    ) -> Dict[str, str]:
         """Extract column mapping from CSV data"""
         try:
             import json
+
             data = json.loads(csv_data_json)
             if data and len(data) > 0:
                 columns = list(data[0].keys())
@@ -1625,4 +1963,4 @@ class HTMLGenerator:
                 return mapping
         except:
             pass
-        return {} 
+        return {}

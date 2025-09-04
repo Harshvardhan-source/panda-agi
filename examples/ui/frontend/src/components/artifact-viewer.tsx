@@ -434,7 +434,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
               src={`${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`}
               className="w-full h-full border-0"
               title={artifact.name}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
             />
           </div>
         );
