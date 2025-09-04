@@ -2,7 +2,6 @@ import React from "react";
 import {
   AlertCircle,
   Eye,
-  Download,
   FileText,
   Image,
   File,
@@ -349,20 +348,6 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-
-                      {
-                          !attachment.endsWith(".pxml") && (<button
-                          onClick={() => {
-                            handleFileDownload(attachment);
-                          }}
-                          className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm cursor-pointer"
-                          title="Download file"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>)
-                      }
-
-                      
                     </div>
                   </div>
                 </div>
