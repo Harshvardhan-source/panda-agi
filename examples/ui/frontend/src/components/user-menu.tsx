@@ -18,7 +18,9 @@ interface UserMenuProps {
   onUpgradeClick: () => void;
   onShowLogin?: () => void;
   onShowLogout?: () => void;
-  userCredits?: any;
+  userCredits?: {
+    credits_left: number;
+  } | null;
   creditsLoading?: boolean;
   creditsError?: string | null;
 }
@@ -116,7 +118,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
                     <span className="text-sm text-slate-600">Credits</span>
                   </div>
                   <span className="font-semibold text-slate-900">
-                    {creditsLoading ? "..." : userCredits.credits_left}
+                    {creditsLoading ? "..." : userCredits?.credits_left || 0}
                   </span>
                 </div>
               </div>
