@@ -407,27 +407,34 @@ async def save_artifact(
         files_generator = ArtifactsService.get_files_for_artifact(
             payload.type, payload.filepath, conversation_id, artifact_id
         )
-
+        total_files = 0
         async for file_bytes, relative_path in files_generator:
             await upload_file_to_gcs(
                 response["upload_credentials"], file_bytes, artifact_id, relative_path
             )
 
+            total_files += 1
+
+        if total_files == 0:
+            logger.error(f"No files found for artifact {artifact_id}")
+            raise HTTPException(status_code=400, detail="No files found for creation")
+
+        logger.info(f"Uploaded {total_files} files for artifact {artifact_id}")
+
         return {"detail": "Creations saved successfully", "artifact": artifact}
+
     except HTTPException as e:
+        if artifact_id:
+            await cleanup_artifact(artifact_id, api_key)
         raise e
     except ValueError as e:
-        # Clean up artifact if it was created before ValueError occurred
         if artifact_id:
             await cleanup_artifact(artifact_id, api_key)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error saving creations: {traceback.format_exc()}")
-
-        # If artifact was created but upload failed, clean it up
         if artifact_id:
             await cleanup_artifact(artifact_id, api_key)
-
+        logger.error(f"Error saving creations: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
 
 
