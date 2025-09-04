@@ -64,7 +64,7 @@ class FileWriteHandler(ToolHandler):
             return "Missing required parameter: content"
 
         # Validate file extension
-        file_extension = '.' + params.get("file", "").split(".")[-1]
+        file_extension = "." + params.get("file", "").split(".")[-1]
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
 

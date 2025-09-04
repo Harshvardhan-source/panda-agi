@@ -580,6 +580,21 @@ class Agent:
                 }
                 return
 
+            # Validate the tool arguments
+            validation_error = handler.validate_input(arguments)
+            if validation_error:
+                error_timestamp = datetime.utcnow().isoformat() + "Z"
+                yield {
+                    "event_type": "error",
+                    "timestamp": error_timestamp,
+                    "data": {
+                        "tool_name": function_name,
+                        "input_params": arguments,
+                        "error": validation_error,
+                    },
+                }
+                return
+
             # Execute the tool
             result = await handler.execute(arguments)
 
