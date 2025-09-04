@@ -256,8 +256,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
         // Show error message for non-CSV files
         if (nonCsvFiles.length > 0) {
-          toast.error(`Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}: only CSV files are allowed.`);
-          
+          toast.error(
+            `Unsupported file${
+              nonCsvFiles.length > 1 ? "s" : ""
+            }: only CSV files are allowed.`
+          );
+
           // If no CSV files, return early
           if (csvFiles.length === 0) {
             return;
@@ -1340,10 +1344,6 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                     spellCheck
                     autoComplete="off"
                   />
-                  {/* Optional: Show character count if desired */}
-                  <div className="absolute bottom-1 right-2 text-xs text-slate-400 select-none pointer-events-none hidden sm:block">
-                    {inputValue.length > 0 && `${inputValue.length} chars`}
-                  </div>
                 </div>
 
                 {/* Send/Stop button */}
