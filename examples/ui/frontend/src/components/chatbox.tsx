@@ -99,6 +99,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
     >([]);
     const [isDragging, setIsDragging] = useState(false);
     const [currentActivity, setCurrentActivity] = useState<string>("");
+    const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [hasSubmittedInitialQuery, setHasSubmittedInitialQuery] =
       useState(false);
@@ -256,8 +257,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
         // Show error message for non-CSV files
         if (nonCsvFiles.length > 0) {
-          toast.error(`Unsupported file${nonCsvFiles.length > 1 ? 's' : ''}: only CSV files are allowed.`);
-          
+          toast.error(
+            `Unsupported file${
+              nonCsvFiles.length > 1 ? "s" : ""
+            }: only CSV files are allowed.`
+          );
+
           // If no CSV files, return early
           if (csvFiles.length === 0) {
             return;
@@ -674,7 +679,11 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
                   // Check if tool calling is to start
                   if (eventData.data && eventData.event_type === "tool_start") {
-                    // Tool started - update current activity
+                    // Tool started - cancel any pending clear timeout and update current activity
+                    if (activityTimeoutRef.current) {
+                      clearTimeout(activityTimeoutRef.current);
+                      activityTimeoutRef.current = null;
+                    }
                     const toolName = eventData.data.tool_name || "";
                     setCurrentActivity(toolName);
                     continue;
@@ -683,7 +692,14 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                   // Check if tool call has ended
                   if (eventData.data && eventData.event_type === "tool_end") {
                     // Tool ended - clear current activity after a brief delay
-                    setTimeout(() => setCurrentActivity(""), 500);
+                    // Clear any existing timeout and set a new one
+                    if (activityTimeoutRef.current) {
+                      clearTimeout(activityTimeoutRef.current);
+                    }
+                    activityTimeoutRef.current = setTimeout(() => {
+                      setCurrentActivity("");
+                      activityTimeoutRef.current = null;
+                    }, 500);
                   }
 
                   // Check if conversation is completed
@@ -750,7 +766,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         abortControllerRef.current = null;
         setIsLoading(false);
         setIsConnected(false);
-        setCurrentActivity(""); // Clear activity when done
+        // Note: Don't clear currentActivity here - let tool_end events handle it
       }
     };
 
