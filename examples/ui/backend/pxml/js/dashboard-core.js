@@ -59,21 +59,26 @@ class DashboardCore {
             this.initializeFilter(filter);
         });
 
-        // Initialize KPIs and Charts from components
+        // Initialize KPIs and Charts from components using data attributes
         this.config.components.forEach(component => {
             this.initializeComponent(component);
         });
+
+        // Re-render all components from their data attributes
+        // This ensures components are self-contained and can be updated independently
+        if (window.reRenderAllKPIComponents) {
+            window.reRenderAllKPIComponents();
+        }
+        if (window.reRenderAllChartComponents) {
+            window.reRenderAllChartComponents();
+        }
     }
 
     /**
      * Initialize a single component recursively
      */
     initializeComponent(component) {
-        if (component.type === 'kpi') {
-            this.registerKPI(component.id, component);
-        } else if (component.type === 'chart') {
-            this.registerChart(component.id, component);
-        } else if (component.type === 'row') {
+        if (component.type === 'row') {
             // Initialize all columns in the row
             component.columns.forEach(column => {
                 column.content.forEach(content => {
@@ -109,7 +114,7 @@ class DashboardCore {
     }
 
     /**
-     * Register and render a KPI
+     * Register and render a KPI (legacy method for backward compatibility)
      */
     registerKPI(kpiId, config) {
         // Render the KPI card HTML first, then register
@@ -124,7 +129,7 @@ class DashboardCore {
     }
 
     /**
-     * Register and render a chart
+     * Register and render a chart (legacy method for backward compatibility)
      */
     registerChart(chartId, config) {
         // Render the chart card HTML first, then register

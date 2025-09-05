@@ -673,16 +673,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             document.head.appendChild(style);
 
             // Function to highlight the currently edited chart
-            function highlightEditedChart(chartId) {
-              console.log('🎨 Highlighting chart:', chartId);
-              
+            function highlightEditedChart(chartId) {              
               // Remove highlighting from all charts and KPIs first using the shared function
               removeAllHighlighting();
               
               // Add highlighting to the current chart
               const currentChart = document.getElementById(chartId + '_container');
               if (currentChart) {
-                console.log('✅ Found chart container, adding highlighting');
                 currentChart.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'selected-chart');
                 currentChart.style.transition = 'all 0.2s ease-out';
                 currentChart.style.borderRadius = CHART_BORDER_RADIUS.SELECTED;
@@ -693,15 +690,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
             // Function to highlight the currently edited KPI
             function highlightEditedKPI(kpiId) {
-              console.log('🎨 Highlighting KPI:', kpiId);
-              
               // Remove highlighting from all charts and KPIs first using the shared function
               removeAllHighlighting();
               
               // Add highlighting to the current KPI
               const currentKPI = document.getElementById(kpiId + '_container');
               if (currentKPI) {
-                console.log('✅ Found KPI container, adding highlighting');
                 currentKPI.classList.add('ring-2', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
                 currentKPI.style.transition = 'all 0.2s ease-out';
                 currentKPI.style.borderRadius = CHART_BORDER_RADIUS.SELECTED;
@@ -712,7 +706,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             
             // Function to remove all highlighting
             function removeAllHighlighting() {
-              console.log('🧹 Removing all highlighting');
               // Combined selector to target all chart and KPI related elements efficiently
               const combinedSelector = '.chart-component, div[class*="chart-component"], div[id*="chart_"][id$="_container"], .kpi-component, div[class*="kpi-component"], div[id*="kpi_"][id$="_container"]';
               const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-green-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
@@ -733,10 +726,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
             // Listen for chart and KPI edit start messages from parent
             window.addEventListener('message', (event) => {
-              console.log('📨 Received message:', event.data);
               if (event.data.type === 'chart-edit') {
                 const { chartId } = event.data;
-                console.log('🎯 Chart edit started for:', chartId);
                 
                 // First remove all highlighting, then add to new chart
                 removeAllHighlighting();
@@ -745,8 +736,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 }, HIGHLIGHT_TIMEOUT); // Timeout to ensure proper cleanup
               } else if (event.data.type === 'kpi-edit') {
                 const { kpiId } = event.data;
-                console.log('🎯 KPI edit started for:', kpiId);
-                
+                  
                 // First remove all highlighting, then add to new KPI
                 removeAllHighlighting();
                 setTimeout(() => {
@@ -754,7 +744,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 }, HIGHLIGHT_TIMEOUT); // Timeout to ensure proper cleanup
               } else if (event.data.type === 'kpi-saved') {
                 const { kpiId } = event.data;
-                console.log('💾 KPI saved, clearing pending status for:', kpiId);
                 
                 // Clear pending status and reset value styling
                 const valueElement = document.getElementById(kpiId + '_value');
@@ -776,8 +765,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                   }, 100);
                 }
               } else if (event.data.type === 'remove-highlighting') {
-                console.log('🧹 Removing all highlighting');
-                
                 // Remove highlighting from all charts and KPIs
                 removeAllHighlighting();
               }
@@ -785,430 +772,145 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
             // Listen for chart and KPI update messages from parent
             window.addEventListener('message', (event) => {
-              if (event.data.type === 'update-kpi') {
+              if (event.data.type === 'update-kpi-data-attributes') {
                 const { kpiId, config } = event.data;
-                console.log('🔄 Received KPI update for:', kpiId, 'with config:', config);
                 
                 // Add highlighting to the currently edited KPI
                 highlightEditedKPI(kpiId);
                 
-                // Update KPI properties directly in the DOM
+                // Update KPI using the new data-attribute system
                 try {
-                  console.log('🎨 Updating KPI DOM elements for:', kpiId);
-                  
-                  // Update KPI name
-                  const nameElement = document.querySelector('.kpi-name[data-kpi-id="' + kpiId + '"]');
-                  if (nameElement) {
-                    console.log('✏️ Updating KPI name from:', nameElement.textContent, 'to:', config.name);
-                    nameElement.textContent = config.name;
-                  } else {
-                    console.warn('❌ KPI name element not found for:', kpiId);
-                  }
-                  
-                  // Update KPI icon
-                  const iconElement = document.querySelector('.kpi-icon[data-kpi-id="' + kpiId + '"]');
-                  if (iconElement) {
-                    console.log('🎭 Updating KPI icon to:', config.fa_icon);
-                    iconElement.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                    iconElement.setAttribute('data-kpi-id', kpiId);
-                  } else {
-                    console.warn('❌ KPI icon element not found for:', kpiId);
-                  }
-                  
-                  // Update KPI unit
-                  const unitElement = document.querySelector('.kpi-unit[data-kpi-id="' + kpiId + '"]');
-                  if (unitElement) {
-                    if (config.unit) {
-                      unitElement.textContent = config.unit;
-                    } else {
-                      unitElement.style.display = 'none';
-                    }
-                  } else if (config.unit) {
-                    // Add unit if it didn't exist before
-                    const valueElement = document.getElementById(kpiId + '_value');
-                    if (valueElement && valueElement.parentNode) {
-                      const unitSpan = document.createElement('span');
-                      unitSpan.className = 'ml-1 text-sm text-gray-500 kpi-unit';
-                      unitSpan.setAttribute('data-kpi-id', kpiId);
-                      unitSpan.textContent = config.unit;
-                      valueElement.parentNode.appendChild(unitSpan);
-                    }
-                  }
-                  
-                  // Update KPI configuration in the global registry and recalculate
-                  console.log('📊 Checking KPI registry for:', kpiId);
-                  console.log('Available window functions:', {
-                    registeredKPIs: !!window.registeredKPIs,
-                    updateKPI: !!window.updateKPI,
-                    registerKPI: !!window.registerKPI,
-                    updateKPIProperty: !!window.updateKPIProperty
-                  });
-                  
-                  // Handle all KPI property updates
-                  console.log('🔧 Updating KPI properties for:', kpiId);
-                  
-                  // Update visual properties using the built-in function (safe properties)
-                  if (window.updateKPIProperty) {
-                    if (config.name !== undefined) {
-                      console.log('📝 Updating KPI name:', config.name);
-                      window.updateKPIProperty(kpiId, 'name', config.name);
-                    }
-                    
-                    if (config.fa_icon !== undefined) {
-                      console.log('🎭 Updating KPI icon:', config.fa_icon, 'for KPI:', kpiId);
-                      
-                      // Debug: Let's see what's actually in the DOM
                       const container = document.getElementById(kpiId + '_container');
-                      console.log('📦 KPI container found:', !!container);
-                      
-                      if (container) {
-                        console.log('🔍 Container HTML:', container.innerHTML.substring(0, 300) + '...');
-                        
-                        // Find all icon elements in the container
-                        const allIcons = container.querySelectorAll('i, .fa, .fas, [class*="fa-"]');
-                        console.log('🎭 Found', allIcons.length, 'potential icon elements');
-                        
-                        allIcons.forEach((icon, index) => {
-                          console.log('Icon ' + (index + 1) + ':', {
-                            tag: icon.tagName,
-                            className: icon.className,
-                            id: icon.id,
-                            dataKpiId: icon.getAttribute('data-kpi-id')
-                          });
-                        });
-                        
-                        // Try multiple strategies to find and update the icon
-                        let iconUpdated = false;
-                        
-                        // Strategy 1: Look for SVG icon with data-kpi-id (most common)
-                        const svgIcon = container.querySelector('svg[data-kpi-id="' + kpiId + '"]');
-                        if (svgIcon) {
-                          console.log('✅ Strategy 1: Found SVG icon, replacing with FontAwesome');
-                          
-                          // Replace SVG with FontAwesome i element
-                          const faIcon = document.createElement('i');
-                          faIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                          faIcon.setAttribute('data-kpi-id', kpiId);
-                          
-                          // Replace the SVG with the new FontAwesome icon
-                          svgIcon.parentNode.replaceChild(faIcon, svgIcon);
-                          iconUpdated = true;
-                        }
-                        
-                        // Strategy 2: Look for FontAwesome i elements with data-kpi-id
-                        if (!iconUpdated) {
-                          const iconWithDataAttr = container.querySelector('i[data-kpi-id="' + kpiId + '"]');
-                          if (iconWithDataAttr) {
-                            console.log('✅ Strategy 2: Found FontAwesome icon with data-kpi-id');
-                            iconWithDataAttr.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                            iconUpdated = true;
-                          }
-                        }
-                        
-                        // Strategy 3: Look for any i element with fas class
-                        if (!iconUpdated) {
-                          const fasIcon = container.querySelector('i.fas') || container.querySelector('i[class*="fa-"]');
-                          if (fasIcon) {
-                            console.log('✅ Strategy 3: Found existing FontAwesome icon');
-                            fasIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                            fasIcon.setAttribute('data-kpi-id', kpiId);
-                            iconUpdated = true;
-                          }
-                        }
-                        
-                        // Strategy 4: Replace any SVG or create new FontAwesome icon
-                        if (!iconUpdated) {
-                          const anySvg = container.querySelector('svg');
-                          if (anySvg) {
-                            console.log('✅ Strategy 4: Replacing SVG with FontAwesome icon');
-                            const faIcon = document.createElement('i');
-                            faIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                            faIcon.setAttribute('data-kpi-id', kpiId);
-                            anySvg.parentNode.replaceChild(faIcon, anySvg);
-                            iconUpdated = true;
-                          }
-                        }
-                        
-                        if (!iconUpdated) {
-                          console.warn('❌ No icon element found to update in container');
-                        }
-                      } else {
+                  if (!container) {
                         console.warn('❌ KPI container not found:', kpiId + '_container');
-                        
-                        // Debug: List all elements with IDs containing the kpiId
-                        const allElements = document.querySelectorAll('[id*="' + kpiId.replace('kpi_', '') + '"]');
-                        console.log('🔍 Found', allElements.length, 'elements with similar IDs:');
-                        allElements.forEach(el => console.log('  -', el.id, el.tagName));
-                      }
-                      
-                      // Also try the built-in function as fallback
-                      if (window.updateKPIProperty) {
-                        console.log('🔧 Also trying updateKPIProperty as fallback');
-                        try {
-                          window.updateKPIProperty(kpiId, 'fa_icon', config.fa_icon);
-                        } catch (e) {
-                          console.warn('updateKPIProperty failed:', e);
-                        }
-                      }
-                    }
-                    
-                    if (config.unit !== undefined) {
-                      console.log('📏 Updating KPI unit:', config.unit);
-                      window.updateKPIProperty(kpiId, 'unit', config.unit);
-                    }
-                  } else {
-                    console.warn('❌ updateKPIProperty not available, manual DOM update');
-                    // Fallback to manual DOM updates if the function isn't available
+                    return;
+                  }
+                  
+                  // Update individual data attributes - the MutationObserver will handle re-rendering
                     if (config.name !== undefined) {
-                      const nameElement = document.querySelector('.kpi-name[data-kpi-id="' + kpiId + '"]');
-                      if (nameElement) nameElement.textContent = config.name;
+                    container.setAttribute('data-name', config.name);
                     }
                     
                     if (config.fa_icon !== undefined) {
-                      const iconElement = document.querySelector('.kpi-icon[data-kpi-id="' + kpiId + '"]');
-                      if (iconElement) {
-                        iconElement.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
-                        iconElement.setAttribute('data-kpi-id', kpiId);
-                      }
+                    container.setAttribute('data-fa-icon', config.fa_icon);
+                  }
+                  
+                  if (config.value_formula !== undefined) {
+                    container.setAttribute('data-value-formula', config.value_formula);
+                  }
+                  
+                    if (config.format_type !== undefined) {
+                    container.setAttribute('data-format-type', config.format_type);
                     }
                     
                     if (config.unit !== undefined) {
-                      const unitElement = document.querySelector('.kpi-unit[data-kpi-id="' + kpiId + '"]');
-                      if (unitElement) {
-                        unitElement.textContent = config.unit;
-                      }
-                    }
+                    container.setAttribute('data-unit', config.unit || '');
                   }
-                  
-                  // Handle formula and format changes with registry updates only
-                  if (window.registeredKPIs && window.registeredKPIs[kpiId]) {
-                    if (config.format_type !== undefined) {
-                      console.log('💱 Updating KPI format:', config.format_type);
-                      window.registeredKPIs[kpiId].formatType = config.format_type;
-                      
-                      // Try to reformat the current value without recalculating
-                      const valueElement = document.getElementById(kpiId + '_value');
-                      if (valueElement && window.formatKPIValue && !valueElement.textContent.includes('Pending')) {
-                        try {
-                          const currentText = valueElement.textContent;
-                          // Extract number from formatted text (rough approach)
-                          const numMatch = currentText.match(/([0-9,.]+)/);
-                          if (numMatch) {
-                            const rawValue = parseFloat(numMatch[1].replace(/,/g, ''));
-                            const newFormatted = window.formatKPIValue(rawValue, config.format_type);
-                            valueElement.textContent = newFormatted;
-                          }
-                        } catch (e) {
-                          console.log('Could not reformat value, will update on save');
-                        }
-                      }
-                    }
-                    
-                    if (config.value_formula !== undefined) {
-                      console.log('🧮 Formula change detected - calculating live preview');
-                      
-                      // Try to convert and evaluate the formula for live preview
-                      const valueElement = document.getElementById(kpiId + '_value');
-                      if (valueElement) {
-                        try {
-                          // Convert Excel formula to JavaScript for evaluation
-                          let jsFormula = config.value_formula;
-                          if (jsFormula.startsWith('=')) {
-                            jsFormula = jsFormula.substring(1);
-                            
-                            // Simple conversion for common formulas
-                            if (window.getFilteredData && window.columnMapping) {
-                              const filteredData = window.getFilteredData();
-                              
-                              // Handle basic Excel functions with column references
-                              if (jsFormula.match(/SUM\\([A-Z]+\\d*:[A-Z]+\\)/)) {
-                                // Extract column from pattern like SUM(G2:G)
-                                const colMatch = jsFormula.match(/SUM\\(([A-Z]+)\\d*:[A-Z]+\\)/);
-                                if (colMatch && window.columnMapping[colMatch[1]]) {
-                                  const columnName = window.columnMapping[colMatch[1]];
-                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
-                                  const result = columnData.reduce((sum, val) => sum + val, 0);
-                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
-                                  
-                                  valueElement.textContent = formatted;
-                                  valueElement.style.fontStyle = 'normal';
-                                  valueElement.style.opacity = '1';
-                                  console.log('✅ Live preview calculated:', formatted);
-                                  return;
-                                }
-                              }
-                              
-                              if (jsFormula.match(/AVERAGE\\([A-Z]+\\d*:[A-Z]+\\)/)) {
-                                // Extract column from pattern like AVERAGE(G2:G)
-                                const colMatch = jsFormula.match(/AVERAGE\\(([A-Z]+)\\d*:[A-Z]+\\)/);
-                                if (colMatch && window.columnMapping[colMatch[1]]) {
-                                  const columnName = window.columnMapping[colMatch[1]];
-                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0).filter(val => val !== 0);
-                                  const result = columnData.length > 0 ? columnData.reduce((sum, val) => sum + val, 0) / columnData.length : 0;
-                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
-                                  
-                                  valueElement.textContent = formatted;
-                                  valueElement.style.fontStyle = 'normal';
-                                  valueElement.style.opacity = '1';
-                                  console.log('✅ Live preview calculated:', formatted);
-                                  return;
-                                }
-                              }
-                              
-                              if (jsFormula.match(/MAX\\([A-Z]+\\d*:[A-Z]+\\)/)) {
-                                const colMatch = jsFormula.match(/MAX\\(([A-Z]+)\\d*:[A-Z]+\\)/);
-                                if (colMatch && window.columnMapping[colMatch[1]]) {
-                                  const columnName = window.columnMapping[colMatch[1]];
-                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
-                                  const result = Math.max(...columnData);
-                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
-                                  
-                                  valueElement.textContent = formatted;
-                                  valueElement.style.fontStyle = 'normal';
-                                  valueElement.style.opacity = '1';
-                                  console.log('✅ Live preview calculated:', formatted);
-                                  return;
-                                }
-                              }
-                              
-                              if (jsFormula.match(/MIN\\([A-Z]+\\d*:[A-Z]+\\)/)) {
-                                const colMatch = jsFormula.match(/MIN\\(([A-Z]+)\\d*:[A-Z]+\\)/);
-                                if (colMatch && window.columnMapping[colMatch[1]]) {
-                                  const columnName = window.columnMapping[colMatch[1]];
-                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
-                                  const result = Math.min(...columnData);
-                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
-                                  
-                                  valueElement.textContent = formatted;
-                                  valueElement.style.fontStyle = 'normal';
-                                  valueElement.style.opacity = '1';
-                                  console.log('✅ Live preview calculated:', formatted);
-                                  return;
-                                }
-                              }
-                            }
-                          }
-                          
-                          // Fallback if we can't calculate live preview
-                          valueElement.textContent = 'N/A';
-                          valueElement.style.fontStyle = 'italic';
-                          valueElement.style.opacity = '0.7';
-                          
+                                            
                         } catch (error) {
-                          console.log('⚠️ Could not calculate live preview:', error);
-                          valueElement.textContent = 'Preview Error';
-                          valueElement.style.fontStyle = 'italic';
-                          valueElement.style.opacity = '0.7';
-                        }
-                      }
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error updating KPI:', error);
+                  console.error('Error updating KPI data attributes:', error);
                 }
-              } else if (event.data.type === 'update-chart') {
+              } else if (event.data.type === 'update-chart-data-attributes') {
                 const { chartId, config } = event.data;
-                console.log('🔄 Received chart update for:', chartId, 'with config:', config);
                 
                 // Add highlighting to the currently edited chart
                 highlightEditedChart(chartId);
                 
-                // Update the chart configuration in the global registry
-                if (window.registeredCharts && window.registeredCharts[chartId]) {
-                  // Update the config
-                  window.registeredCharts[chartId].config = config;
-                  
-                  // Update the chart title
-                  const titleElement = document.getElementById(chartId + '_title');
-                  if (titleElement) {
-                    titleElement.textContent = config.name;
+                // Update chart using the new data-attribute system
+                try {
+                  const container = document.getElementById(chartId + '_container');
+                  if (!container) {
+                    console.warn('❌ Chart container not found:', chartId + '_container');
+                    return;
                   }
                   
-                  // Use a more robust update approach
-                  try {
-                    const chartInfo = window.registeredCharts[chartId];
-                    const { canvas, loadingElement } = chartInfo;
-                    
-                    if (canvas && window.getFilteredData && window.processChartData) {
-                      // Show loading briefly
-                      if (loadingElement) loadingElement.style.display = 'flex';
-                      
-                      // Use a timeout to ensure the DOM updates
-                      setTimeout(() => {
-                        try {
-                          // Validate config before processing
-                          if (!config || !config.series_list || config.series_list.length === 0) {
-                            console.warn('⚠️ Invalid config for chart:', chartId, config);
-                            return;
-                          }
-                          
-                          // Ensure all required fields exist
-                          const validatedConfig = {
-                            ...config,
-                            chart_type: config.chart_type || config.type,
-                            x_axis: config.x_axis || { column: '', name: '' },
-                            series_list: config.series_list || []
-                          };
-                          
-                          console.log('📊 Processing chart data for:', chartId, 'type:', validatedConfig.chart_type);
-                          
-                          // Get current filtered data
-                          const filteredData = window.getFilteredData();
-                          
-                          // Process data with validated config
-                          const chartData = window.processChartData(filteredData, validatedConfig);
-                          console.log('📈 Chart data processed:', chartData);
-                          
-                          // Destroy existing chart
-                          if (chartInfo.chartInstance) {
-                            chartInfo.chartInstance.destroy();
-                            chartInfo.chartInstance = null;
-                          }
-                          
-                          // Create new chart with updated config
-                          const ctx = canvas.getContext('2d');
-                          if (window.getChartOptions && window.getChartJsType) {
-                            const chartJsType = window.getChartJsType(validatedConfig.chart_type);
-                            console.log('🎨 Creating chart with type:', chartJsType);
-                            
-                            const chartOptions = window.getChartOptions(validatedConfig, chartData.labels);
-                            chartInfo.chartInstance = new window.Chart(ctx, {
-                              type: chartJsType,
-                              data: chartData,
-                              options: chartOptions
-                            });
-                            
-                            console.log('✅ Chart created successfully');
-                          }
-                          
-                          // Hide loading
-                          if (loadingElement) loadingElement.style.display = 'none';
-                          
+                  // Update individual data attributes - the MutationObserver will handle re-rendering
+                  if (config.name !== undefined) {
+                    container.setAttribute('data-name', config.name);
+                  }
+                  
+                  if (config.chart_type !== undefined || config.type !== undefined) {
+                    container.setAttribute('data-chart-type', config.chart_type || config.type);
+                  }
+                  
+                  if (config.x_axis !== undefined) {
+                    container.setAttribute('data-x-axis', JSON.stringify(config.x_axis));
+                  }
+                  
+                  if (config.series_list !== undefined) {
+                    container.setAttribute('data-series-list', JSON.stringify(config.series_list));
+                  }
+                  
+                  if (config.style !== undefined) {
+                    container.setAttribute('data-style', config.style);
+                  }
+                  
+                  if (config.area !== undefined) {
+                    container.setAttribute('data-area', config.area.toString());
+                  }
+                  
+                  if (config.cumulative !== undefined) {
+                    container.setAttribute('data-cumulative', config.cumulative.toString());
+                  }
+                  
+                  if (config.top_n !== undefined) {
+                    container.setAttribute('data-top-n', config.top_n.toString());
+                  }
+                  
+                  if (config.default_filter_conditions !== undefined) {
+                    container.setAttribute('data-default-filter-conditions', JSON.stringify(config.default_filter_conditions));
+                  }
+                  
+                  if (config.original_name !== undefined) {
+                    container.setAttribute('data-original-name', config.original_name);
+                  }                          
                         } catch (error) {
-                          console.error('❌ Error in dynamic chart update:', error);
-                          console.error('Config that caused error:', config);
-                          
-                          // Hide loading and show error
-                          if (loadingElement) {
-                            loadingElement.style.display = 'none';
-                          }
-                          
-                          // Fallback to original update method
-                          if (window.updateChart) {
-                            console.log('🔄 Falling back to original update method');
-                            window.updateChart(chartId);
-                          }
-                        }
-                      }, 50);
-                    } else {
-                      // Fallback to original update method
-                      if (window.updateChart) {
-                        window.updateChart(chartId);
-                      }
-                    }
-                  } catch (error) {
-                    console.error('Error updating chart:', error);
+                  console.error('Error updating chart data attributes:', error);
+                }
+              } else if (event.data.type === 'kpi-pending-changes') {
+                const { kpiId, config } = event.data;
+                
+                // Add highlighting to show KPI is being edited
+                highlightEditedKPI(kpiId);
+                
+                // Show visual feedback without triggering calculations
+                try {
+                  const container = document.getElementById(kpiId + '_container');
+                  if (!container) {
+                    console.warn('❌ KPI container not found:', kpiId + '_container');
+                    return;
                   }
+                  
+                  // Update visual elements only (name, icon, and unit) without triggering value calculation
+                  const nameElement = container.querySelector('[data-name]') || container.querySelector('.kpi-name') || container.querySelector('h3');
+                  const iconElement = container.querySelector('[class*="fa-"]') || container.querySelector('i');
+                  const unitElement = container.querySelector('[data-unit]') || container.querySelector('.kpi-unit');
+                  
+                  if (nameElement && config.name !== undefined) {
+                    nameElement.textContent = config.name;
+                  }
+                  
+                  if (iconElement && config.fa_icon !== undefined) {
+                    // Update icon class safely
+                    const currentClasses = String(iconElement.className || '');
+                    iconElement.className = currentClasses.replace(/fa-[a-z-]+/g, '').trim();
+                    iconElement.classList.add(config.fa_icon);
+                  }
+                  
+                  if (unitElement && config.unit !== undefined) {
+                    unitElement.textContent = config.unit;
+                  }
+                  
+                  // Show "Save to update" message for value to indicate pending changes
+                  const valueElement = container.querySelector('[id$="_value"]') || container.querySelector('.kpi-value');
+                  if (valueElement) {
+                    valueElement.textContent = 'Save to update';
+                    valueElement.style.fontStyle = 'italic';
+                    valueElement.style.opacity = '0.7';
+                  }
+                  
+                } catch (error) {
+                  console.error('Error showing KPI pending changes:', error);
                 }
               }
             });
@@ -1231,15 +933,16 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return () => iframe.removeEventListener("load", handleLoad);
   }, [content]);
 
-  // Send live KPI updates to iframe for dynamic rendering
+  // Send live KPI updates to iframe for dynamic rendering using data attributes
   const updateKPIInIframe = (kpiConfig: KPIConfig) => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
 
     try {
+      // Use the new data-attribute based system
       iframe.contentWindow.postMessage(
         {
-          type: "update-kpi",
+          type: "update-kpi-data-attributes",
           kpiId: kpiConfig.id,
           config: kpiConfig,
         },
@@ -1250,13 +953,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
-  // Send live chart updates to iframe for dynamic rendering
+  // Send live chart updates to iframe for dynamic rendering using data attributes
   const updateChartInIframe = (chartConfig: ChartConfig) => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
 
     try {
-      // Normalize chart config to ensure compatibility
+      // Normalize chart config to ensure compatibility with data attributes
       const normalizedConfig = {
         ...chartConfig,
         chart_type: chartConfig.type,
@@ -1274,22 +977,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             ? "stacked"
             : chartConfig.stacked === "100_stacked"
             ? "100% stacked"
-            : undefined,
+            : "default",
       };
 
-      // Debug logging to see what we're sending
-      console.log("📊 Sending chart config to iframe:", {
-        chartId: chartConfig.id,
-        type: normalizedConfig.type,
-        area: normalizedConfig.area,
-        stacked: normalizedConfig.stacked,
-        style: normalizedConfig.style,
-        fullConfig: normalizedConfig,
-      });
-
+      // Use the new data-attribute based system
       iframe.contentWindow.postMessage(
         {
-          type: "update-chart",
+          type: "update-chart-data-attributes",
           chartId: chartConfig.id,
           config: normalizedConfig,
         },
@@ -1429,17 +1123,30 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateChartInIframe(updatedChart);
   };
 
-  // Update KPI property and trigger live re-render
+  // Update KPI property with visual feedback but no calculation updates
   const updateKPIProperty = (property: keyof KPIConfig, value: string) => {
     if (!editedKPI) return;
 
-    console.log(`🔧 Updating KPI property: ${property} = ${value}`);
     const updatedKPI = { ...editedKPI, [property]: value };
     setEditedKPI(updatedKPI);
     markAsChanged();
 
-    console.log("📤 Sending KPI update to iframe:", updatedKPI);
-    updateKPIInIframe(updatedKPI);
+    // Show visual feedback that KPI has pending changes
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-pending-changes",
+            kpiId: editedKPI.id,
+            config: updatedKPI,
+          },
+          "*"
+        );
+      } catch {
+        // Silently handle iframe communication errors
+      }
+    }
   };
 
   const handleSaveChart = () => {
@@ -1741,22 +1448,36 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     <div className="h-full flex">
       {/* Main Dashboard View */}
       <div
-        className={`transition-all duration-300 ease-in-out ${
+        className={`transition-all duration-500 ease-out ${
           isEditorOpen ? "w-2/3" : "w-full"
         } flex-1`}
+        style={{
+          transitionProperty: "width, flex-basis",
+          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
       >
         <iframe
           ref={iframeRef}
           srcDoc={getDisplayContent()}
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 transition-all duration-300 ease-out"
           title="Dashboard Preview"
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
       </div>
 
       {/* Chart/KPI Editor Sidebar */}
-      {isEditorOpen && (editedChart || editedKPI) && (
-        <div className="w-1/3 bg-background border-l overflow-hidden">
+      <div
+        className={`bg-background border-l overflow-hidden transition-all duration-500 ease-out ${
+          isEditorOpen && (editedChart || editedKPI)
+            ? "w-1/3 opacity-100"
+            : "w-0 opacity-0"
+        }`}
+        style={{
+          transitionProperty: "width, opacity, transform",
+          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        {isEditorOpen && (editedChart || editedKPI) && (
           <div className="h-full flex flex-col">
             {/* Header */}
             <div className="flex h-14 items-center justify-between border-b px-6">
@@ -2043,12 +1764,22 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 const value = e.target.value;
                                 if (!editedChart) return;
 
+                                // Find the selected column name
+                                const selectedColumn =
+                                  getAvailableColumns().find(
+                                    (col) => col.letter === value
+                                  );
+                                const columnName = selectedColumn
+                                  ? selectedColumn.name
+                                  : "";
+
                                 const updatedChart = {
                                   ...editedChart,
                                   x_axis: {
                                     ...editedChart.x_axis,
                                     column: value,
                                     group_by: value,
+                                    name: columnName, // Update the name to match the selected column
                                   },
                                 };
                                 setEditedChart(updatedChart);
@@ -2057,7 +1788,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               }}
                               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              <option value="">Select column</option>
                               {getAvailableColumns().map((col) => (
                                 <option key={col.letter} value={col.letter}>
                                   {col.name}
@@ -2416,8 +2146,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (

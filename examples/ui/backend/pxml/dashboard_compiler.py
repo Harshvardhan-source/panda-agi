@@ -6,7 +6,7 @@ Orchestrates the parsing, processing, and generation of dashboard HTML from XML 
 
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from .xml_parser import XMLParser
 from .csv_processor import CSVProcessor

@@ -151,6 +151,18 @@ class DashboardDataProcessor:
             "value_formula": js_formula,
             "format_type": kpi_spec.format_type,
             "unit": kpi_spec.unit,
+            # Add data params for reuse - all the data needed to rebuild this KPI component
+            "data_params": {
+                "original_formula": kpi_spec.value_formula,  # Keep original Excel formula
+                "column_mapping": column_mapping,  # Column mapping used
+                "kpi_spec": {
+                    "name": kpi_spec.name,
+                    "fa_icon": kpi_spec.fa_icon,
+                    "format_type": kpi_spec.format_type,
+                    "unit": kpi_spec.unit,
+                    "value_formula": kpi_spec.value_formula
+                }
+            }
         }
 
     def _process_chart_component(

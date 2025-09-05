@@ -371,20 +371,61 @@ class HTMLGenerator:
         return row_html
 
     def _generate_kpi_component(self, kpi_config: Dict[str, Any]) -> str:
-        """Generate simple KPI container - rendering logic moved to frontend"""
+        """Generate KPI container with individual data attributes for each property"""
         kpi_id = kpi_config["id"]
+        
+        # Create individual data attributes for each KPI property
+        # Properly escape quotes and special characters for HTML attributes
+        def escape_html_attr(value):
+            if value is None:
+                return ""
+            return str(value).replace('"', '&quot;').replace("'", '&#39;')
+        
+        data_attrs = []
+        data_attrs.append(f'data-component-type="kpi"')
+        data_attrs.append(f'data-id="{escape_html_attr(kpi_config.get("id", ""))}"')
+        data_attrs.append(f'data-name="{escape_html_attr(kpi_config.get("name", ""))}"')
+        data_attrs.append(f'data-fa-icon="{escape_html_attr(kpi_config.get("fa_icon", ""))}"')
+        data_attrs.append(f'data-value-formula="{escape_html_attr(kpi_config.get("value_formula", ""))}"')
+        data_attrs.append(f'data-format-type="{escape_html_attr(kpi_config.get("format_type", ""))}"')
+        data_attrs.append(f'data-unit="{escape_html_attr(kpi_config.get("unit", "") or "")}"')
+        
+        # Note: We don't store data_params anymore - the component is fully self-contained
+        # with just the basic properties above. The JS formula is already converted from Excel.
+
+        data_attributes = " ".join(data_attrs)
 
         return f"""
-        <div id="{kpi_id}_container" class="kpi-container h-full flex flex-col">
+        <div id="{kpi_id}_container" 
+             class="kpi-container h-full flex flex-col" 
+             {data_attributes}>
             <!-- KPI content will be rendered by JavaScript -->
         </div>"""
 
     def _generate_chart_component(self, chart_config: Dict[str, Any]) -> str:
-        """Generate simple chart container - rendering logic moved to frontend"""
+        """Generate chart container with data attributes for self-contained rendering"""
         chart_id = chart_config["id"]
+        
+        # Build data attributes for chart configuration
+        data_attributes = f"""
+            data-component-type="chart"
+            data-id="{chart_config['id']}"
+            data-name="{chart_config['name']}"
+            data-chart-type="{chart_config['chart_type']}"
+            data-x-axis="{self._escape_json(chart_config['x_axis'])}"
+            data-series-list="{self._escape_json(chart_config['series_list'])}"
+            data-style="{chart_config.get('style', 'default')}"
+            data-area="{str(chart_config.get('area', False)).lower()}"
+            data-cumulative="{str(chart_config.get('cumulative', False)).lower()}"
+            data-top-n="{chart_config.get('top_n', 0)}"
+            data-default-filter-conditions="{self._escape_json(chart_config.get('default_filter_conditions', ''))}"
+            data-original-name="{chart_config.get('original_name', chart_config['name'])}"
+        """.strip()
 
         return f"""
-        <div id="{chart_id}_container" class="chart-container h-full flex flex-col">
+        <div id="{chart_id}_container" 
+             class="chart-container h-full flex flex-col" 
+             {data_attributes}>
             <!-- Chart content will be rendered by JavaScript -->
         </div>"""
 
@@ -533,3 +574,11 @@ class HTMLGenerator:
             
         }});
     </script>"""
+
+    def _escape_json(self, data: Any) -> str:
+        """Escape JSON data for use in HTML attributes"""
+        if data is None:
+            return ""
+        json_str = json.dumps(data)
+        # Escape quotes and other special characters for HTML attributes
+        return json_str.replace('"', '&quot;').replace("'", "&#39;").replace("&", "&amp;")

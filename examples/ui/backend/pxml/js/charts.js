@@ -5,7 +5,7 @@
 
 // Chart card HTML template
 function createChartCardHTML(chartId, config) {
-    const chart_name = config.name;
+    const chart_name = config.name || "";
     const chart_type = config.chart_type;
     
     // Generate top N filter for bar and horizontal_bar charts
@@ -699,7 +699,8 @@ function updateChartTitle(chartId, config) {
     const titleElement = document.getElementById(chartId + '_title');
     if (!titleElement) return;
     
-    let title = config.original_name;
+    // Use the current name, allow empty strings
+    let title = config.name || '';
     if (['bar', 'horizontal_bar'].includes(config.chart_type) && config.top_n > 0) {
         title += ` (top ${config.top_n})`;
     }
@@ -777,10 +778,430 @@ function updateChartProperty(chartId, property, value) {
     updateChart(chartId);
 }
 
+/**
+ * Render chart from individual data attributes - makes each component self-contained
+ */
+function renderChartFromDataAttributes(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return false;
+
+  const config = buildChartConfigFromDataAttributes(container, containerId);
+  if (!config) return false;
+
+  try {
+    renderChartCard(config.id, config);
+    updateChart(config.id);
+    return true;
+  } catch (error) {
+    console.error(`Error rendering chart ${containerId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Build chart config object from individual data attributes
+ * Self-contained with essential chart properties
+ */
+function buildChartConfigFromDataAttributes(container, containerId = null) {
+  // Helper function to decode HTML entities from attributes
+  function decodeHtmlEntities(str) {
+    if (!str) return str;
+    return str
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, "&");
+  }
+
+  // Helper function to parse JSON from attributes
+  function parseJsonAttribute(str) {
+    if (!str) return null;
+    try {
+      return JSON.parse(decodeHtmlEntities(str));
+    } catch (e) {
+      console.error("Error parsing JSON attribute:", str, e);
+      return null;
+    }
+  }
+
+  const config = {
+    id: decodeHtmlEntities(container.getAttribute("data-id")) || "",
+    name: decodeHtmlEntities(container.getAttribute("data-name")) || "",
+    chart_type: decodeHtmlEntities(container.getAttribute("data-chart-type")) || "bar",
+    x_axis: parseJsonAttribute(container.getAttribute("data-x-axis")) || { name: "Category", column: "category" },
+    series_list: parseJsonAttribute(container.getAttribute("data-series-list")) || [],
+    style: decodeHtmlEntities(container.getAttribute("data-style")) || "default",
+    area: container.getAttribute("data-area") === "true",
+    cumulative: container.getAttribute("data-cumulative") === "true",
+    top_n: parseInt(container.getAttribute("data-top-n")) || 0,
+    default_filter_conditions: parseJsonAttribute(container.getAttribute("data-default-filter-conditions")) || null,
+    original_name: decodeHtmlEntities(container.getAttribute("data-original-name")) || "",
+  };
+
+  // Validate that we have the minimum required data
+  if (!config.id) {
+    console.error("Missing required chart data attributes (id)");
+    return null;
+  }
+
+  // Set original_name if not provided
+  if (!config.original_name) {
+    config.original_name = config.name;
+  }
+
+  return config;
+}
+
+/**
+ * Re-render all chart components from their data attributes
+ * This automatically re-renders any chart that has changed
+ */
+function reRenderAllChartComponents() {
+  const chartContainers = document.querySelectorAll(
+    '[data-component-type="chart"]'
+  );
+  chartContainers.forEach((container) => {
+    renderChartFromDataAttributes(container.id);
+  });
+}
+
+/**
+ * Initialize Chart MutationObserver to watch for data attribute changes
+ * This automatically recreates components when data-* attributes change
+ */
+function initializeChartMutationObserver() {
+  const observer = new MutationObserver((mutations) => {
+    if (window.chartFixingInProgress) return;
+
+    const containersToUpdate = new Set();
+
+    mutations.forEach((mutation) => {
+      if (mutation.type === "attributes") {
+        const target = mutation.target;
+        const attributeName = mutation.attributeName;
+
+        if (
+          target.getAttribute("data-component-type") === "chart" &&
+          isChartDataAttribute(attributeName)
+        ) {
+          const oldValue = mutation.oldValue || '';
+          const newValue = target.getAttribute(attributeName) || '';
+          
+          // Always trigger update if the value actually changed
+          if (oldValue !== newValue) {
+            containersToUpdate.add(target.id);
+          }
+        }
+      }
+    });
+
+    if (containersToUpdate.size > 0) {
+      setTimeout(() => {
+        containersToUpdate.forEach((containerId) => {
+          renderChartFromDataAttributes(containerId);
+        });
+      }, 10);
+    }
+  });
+
+  observer.observe(document.body, {
+    attributes: true,
+    attributeOldValue: true,
+    attributeFilter: [
+      "data-id",
+      "data-name",
+      "data-chart-type",
+      "data-x-axis",
+      "data-series-list",
+      "data-style",
+      "data-area",
+      "data-cumulative",
+      "data-top-n",
+      "data-default-filter-conditions",
+      "data-original-name",
+    ],
+    subtree: true,
+  });
+
+  window.chartMutationObserver = observer;
+  return observer;
+}
+
+/**
+ * Check if an attribute name is a chart data attribute we care about
+ */
+function isChartDataAttribute(attributeName) {
+  const chartDataAttributes = [
+    "data-id",
+    "data-name",
+    "data-chart-type",
+    "data-x-axis",
+    "data-series-list",
+    "data-style",
+    "data-area",
+    "data-cumulative",
+    "data-top-n",
+    "data-default-filter-conditions",
+    "data-original-name",
+  ];
+  return chartDataAttributes.includes(attributeName);
+}
+
+/**
+ * Update chart individual data attributes
+ * MutationObserver will automatically handle the re-render
+ */
+function updateChartDataAndRender(containerId, newConfig) {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.error("Chart container not found:", containerId);
+    return false;
+  }
+
+  // Update individual data attributes - clean and simple
+  container.setAttribute("data-id", newConfig.id || "");
+  container.setAttribute("data-name", newConfig.name || "");
+  container.setAttribute("data-chart-type", newConfig.chart_type || "bar");
+  container.setAttribute("data-x-axis", JSON.stringify(newConfig.x_axis || {}));
+  container.setAttribute("data-series-list", JSON.stringify(newConfig.series_list || []));
+  container.setAttribute("data-style", newConfig.style || "default");
+  container.setAttribute("data-area", newConfig.area ? "true" : "false");
+  container.setAttribute("data-cumulative", newConfig.cumulative ? "true" : "false");
+  container.setAttribute("data-top-n", (newConfig.top_n || 0).toString());
+  container.setAttribute("data-default-filter-conditions", 
+    newConfig.default_filter_conditions ? JSON.stringify(newConfig.default_filter_conditions) : "");
+  container.setAttribute("data-original-name", newConfig.original_name || newConfig.name || "");
+
+  // MutationObserver will automatically handle the re-render
+  return true;
+}
+
+/**
+ * Get chart config from individual data attributes
+ */
+function getChartConfigFromDataAttributes(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  return buildChartConfigFromDataAttributes(container, containerId);
+}
+
+/**
+ * Available chart properties that can be updated
+ */
+const CHART_PROPERTIES = {
+  name: {
+    dataAttribute: "data-name",
+    validate: (value) => typeof value === "string",
+  },
+  chart_type: {
+    dataAttribute: "data-chart-type",
+    validate: (value) => 
+      ["bar", "horizontal_bar", "line", "pie", "donut", "bubble", "scatter", "radar", "combo_chart"].includes(value),
+  },
+  style: {
+    dataAttribute: "data-style",
+    validate: (value) => 
+      ["default", "stacked", "100% stacked"].includes(value),
+  },
+  area: {
+    dataAttribute: "data-area",
+    validate: (value) => typeof value === "boolean",
+  },
+  cumulative: {
+    dataAttribute: "data-cumulative",
+    validate: (value) => typeof value === "boolean",
+  },
+  top_n: {
+    dataAttribute: "data-top-n",
+    validate: (value) => typeof value === "number" && value >= 0,
+  },
+  x_axis: {
+    dataAttribute: "data-x-axis",
+    validate: (value) => typeof value === "object" && value !== null,
+  },
+  series_list: {
+    dataAttribute: "data-series-list",
+    validate: (value) => Array.isArray(value),
+  },
+  default_filter_conditions: {
+    dataAttribute: "data-default-filter-conditions",
+    validate: (value) => value === null || Array.isArray(value),
+  },
+};
+
+/**
+ * Update a specific chart property with validation and automatic rebuilding
+ * This now works directly with data attributes - MutationObserver handles the rebuilding
+ */
+function updateChartProperty(containerId, property, value) {
+  const container = document.getElementById(containerId);
+  if (!container) return false;
+
+  const propertyDef = CHART_PROPERTIES[property];
+  if (!propertyDef) return false;
+
+  // Validate the new value
+  if (propertyDef.validate && !propertyDef.validate(value)) {
+    return false;
+  }
+
+  // Check if value actually changed
+  let currentValue;
+  if (propertyDef.dataAttribute === "data-x-axis" || 
+      propertyDef.dataAttribute === "data-series-list" || 
+      propertyDef.dataAttribute === "data-default-filter-conditions") {
+    currentValue = JSON.parse(container.getAttribute(propertyDef.dataAttribute) || "null");
+  } else if (propertyDef.dataAttribute === "data-area" || propertyDef.dataAttribute === "data-cumulative") {
+    currentValue = container.getAttribute(propertyDef.dataAttribute) === "true";
+  } else if (propertyDef.dataAttribute === "data-top-n") {
+    currentValue = parseInt(container.getAttribute(propertyDef.dataAttribute) || "0");
+  } else {
+    currentValue = container.getAttribute(propertyDef.dataAttribute);
+  }
+
+  if (currentValue === value) {
+    return true; // No change needed
+  }
+
+  // Update the data attribute - MutationObserver will handle the rebuild automatically
+  let attributeValue;
+  if (propertyDef.dataAttribute === "data-x-axis" || 
+      propertyDef.dataAttribute === "data-series-list" || 
+      propertyDef.dataAttribute === "data-default-filter-conditions") {
+    attributeValue = JSON.stringify(value);
+  } else if (propertyDef.dataAttribute === "data-area" || propertyDef.dataAttribute === "data-cumulative") {
+    attributeValue = value ? "true" : "false";
+  } else {
+    attributeValue = value || "";
+  }
+
+  container.setAttribute(propertyDef.dataAttribute, attributeValue);
+
+  // Trigger change event for external listeners
+  triggerChartPropertyChange(containerId, property, currentValue, value);
+
+  return true;
+}
+
+/**
+ * Get the current value of a chart property from data attributes
+ */
+function getChartProperty(containerId, property) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  const propertyDef = CHART_PROPERTIES[property];
+  if (!propertyDef) return null;
+
+  const attributeValue = container.getAttribute(propertyDef.dataAttribute);
+  
+  if (propertyDef.dataAttribute === "data-x-axis" || 
+      propertyDef.dataAttribute === "data-series-list" || 
+      propertyDef.dataAttribute === "data-default-filter-conditions") {
+    return JSON.parse(attributeValue || "null");
+  } else if (propertyDef.dataAttribute === "data-area" || propertyDef.dataAttribute === "data-cumulative") {
+    return attributeValue === "true";
+  } else if (propertyDef.dataAttribute === "data-top-n") {
+    return parseInt(attributeValue || "0");
+  } else {
+    return attributeValue;
+  }
+}
+
+/**
+ * Trigger a property change event for external listeners
+ */
+function triggerChartPropertyChange(containerId, property, oldValue, newValue) {
+  const event = new CustomEvent("chartPropertyChanged", {
+    detail: {
+      containerId,
+      property,
+      oldValue,
+      newValue,
+      timestamp: new Date().toISOString(),
+    },
+  });
+
+  document.dispatchEvent(event);
+}
+
+/**
+ * Get all available chart properties
+ */
+function getAvailableChartProperties() {
+  return Object.keys(CHART_PROPERTIES);
+}
+
+/**
+ * Get detailed information about a specific chart property
+ */
+function getChartPropertyInfo(property) {
+  return CHART_PROPERTIES[property] || null;
+}
+
+/**
+ * Validate a chart property value without updating
+ */
+function validateChartProperty(property, value) {
+  const propertyDef = CHART_PROPERTIES[property];
+  if (!propertyDef) {
+    return { valid: false, error: "Unknown property" };
+  }
+
+  if (propertyDef.validate) {
+    const isValid = propertyDef.validate(value);
+    return {
+      valid: isValid,
+      error: isValid ? null : "Value does not meet validation requirements",
+    };
+  }
+
+  return { valid: true, error: null };
+}
+
+/**
+ * Get all current property values for a chart from data attributes
+ */
+function getAllChartProperties(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  const properties = {};
+  for (const property of Object.keys(CHART_PROPERTIES)) {
+    properties[property] = getChartProperty(containerId, property);
+  }
+
+  return properties;
+}
+
 // Make functions globally available
 window.renderChartCard = renderChartCard;
+window.renderChartFromDataAttributes = renderChartFromDataAttributes;
+window.reRenderAllChartComponents = reRenderAllChartComponents;
+window.updateChartDataAndRender = updateChartDataAndRender;
+window.getChartConfigFromDataAttributes = getChartConfigFromDataAttributes;
 window.updateChart = updateChart;
 window.updateChartTopN = updateChartTopN;
 window.updateChartTitle = updateChartTitle;
 window.editChart = editChart;
 window.updateChartProperty = updateChartProperty;
+
+// Property management functions
+window.getChartProperty = getChartProperty;
+window.getAllChartProperties = getAllChartProperties;
+window.getAvailableChartProperties = getAvailableChartProperties;
+window.getChartPropertyInfo = getChartPropertyInfo;
+window.validateChartProperty = validateChartProperty;
+
+// MutationObserver functions
+window.initializeChartMutationObserver = initializeChartMutationObserver;
+
+// Auto-initialize MutationObserver when DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    initializeChartMutationObserver();
+  });
+} else {
+  // DOM is already ready
+  initializeChartMutationObserver();
+}
