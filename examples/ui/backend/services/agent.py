@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import AsyncGenerator, Optional, Tuple
+from typing import AsyncGenerator, List, Optional, Tuple
 
 from utils.event_processing import should_render_event
 
@@ -56,7 +56,10 @@ async def get_or_create_agent(
 
 
 async def event_stream(
-    query: str, conversation_id: Optional[str] = None, api_key: Optional[str] = None
+    query: str,
+    conversation_id: Optional[str] = None,
+    file_names: Optional[List[str]] = None,
+    api_key: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream agent events as Server-Sent Events.
@@ -76,6 +79,16 @@ async def event_stream(
         agent, actual_conversation_id = await get_or_create_agent(
             conversation_id, api_key
         )
+
+        # if there is only one file, read it and add the first 5 rows to the query
+        if file_names and len(file_names) == 1 and file_names[0].endswith(".csv"):
+            result = await agent.environment.read_file(path=file_names[0])
+            if result["status"] == "success":
+                lines = result["content"].splitlines(keepends=True)
+                content = "".join(lines[0:5])
+                query = (
+                    f"{query}\n\nHere are the first 5 rows of the file\n\n: {content}"
+                )
 
         # Send conversation ID as first event
         conversation_event = {

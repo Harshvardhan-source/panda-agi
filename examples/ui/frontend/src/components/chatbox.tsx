@@ -41,6 +41,7 @@ import toast from "react-hot-toast";
 interface RequestBody {
   query: string;
   conversation_id?: string;
+  file_names?: string[];
 }
 
 export interface ChatBoxRef {
@@ -571,6 +572,10 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         // Include conversation_id if we have one (for follow-up messages)
         if (conversationId) {
           requestBody.conversation_id = conversationId;
+        }
+
+        if (pendingFiles.length > 0) {
+          requestBody.file_names = pendingFiles.map((file) => file.filename);
         }
 
         const apiHeaders = await getApiHeaders();
