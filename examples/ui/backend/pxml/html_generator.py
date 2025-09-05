@@ -113,9 +113,8 @@ class HTMLGenerator:
         .watermark {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            right: 30px;
             z-index: 1000;
-            opacity: 0.8;
             transition: all 0.3s ease;
             pointer-events: auto;
             user-select: none;
@@ -123,7 +122,6 @@ class HTMLGenerator:
         }
         
         .watermark:hover {
-            opacity: 1;
             transform: scale(1.05);
         }
         
@@ -131,36 +129,29 @@ class HTMLGenerator:
             display: flex;
             align-items: center;
             gap: 8px;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, #1f2937, #111827);
+            border: 1px solid #4b5563;
             border-radius: 12px;
             padding: 8px 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
             pointer-events: none;
         }
         
         .watermark-icon {
-            color: #3b82f6;
+            color: #e5e7eb;
             font-size: 16px;
         }
         
         .watermark-text {
-            color: #374151;
-            font-size: 12px;
+            color: #ffffff;
+            font-size: 15px;
             font-weight: 500;
             letter-spacing: 0.025em;
         }
         
-        .watermark-badge {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .watermark-annie {
+            font-weight: 700;
+            font-size: 18px;
         }
         """
 
@@ -488,9 +479,8 @@ class HTMLGenerator:
         <!-- Watermark -->
         <div class="watermark" id="dashboardWatermark" onclick="window.open('https://chat.pandas-ai.com', '_blank', 'noopener,noreferrer')">
             <div class="watermark-content">
+                <span class="watermark-text">Made with <span class="watermark-annie">Annie</span></span>
                 <i class="fas fa-chart-line watermark-icon"></i>
-                <span class="watermark-text">Made with Annie</span>
-                <span class="watermark-badge">Dashboard</span>
             </div>
         </div>"""
 
