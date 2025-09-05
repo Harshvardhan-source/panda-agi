@@ -24,7 +24,7 @@ class HTMLGenerator:
         column_mapping: Dict[str, str] = None,
     ) -> str:
         """Generate complete dashboard HTML using modular approach"""
-        
+
         # Process dashboard data into JSON configuration
         config = self.data_processor.process_dashboard_config(
             dashboard_data, csv_data_json, column_mapping
@@ -52,6 +52,7 @@ class HTMLGenerator:
     </div>
     
     {self._generate_data_modal()}
+    {self._generate_watermark()}
     {self._generate_scripts(config)}
 </body>
 </html>"""
@@ -106,6 +107,51 @@ class HTMLGenerator:
             height: 100%;
             max-width: 100%;
             overflow: hidden;
+        }
+        
+        /* Watermark Styles */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 30px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            user-select: none;
+            cursor: pointer;
+        }
+        
+        .watermark:hover {
+            transform: scale(1.05);
+        }
+        
+        .watermark-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #1f2937, #111827);
+            border: 1px solid #4b5563;
+            border-radius: 12px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+        
+        .watermark-icon {
+            color: #e5e7eb;
+            font-size: 16px;
+        }
+        
+        .watermark-text {
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        
+        .watermark-annie {
+            font-weight: 700;
+            font-size: 18px;
         }
         """
 
@@ -327,7 +373,7 @@ class HTMLGenerator:
     def _generate_kpi_component(self, kpi_config: Dict[str, Any]) -> str:
         """Generate simple KPI container - rendering logic moved to frontend"""
         kpi_id = kpi_config["id"]
-        
+
         return f"""
         <div id="{kpi_id}_container" class="kpi-container h-full flex flex-col">
             <!-- KPI content will be rendered by JavaScript -->
@@ -336,7 +382,7 @@ class HTMLGenerator:
     def _generate_chart_component(self, chart_config: Dict[str, Any]) -> str:
         """Generate simple chart container - rendering logic moved to frontend"""
         chart_id = chart_config["id"]
-        
+
         return f"""
         <div id="{chart_id}_container" class="chart-container h-full flex flex-col">
             <!-- Chart content will be rendered by JavaScript -->
@@ -427,30 +473,45 @@ class HTMLGenerator:
             </div>
         </div>"""
 
+    def _generate_watermark(self) -> str:
+        """Generate watermark HTML"""
+        return """
+        <!-- Watermark -->
+        <div class="watermark" id="dashboardWatermark" onclick="window.open('https://chat.pandas-ai.com', '_blank', 'noopener,noreferrer')">
+            <div class="watermark-content">
+                <span class="watermark-text">Made with <span class="watermark-annie">Annie</span></span>
+                <i class="fas fa-chart-line watermark-icon"></i>
+            </div>
+        </div>"""
+
     def _generate_scripts(self, config: Dict[str, Any]) -> str:
         """Generate JavaScript scripts section"""
         config_json = json.dumps(config, indent=2)
-        
+
         # Read JavaScript modules
         js_modules = []
         js_files = [
             "excel-helpers.js",
             "data-utils.js",
-            "filters.js", 
+            "filters.js",
             "kpis.js",
             "charts.js",
             "data-modal.js",
-            "dashboard-core.js"
+            "dashboard-core.js",
         ]
-        
+
         for js_file in js_files:
             try:
-                with open(f"/Users/gabrieleventuri/Projects/ai/annie/sdk/examples/ui/backend/pxml/js/{js_file}", 'r') as f:
+                print("Loading JavaScript file:", js_file)
+                with open(
+                    f"pxml/js/{js_file}",
+                    "r",
+                ) as f:
                     js_modules.append(f.read())
             except FileNotFoundError:
                 print(f"Warning: JavaScript file {js_file} not found")
                 continue
-        
+
         return f"""
     <script>
         // Dashboard configuration
@@ -469,5 +530,6 @@ class HTMLGenerator:
                     updateChartTitle(chartId, chartInfo.config);
                 }}
             }});
+            
         }});
     </script>"""
