@@ -800,6 +800,9 @@ class Agent:
         # Check if any of the tool results correspond to breaking tools
         list_breaking_tools = self.tool_registry.list_breaking_tools()
         tool_names = [tool_call.get("function_name") for tool_call in tool_results]
+        any_breaking_tool = any(
+            tool_name in list_breaking_tools for tool_name in tool_names
+        )
 
         # Check if <user_send_message completed="true"/>
         user_send_message_completed = any(
@@ -807,11 +810,8 @@ class Agent:
             and tool_call.get("arguments", {}).get("completed") == "true"
             for tool_call in tool_results
         )
-
-        return (
-            any(tool_name in list_breaking_tools for tool_name in tool_names)
-            or user_send_message_completed
-        )
+        break_agent = any_breaking_tool or user_send_message_completed
+        return break_agent
 
     async def _execute_collected_tools_with_breaking_check(
         self,
