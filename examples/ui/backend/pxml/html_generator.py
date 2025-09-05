@@ -502,8 +502,9 @@ class HTMLGenerator:
 
         for js_file in js_files:
             try:
+                print("Loading JavaScript file:", js_file)
                 with open(
-                    f"/Users/arslan/Documents/SinapTik/panda-agi/examples/ui/backend/pxml/js/{js_file}",
+                    f"pxml/js/{js_file}",
                     "r",
                 ) as f:
                     js_modules.append(f.read())
