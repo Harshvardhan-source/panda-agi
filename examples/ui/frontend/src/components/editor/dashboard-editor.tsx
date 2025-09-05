@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Settings, BarChart3, LineChart, PieChart, ChevronDown, ChevronRight, Palette, Database, TrendingUp, Plus, Trash2, Circle, MoreHorizontal, Target } from "lucide-react";
+import {
+  X,
+  Settings,
+  BarChart3,
+  LineChart,
+  PieChart,
+  ChevronDown,
+  ChevronRight,
+  Palette,
+  Database,
+  TrendingUp,
+  Plus,
+  Trash2,
+  Circle,
+  MoreHorizontal,
+  Target,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArtifactData } from "@/types/artifact";
 
@@ -20,6 +36,15 @@ interface ChartConfig {
   }>;
   area?: "none" | "area";
   stacked?: "none" | "stacked" | "100_stacked";
+}
+
+interface KPIConfig {
+  id: string;
+  name: string;
+  fa_icon: string;
+  value_formula: string;
+  format_type: string;
+  unit: string;
 }
 
 interface DashboardEditorProps {
@@ -48,6 +73,28 @@ const AGGREGATION_TYPES = [
   { value: "max", label: "Maximum" },
 ];
 
+const KPI_ICONS = [
+  { value: "fa-dollar-sign", label: "Dollar Sign" },
+  { value: "fa-chart-line", label: "Chart Line" },
+  { value: "fa-trophy", label: "Trophy" },
+  { value: "fa-chart-bar", label: "Chart Bar" },
+  { value: "fa-user", label: "User" },
+  { value: "fa-users", label: "Users" },
+  { value: "fa-star", label: "Star" },
+  { value: "fa-heart", label: "Heart" },
+  { value: "fa-thumbs-up", label: "Thumbs Up" },
+  { value: "fa-shopping-cart", label: "Shopping Cart" },
+  { value: "fa-calendar", label: "Calendar" },
+  { value: "fa-clock", label: "Clock" },
+];
+
+const KPI_FORMATS = [
+  { value: "number", label: "Number" },
+  { value: "currency:usd", label: "Currency (USD)" },
+  { value: "percentage", label: "Percentage" },
+  { value: "decimal", label: "Decimal" },
+];
+
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
@@ -56,19 +103,29 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editedChart, setEditedChart] = useState<ChartConfig | null>(null);
+  const [editedKPI, setEditedKPI] = useState<KPIConfig | null>(null);
   const [dynamicColumns, setDynamicColumns] = useState<
     Array<{ letter: string; name: string }>
   >([]);
   const [expandedSections, setExpandedSections] = useState({
     general: true,
     xaxis: true,
-    series: true
+    series: true,
   });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'close' | 'switch' | null>(null);
-  const [pendingChartData, setPendingChartData] = useState<ChartConfig | null>(null);
-  const [originalChartState, setOriginalChartState] = useState<ChartConfig | null>(null);
+  const [pendingAction, setPendingAction] = useState<"close" | "switch" | null>(
+    null
+  );
+  const [pendingChartData, setPendingChartData] = useState<ChartConfig | null>(
+    null
+  );
+  const [pendingKPIData, setPendingKPIData] = useState<KPIConfig | null>(null);
+  const [originalChartState, setOriginalChartState] =
+    useState<ChartConfig | null>(null);
+  const [originalKPIState, setOriginalKPIState] = useState<KPIConfig | null>(
+    null
+  );
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State for compiled dashboard content (moved up for proper initialization order)
@@ -121,8 +178,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           },
           series_list: [],
           area: chartEl.getAttribute("area") === "true" ? "area" : "none",
-          stacked: chartEl.getAttribute("style") === "stacked" ? "stacked" : 
-                   (chartEl.getAttribute("style") === "100% stacked" || chartEl.getAttribute("style") === "100%" || chartEl.getAttribute("style") === "100_stacked") ? "100_stacked" : "none",
+          stacked:
+            chartEl.getAttribute("style") === "stacked"
+              ? "stacked"
+              : chartEl.getAttribute("style") === "100% stacked"
+              ? "100_stacked"
+              : "none",
         };
 
         const seriesElements = chartEl.querySelectorAll("series");
@@ -140,6 +201,54 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     } catch {}
 
     return charts;
+  };
+
+  // Parse PXML content to extract KPI configurations
+  const parseKPIsFromPXML = (pxmlContent: string): KPIConfig[] => {
+    // Check if content is HTML instead of PXML
+    if (
+      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith("<html")
+    ) {
+      return [];
+    }
+
+    const kpis: KPIConfig[] = [];
+    const parser = new DOMParser();
+
+    try {
+      const doc = parser.parseFromString(pxmlContent, "text/xml");
+
+      // Check for parsing errors
+      const parseError = doc.querySelector("parsererror");
+      if (parseError) {
+        return kpis;
+      }
+
+      const kpiElements = doc.querySelectorAll("kpi");
+
+      kpiElements.forEach((kpiEl, index) => {
+        const name =
+          kpiEl.querySelector("name")?.textContent || `KPI ${index + 1}`;
+        const id = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+
+        const kpi: KPIConfig = {
+          id: id,
+          name: name,
+          fa_icon:
+            kpiEl.querySelector("fa_icon")?.textContent || "fa-chart-line",
+          value_formula:
+            kpiEl.querySelector("value formula")?.textContent || "=0",
+          format_type:
+            kpiEl.querySelector("value format")?.textContent || "number",
+          unit: kpiEl.querySelector("value unit")?.textContent || "",
+        };
+
+        kpis.push(kpi);
+      });
+    } catch {}
+
+    return kpis;
   };
 
   // Update PXML content with edited chart
@@ -217,6 +326,51 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  // Update PXML content with edited KPI
+  const updatePXMLWithKPI = (
+    originalContent: string,
+    kpiConfig: KPIConfig
+  ): string => {
+    const parser = new DOMParser();
+    const serializer = new XMLSerializer();
+
+    try {
+      const doc = parser.parseFromString(originalContent, "text/xml");
+      const kpiElements = doc.querySelectorAll("kpi");
+
+      // Find the KPI to update by matching name/id
+      const kpiEl = Array.from(kpiElements).find((el) => {
+        const name = el.querySelector("name")?.textContent || "";
+        const id = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+        return id === kpiConfig.id;
+      });
+
+      if (kpiEl) {
+        // Update KPI name
+        const nameEl = kpiEl.querySelector("name");
+        if (nameEl) nameEl.textContent = kpiConfig.name;
+
+        // Update icon
+        const iconEl = kpiEl.querySelector("fa_icon");
+        if (iconEl) iconEl.textContent = kpiConfig.fa_icon;
+
+        // Update value elements
+        const formulaEl = kpiEl.querySelector("value formula");
+        const formatEl = kpiEl.querySelector("value format");
+        const unitEl = kpiEl.querySelector("value unit");
+
+        if (formulaEl) formulaEl.textContent = kpiConfig.value_formula;
+        if (formatEl) formatEl.textContent = kpiConfig.format_type;
+        if (unitEl) unitEl.textContent = kpiConfig.unit;
+      }
+
+      return serializer.serializeToString(doc);
+    } catch (error) {
+      console.error("Error updating PXML with KPI:", error);
+      return originalContent;
+    }
+  };
+
   // Extract columns dynamically from iframe
   const extractColumnsFromIframe = (): Array<{
     letter: string;
@@ -248,9 +402,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
   // Toggle section expansion
   const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section],
     }));
   };
 
@@ -300,7 +454,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
-  // Handle chart click from iframe
+  // Handle chart and KPI click from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === "chart-edit" && event.data.chartId) {
@@ -315,11 +469,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         if (chart) {
           // Check if we're switching to a different chart with unsaved changes
           if (hasUnsavedChanges && editedChart && editedChart.id !== chart.id) {
-            setPendingAction('switch');
+            setPendingAction("switch");
             setPendingChartData(chart);
             setShowConfirmDialog(true);
             return;
           }
+
+          // Clear KPI editing state
+          setEditedKPI(null);
+          setOriginalKPIState(null);
 
           // Ensure chart has default values for new properties
           const chartWithDefaults = {
@@ -327,7 +485,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             area: chart.area || "none",
             stacked: chart.stacked || "none",
           };
-          
+
           setEditedChart({ ...chartWithDefaults });
           setOriginalChartState({ ...chartWithDefaults }); // Store original state for reverting
           setIsEditorOpen(true);
@@ -347,11 +505,52 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           }
         }
       }
+
+      if (event.data.type === "kpi-edit" && event.data.kpiId) {
+        // Use raw PXML content for parsing if available, otherwise fall back to current content
+        const contentToParse = rawPXMLContent || content;
+
+        const kpis = parseKPIsFromPXML(contentToParse);
+
+        // Find KPI by matching the ID
+        const kpi = kpis.find((k) => k.id === event.data.kpiId);
+
+        if (kpi) {
+          // Check if we're switching to a different KPI with unsaved changes
+          if (hasUnsavedChanges && editedKPI && editedKPI.id !== kpi.id) {
+            setPendingAction("switch");
+            setPendingKPIData(kpi);
+            setShowConfirmDialog(true);
+            return;
+          }
+
+          // Clear chart editing state
+          setEditedChart(null);
+          setOriginalChartState(null);
+
+          setEditedKPI({ ...kpi });
+          setOriginalKPIState({ ...kpi }); // Store original state for reverting
+          setIsEditorOpen(true);
+          setHasUnsavedChanges(false);
+
+          // Send message to iframe to highlight the new KPI
+          const iframe = iframeRef.current;
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage(
+              {
+                type: "kpi-edit",
+                kpiId: kpi.id,
+              },
+              "*"
+            );
+          }
+        }
+      }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart]);
+  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI]);
 
   // Extract columns and inject click handlers into iframe
   useEffect(() => {
@@ -383,7 +582,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             };
             const HIGHLIGHT_TIMEOUT = 100;
             
-            // Add click handlers to chart containers and edit buttons
+            // Add click handlers to chart and KPI containers and edit buttons
             function setupChartEditors() {
               
               // Handle chart container clicks
@@ -399,6 +598,27 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 // Add hover effect
                 container.addEventListener("mouseenter", () => {
                   container.style.boxShadow = "0 0 0 2px rgba(59, 130, 246, 0.3)";
+                  container.style.borderRadius = CHART_BORDER_RADIUS.HOVER;
+                });
+                container.addEventListener("mouseleave", () => {
+                  container.style.boxShadow = "";
+                  container.style.borderRadius = CHART_BORDER_RADIUS.DEFAULT;
+                });
+              });
+
+              // Handle KPI container clicks
+              const kpiContainers = document.querySelectorAll('[id*="kpi_"][id$="_container"]');
+              kpiContainers.forEach((container) => {
+                const kpiId = container.id.replace("_container", "");
+                container.style.cursor = "pointer";
+                container.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  parent.postMessage({ type: "kpi-edit", kpiId }, "*");
+                });
+
+                // Add hover effect
+                container.addEventListener("mouseenter", () => {
+                  container.style.boxShadow = "0 0 0 2px rgba(34, 197, 94, 0.3)";
                   container.style.borderRadius = CHART_BORDER_RADIUS.HOVER;
                 });
                 container.addEventListener("mouseleave", () => {
@@ -456,7 +676,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             function highlightEditedChart(chartId) {
               console.log('🎨 Highlighting chart:', chartId);
               
-              // Remove highlighting from all charts first using the shared function
+              // Remove highlighting from all charts and KPIs first using the shared function
               removeAllHighlighting();
               
               // Add highlighting to the current chart
@@ -470,29 +690,48 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 console.warn('❌ Chart container not found:', chartId + '_container');
               }
             }
+
+            // Function to highlight the currently edited KPI
+            function highlightEditedKPI(kpiId) {
+              console.log('🎨 Highlighting KPI:', kpiId);
+              
+              // Remove highlighting from all charts and KPIs first using the shared function
+              removeAllHighlighting();
+              
+              // Add highlighting to the current KPI
+              const currentKPI = document.getElementById(kpiId + '_container');
+              if (currentKPI) {
+                console.log('✅ Found KPI container, adding highlighting');
+                currentKPI.classList.add('ring-2', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
+                currentKPI.style.transition = 'all 0.2s ease-out';
+                currentKPI.style.borderRadius = CHART_BORDER_RADIUS.SELECTED;
+              } else {
+                console.warn('❌ KPI container not found:', kpiId + '_container');
+              }
+            }
             
             // Function to remove all highlighting
             function removeAllHighlighting() {
               console.log('🧹 Removing all highlighting');
-              // Combined selector to target all chart-related elements efficiently
-              const combinedSelector = '.chart-component, div[class*="chart-component"], div[id*="chart_"][id$="_container"]';
-              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'selected-chart', 'ring-1', 'ring-blue-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20'];
+              // Combined selector to target all chart and KPI related elements efficiently
+              const combinedSelector = '.chart-component, div[class*="chart-component"], div[id*="chart_"][id$="_container"], .kpi-component, div[class*="kpi-component"], div[id*="kpi_"][id$="_container"]';
+              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-green-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
               
-              document.querySelectorAll(combinedSelector).forEach(chart => {
+              document.querySelectorAll(combinedSelector).forEach(element => {
                 // Remove all possible highlighting classes in one call
-                chart.classList.remove(...highlightClasses);
+                element.classList.remove(...highlightClasses);
                 
                 // Reset inline styles
-                chart.style.transition = 'all 0.2s ease-out';
-                chart.style.borderRadius = CHART_BORDER_RADIUS.DEFAULT; // Reset to default rounded
-                chart.style.transform = '';
-                chart.style.boxShadow = '';
-                chart.style.backgroundColor = '';
-                chart.style.border = '';
+                element.style.transition = 'all 0.2s ease-out';
+                element.style.borderRadius = CHART_BORDER_RADIUS.DEFAULT; // Reset to default rounded
+                element.style.transform = '';
+                element.style.boxShadow = '';
+                element.style.backgroundColor = '';
+                element.style.border = '';
               });
             }
 
-            // Listen for chart edit start messages from parent
+            // Listen for chart and KPI edit start messages from parent
             window.addEventListener('message', (event) => {
               console.log('📨 Received message:', event.data);
               if (event.data.type === 'chart-edit') {
@@ -504,17 +743,370 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 setTimeout(() => {
                   highlightEditedChart(chartId);
                 }, HIGHLIGHT_TIMEOUT); // Timeout to ensure proper cleanup
-              } else if (event.data.type === 'remove-highlighting') {
-                console.log('🧹 Removing all chart highlighting');
+              } else if (event.data.type === 'kpi-edit') {
+                const { kpiId } = event.data;
+                console.log('🎯 KPI edit started for:', kpiId);
                 
-                // Remove highlighting from all charts
+                // First remove all highlighting, then add to new KPI
+                removeAllHighlighting();
+                setTimeout(() => {
+                  highlightEditedKPI(kpiId);
+                }, HIGHLIGHT_TIMEOUT); // Timeout to ensure proper cleanup
+              } else if (event.data.type === 'kpi-saved') {
+                const { kpiId } = event.data;
+                console.log('💾 KPI saved, clearing pending status for:', kpiId);
+                
+                // Clear pending status and reset value styling
+                const valueElement = document.getElementById(kpiId + '_value');
+                if (valueElement && valueElement.textContent === 'Save to update') {
+                  valueElement.style.fontStyle = 'normal';
+                  valueElement.style.opacity = '1';
+                  valueElement.textContent = 'Loading...';
+                  
+                  // Trigger a refresh of the KPI value
+                  setTimeout(() => {
+                    if (window.updateKPI) {
+                      try {
+                        window.updateKPI(kpiId);
+                      } catch (error) {
+                        console.error('Error refreshing KPI after save:', error);
+                        valueElement.textContent = 'Error';
+                      }
+                    }
+                  }, 100);
+                }
+              } else if (event.data.type === 'remove-highlighting') {
+                console.log('🧹 Removing all highlighting');
+                
+                // Remove highlighting from all charts and KPIs
                 removeAllHighlighting();
               }
             });
 
-            // Listen for chart update messages from parent
+            // Listen for chart and KPI update messages from parent
             window.addEventListener('message', (event) => {
-              if (event.data.type === 'update-chart') {
+              if (event.data.type === 'update-kpi') {
+                const { kpiId, config } = event.data;
+                console.log('🔄 Received KPI update for:', kpiId, 'with config:', config);
+                
+                // Add highlighting to the currently edited KPI
+                highlightEditedKPI(kpiId);
+                
+                // Update KPI properties directly in the DOM
+                try {
+                  console.log('🎨 Updating KPI DOM elements for:', kpiId);
+                  
+                  // Update KPI name
+                  const nameElement = document.querySelector('.kpi-name[data-kpi-id="' + kpiId + '"]');
+                  if (nameElement) {
+                    console.log('✏️ Updating KPI name from:', nameElement.textContent, 'to:', config.name);
+                    nameElement.textContent = config.name;
+                  } else {
+                    console.warn('❌ KPI name element not found for:', kpiId);
+                  }
+                  
+                  // Update KPI icon
+                  const iconElement = document.querySelector('.kpi-icon[data-kpi-id="' + kpiId + '"]');
+                  if (iconElement) {
+                    console.log('🎭 Updating KPI icon to:', config.fa_icon);
+                    iconElement.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                    iconElement.setAttribute('data-kpi-id', kpiId);
+                  } else {
+                    console.warn('❌ KPI icon element not found for:', kpiId);
+                  }
+                  
+                  // Update KPI unit
+                  const unitElement = document.querySelector('.kpi-unit[data-kpi-id="' + kpiId + '"]');
+                  if (unitElement) {
+                    if (config.unit) {
+                      unitElement.textContent = config.unit;
+                    } else {
+                      unitElement.style.display = 'none';
+                    }
+                  } else if (config.unit) {
+                    // Add unit if it didn't exist before
+                    const valueElement = document.getElementById(kpiId + '_value');
+                    if (valueElement && valueElement.parentNode) {
+                      const unitSpan = document.createElement('span');
+                      unitSpan.className = 'ml-1 text-sm text-gray-500 kpi-unit';
+                      unitSpan.setAttribute('data-kpi-id', kpiId);
+                      unitSpan.textContent = config.unit;
+                      valueElement.parentNode.appendChild(unitSpan);
+                    }
+                  }
+                  
+                  // Update KPI configuration in the global registry and recalculate
+                  console.log('📊 Checking KPI registry for:', kpiId);
+                  console.log('Available window functions:', {
+                    registeredKPIs: !!window.registeredKPIs,
+                    updateKPI: !!window.updateKPI,
+                    registerKPI: !!window.registerKPI,
+                    updateKPIProperty: !!window.updateKPIProperty
+                  });
+                  
+                  // Handle all KPI property updates
+                  console.log('🔧 Updating KPI properties for:', kpiId);
+                  
+                  // Update visual properties using the built-in function (safe properties)
+                  if (window.updateKPIProperty) {
+                    if (config.name !== undefined) {
+                      console.log('📝 Updating KPI name:', config.name);
+                      window.updateKPIProperty(kpiId, 'name', config.name);
+                    }
+                    
+                    if (config.fa_icon !== undefined) {
+                      console.log('🎭 Updating KPI icon:', config.fa_icon, 'for KPI:', kpiId);
+                      
+                      // Debug: Let's see what's actually in the DOM
+                      const container = document.getElementById(kpiId + '_container');
+                      console.log('📦 KPI container found:', !!container);
+                      
+                      if (container) {
+                        console.log('🔍 Container HTML:', container.innerHTML.substring(0, 300) + '...');
+                        
+                        // Find all icon elements in the container
+                        const allIcons = container.querySelectorAll('i, .fa, .fas, [class*="fa-"]');
+                        console.log('🎭 Found', allIcons.length, 'potential icon elements');
+                        
+                        allIcons.forEach((icon, index) => {
+                          console.log('Icon ' + (index + 1) + ':', {
+                            tag: icon.tagName,
+                            className: icon.className,
+                            id: icon.id,
+                            dataKpiId: icon.getAttribute('data-kpi-id')
+                          });
+                        });
+                        
+                        // Try multiple strategies to find and update the icon
+                        let iconUpdated = false;
+                        
+                        // Strategy 1: Look for SVG icon with data-kpi-id (most common)
+                        const svgIcon = container.querySelector('svg[data-kpi-id="' + kpiId + '"]');
+                        if (svgIcon) {
+                          console.log('✅ Strategy 1: Found SVG icon, replacing with FontAwesome');
+                          
+                          // Replace SVG with FontAwesome i element
+                          const faIcon = document.createElement('i');
+                          faIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                          faIcon.setAttribute('data-kpi-id', kpiId);
+                          
+                          // Replace the SVG with the new FontAwesome icon
+                          svgIcon.parentNode.replaceChild(faIcon, svgIcon);
+                          iconUpdated = true;
+                        }
+                        
+                        // Strategy 2: Look for FontAwesome i elements with data-kpi-id
+                        if (!iconUpdated) {
+                          const iconWithDataAttr = container.querySelector('i[data-kpi-id="' + kpiId + '"]');
+                          if (iconWithDataAttr) {
+                            console.log('✅ Strategy 2: Found FontAwesome icon with data-kpi-id');
+                            iconWithDataAttr.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                            iconUpdated = true;
+                          }
+                        }
+                        
+                        // Strategy 3: Look for any i element with fas class
+                        if (!iconUpdated) {
+                          const fasIcon = container.querySelector('i.fas') || container.querySelector('i[class*="fa-"]');
+                          if (fasIcon) {
+                            console.log('✅ Strategy 3: Found existing FontAwesome icon');
+                            fasIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                            fasIcon.setAttribute('data-kpi-id', kpiId);
+                            iconUpdated = true;
+                          }
+                        }
+                        
+                        // Strategy 4: Replace any SVG or create new FontAwesome icon
+                        if (!iconUpdated) {
+                          const anySvg = container.querySelector('svg');
+                          if (anySvg) {
+                            console.log('✅ Strategy 4: Replacing SVG with FontAwesome icon');
+                            const faIcon = document.createElement('i');
+                            faIcon.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                            faIcon.setAttribute('data-kpi-id', kpiId);
+                            anySvg.parentNode.replaceChild(faIcon, anySvg);
+                            iconUpdated = true;
+                          }
+                        }
+                        
+                        if (!iconUpdated) {
+                          console.warn('❌ No icon element found to update in container');
+                        }
+                      } else {
+                        console.warn('❌ KPI container not found:', kpiId + '_container');
+                        
+                        // Debug: List all elements with IDs containing the kpiId
+                        const allElements = document.querySelectorAll('[id*="' + kpiId.replace('kpi_', '') + '"]');
+                        console.log('🔍 Found', allElements.length, 'elements with similar IDs:');
+                        allElements.forEach(el => console.log('  -', el.id, el.tagName));
+                      }
+                      
+                      // Also try the built-in function as fallback
+                      if (window.updateKPIProperty) {
+                        console.log('🔧 Also trying updateKPIProperty as fallback');
+                        try {
+                          window.updateKPIProperty(kpiId, 'fa_icon', config.fa_icon);
+                        } catch (e) {
+                          console.warn('updateKPIProperty failed:', e);
+                        }
+                      }
+                    }
+                    
+                    if (config.unit !== undefined) {
+                      console.log('📏 Updating KPI unit:', config.unit);
+                      window.updateKPIProperty(kpiId, 'unit', config.unit);
+                    }
+                  } else {
+                    console.warn('❌ updateKPIProperty not available, manual DOM update');
+                    // Fallback to manual DOM updates if the function isn't available
+                    if (config.name !== undefined) {
+                      const nameElement = document.querySelector('.kpi-name[data-kpi-id="' + kpiId + '"]');
+                      if (nameElement) nameElement.textContent = config.name;
+                    }
+                    
+                    if (config.fa_icon !== undefined) {
+                      const iconElement = document.querySelector('.kpi-icon[data-kpi-id="' + kpiId + '"]');
+                      if (iconElement) {
+                        iconElement.className = 'fas ' + config.fa_icon + ' text-blue-600 text-xl kpi-icon';
+                        iconElement.setAttribute('data-kpi-id', kpiId);
+                      }
+                    }
+                    
+                    if (config.unit !== undefined) {
+                      const unitElement = document.querySelector('.kpi-unit[data-kpi-id="' + kpiId + '"]');
+                      if (unitElement) {
+                        unitElement.textContent = config.unit;
+                      }
+                    }
+                  }
+                  
+                  // Handle formula and format changes with registry updates only
+                  if (window.registeredKPIs && window.registeredKPIs[kpiId]) {
+                    if (config.format_type !== undefined) {
+                      console.log('💱 Updating KPI format:', config.format_type);
+                      window.registeredKPIs[kpiId].formatType = config.format_type;
+                      
+                      // Try to reformat the current value without recalculating
+                      const valueElement = document.getElementById(kpiId + '_value');
+                      if (valueElement && window.formatKPIValue && !valueElement.textContent.includes('Pending')) {
+                        try {
+                          const currentText = valueElement.textContent;
+                          // Extract number from formatted text (rough approach)
+                          const numMatch = currentText.match(/([0-9,.]+)/);
+                          if (numMatch) {
+                            const rawValue = parseFloat(numMatch[1].replace(/,/g, ''));
+                            const newFormatted = window.formatKPIValue(rawValue, config.format_type);
+                            valueElement.textContent = newFormatted;
+                          }
+                        } catch (e) {
+                          console.log('Could not reformat value, will update on save');
+                        }
+                      }
+                    }
+                    
+                    if (config.value_formula !== undefined) {
+                      console.log('🧮 Formula change detected - calculating live preview');
+                      
+                      // Try to convert and evaluate the formula for live preview
+                      const valueElement = document.getElementById(kpiId + '_value');
+                      if (valueElement) {
+                        try {
+                          // Convert Excel formula to JavaScript for evaluation
+                          let jsFormula = config.value_formula;
+                          if (jsFormula.startsWith('=')) {
+                            jsFormula = jsFormula.substring(1);
+                            
+                            // Simple conversion for common formulas
+                            if (window.getFilteredData && window.columnMapping) {
+                              const filteredData = window.getFilteredData();
+                              
+                              // Handle basic Excel functions with column references
+                              if (jsFormula.match(/SUM\\([A-Z]+\\d*:[A-Z]+\\)/)) {
+                                // Extract column from pattern like SUM(G2:G)
+                                const colMatch = jsFormula.match(/SUM\\(([A-Z]+)\\d*:[A-Z]+\\)/);
+                                if (colMatch && window.columnMapping[colMatch[1]]) {
+                                  const columnName = window.columnMapping[colMatch[1]];
+                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
+                                  const result = columnData.reduce((sum, val) => sum + val, 0);
+                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
+                                  
+                                  valueElement.textContent = formatted;
+                                  valueElement.style.fontStyle = 'normal';
+                                  valueElement.style.opacity = '1';
+                                  console.log('✅ Live preview calculated:', formatted);
+                                  return;
+                                }
+                              }
+                              
+                              if (jsFormula.match(/AVERAGE\\([A-Z]+\\d*:[A-Z]+\\)/)) {
+                                // Extract column from pattern like AVERAGE(G2:G)
+                                const colMatch = jsFormula.match(/AVERAGE\\(([A-Z]+)\\d*:[A-Z]+\\)/);
+                                if (colMatch && window.columnMapping[colMatch[1]]) {
+                                  const columnName = window.columnMapping[colMatch[1]];
+                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0).filter(val => val !== 0);
+                                  const result = columnData.length > 0 ? columnData.reduce((sum, val) => sum + val, 0) / columnData.length : 0;
+                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
+                                  
+                                  valueElement.textContent = formatted;
+                                  valueElement.style.fontStyle = 'normal';
+                                  valueElement.style.opacity = '1';
+                                  console.log('✅ Live preview calculated:', formatted);
+                                  return;
+                                }
+                              }
+                              
+                              if (jsFormula.match(/MAX\\([A-Z]+\\d*:[A-Z]+\\)/)) {
+                                const colMatch = jsFormula.match(/MAX\\(([A-Z]+)\\d*:[A-Z]+\\)/);
+                                if (colMatch && window.columnMapping[colMatch[1]]) {
+                                  const columnName = window.columnMapping[colMatch[1]];
+                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
+                                  const result = Math.max(...columnData);
+                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
+                                  
+                                  valueElement.textContent = formatted;
+                                  valueElement.style.fontStyle = 'normal';
+                                  valueElement.style.opacity = '1';
+                                  console.log('✅ Live preview calculated:', formatted);
+                                  return;
+                                }
+                              }
+                              
+                              if (jsFormula.match(/MIN\\([A-Z]+\\d*:[A-Z]+\\)/)) {
+                                const colMatch = jsFormula.match(/MIN\\(([A-Z]+)\\d*:[A-Z]+\\)/);
+                                if (colMatch && window.columnMapping[colMatch[1]]) {
+                                  const columnName = window.columnMapping[colMatch[1]];
+                                  const columnData = filteredData.map(row => parseFloat(row[columnName]) || 0);
+                                  const result = Math.min(...columnData);
+                                  const formatted = window.formatKPIValue ? window.formatKPIValue(result, config.format_type || window.registeredKPIs[kpiId]?.formatType || 'number') : result;
+                                  
+                                  valueElement.textContent = formatted;
+                                  valueElement.style.fontStyle = 'normal';
+                                  valueElement.style.opacity = '1';
+                                  console.log('✅ Live preview calculated:', formatted);
+                                  return;
+                                }
+                              }
+                            }
+                          }
+                          
+                          // Fallback if we can't calculate live preview
+                          valueElement.textContent = 'N/A';
+                          valueElement.style.fontStyle = 'italic';
+                          valueElement.style.opacity = '0.7';
+                          
+                        } catch (error) {
+                          console.log('⚠️ Could not calculate live preview:', error);
+                          valueElement.textContent = 'Preview Error';
+                          valueElement.style.fontStyle = 'italic';
+                          valueElement.style.opacity = '0.7';
+                        }
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error updating KPI:', error);
+                }
+              } else if (event.data.type === 'update-chart') {
                 const { chartId, config } = event.data;
                 console.log('🔄 Received chart update for:', chartId, 'with config:', config);
                 
@@ -639,6 +1231,25 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return () => iframe.removeEventListener("load", handleLoad);
   }, [content]);
 
+  // Send live KPI updates to iframe for dynamic rendering
+  const updateKPIInIframe = (kpiConfig: KPIConfig) => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+    try {
+      iframe.contentWindow.postMessage(
+        {
+          type: "update-kpi",
+          kpiId: kpiConfig.id,
+          config: kpiConfig,
+        },
+        "*"
+      );
+    } catch {
+      // Silently handle iframe communication errors
+    }
+  };
+
   // Send live chart updates to iframe for dynamic rendering
   const updateChartInIframe = (chartConfig: ChartConfig) => {
     const iframe = iframeRef.current;
@@ -652,10 +1263,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         type: chartConfig.type,
         // Ensure area and stacked properties are included
         area: chartConfig.area === "area",
-        stacked: chartConfig.stacked === "stacked" ? "stacked" : 
-                 chartConfig.stacked === "100_stacked" ? "100% stacked" : "none",
-        style: chartConfig.stacked === "stacked" ? "stacked" : 
-               chartConfig.stacked === "100_stacked" ? "100% stacked" : undefined,
+        stacked:
+          chartConfig.stacked === "stacked"
+            ? "stacked"
+            : chartConfig.stacked === "100_stacked"
+            ? "100% stacked"
+            : "none",
+        style:
+          chartConfig.stacked === "stacked"
+            ? "stacked"
+            : chartConfig.stacked === "100_stacked"
+            ? "100% stacked"
+            : undefined,
       };
 
       // Debug logging to see what we're sending
@@ -665,7 +1284,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         area: normalizedConfig.area,
         stacked: normalizedConfig.stacked,
         style: normalizedConfig.style,
-        fullConfig: normalizedConfig
+        fullConfig: normalizedConfig,
       });
 
       iframe.contentWindow.postMessage(
@@ -800,12 +1419,27 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const deleteSeries = (seriesIndex: number) => {
     if (!editedChart || editedChart.series_list.length <= 1) return; // Keep at least one series
 
-    const updatedSeries = editedChart.series_list.filter((_, index) => index !== seriesIndex);
+    const updatedSeries = editedChart.series_list.filter(
+      (_, index) => index !== seriesIndex
+    );
     const updatedChart = { ...editedChart, series_list: updatedSeries };
 
     setEditedChart(updatedChart);
     markAsChanged();
     updateChartInIframe(updatedChart);
+  };
+
+  // Update KPI property and trigger live re-render
+  const updateKPIProperty = (property: keyof KPIConfig, value: string) => {
+    if (!editedKPI) return;
+
+    console.log(`🔧 Updating KPI property: ${property} = ${value}`);
+    const updatedKPI = { ...editedKPI, [property]: value };
+    setEditedKPI(updatedKPI);
+    markAsChanged();
+
+    console.log("📤 Sending KPI update to iframe:", updatedKPI);
+    updateKPIInIframe(updatedKPI);
   };
 
   const handleSaveChart = () => {
@@ -830,9 +1464,43 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setOriginalChartState(null);
   };
 
+  const handleSaveKPI = () => {
+    if (!editedKPI) return;
+
+    // Use raw PXML content for updating if available
+    const contentToUpdate = rawPXMLContent || content;
+
+    const updatedContent = updatePXMLWithKPI(contentToUpdate, editedKPI);
+    onChange(updatedContent);
+
+    // Update the stored raw PXML content
+    if (rawPXMLContent) {
+      setRawPXMLContent(updatedContent);
+    }
+
+    // Send message to iframe to refresh the KPI after save
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        {
+          type: "kpi-saved",
+          kpiId: editedKPI.id,
+        },
+        "*"
+      );
+    }
+
+    // Update original state to current state since we saved
+    setOriginalKPIState({ ...editedKPI });
+    setHasUnsavedChanges(false);
+    setIsEditorOpen(false);
+    setEditedKPI(null);
+    setOriginalKPIState(null);
+  };
+
   const handleCloseEditor = () => {
     if (hasUnsavedChanges) {
-      setPendingAction('close');
+      setPendingAction("close");
       setShowConfirmDialog(true);
       return;
     }
@@ -843,7 +1511,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const closeEditorImmediate = () => {
     setIsEditorOpen(false);
     setEditedChart(null);
+    setEditedKPI(null);
     setOriginalChartState(null);
+    setOriginalKPIState(null);
     setHasUnsavedChanges(false);
 
     // Send message to iframe to remove highlighting
@@ -862,25 +1532,34 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const handleConfirmDiscard = () => {
     setShowConfirmDialog(false);
     setHasUnsavedChanges(false);
-    
-    if (pendingAction === 'close') {
+
+    if (pendingAction === "close") {
       // Revert to original state before closing
       if (originalChartState) {
         setEditedChart({ ...originalChartState });
         updateChartInIframe(originalChartState);
       }
+      if (originalKPIState) {
+        setEditedKPI({ ...originalKPIState });
+        updateKPIInIframe(originalKPIState);
+      }
       closeEditorImmediate();
-    } else if (pendingAction === 'switch' && pendingChartData) {
+    } else if (pendingAction === "switch" && pendingChartData) {
       // Revert current chart to original state first
       if (originalChartState) {
         updateChartInIframe(originalChartState);
       }
-      
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+
       // Then switch to new chart
       setEditedChart({ ...pendingChartData });
+      setEditedKPI(null);
       setOriginalChartState({ ...pendingChartData }); // Store new original state
+      setOriginalKPIState(null);
       setIsEditorOpen(true);
-      
+
       // Send message to iframe to highlight the new chart
       const iframe = iframeRef.current;
       if (iframe && iframe.contentWindow) {
@@ -892,16 +1571,45 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           "*"
         );
       }
+    } else if (pendingAction === "switch" && pendingKPIData) {
+      // Revert current KPI to original state first
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+
+      // Then switch to new KPI
+      setEditedKPI({ ...pendingKPIData });
+      setEditedChart(null);
+      setOriginalKPIState({ ...pendingKPIData }); // Store new original state
+      setOriginalChartState(null);
+      setIsEditorOpen(true);
+
+      // Send message to iframe to highlight the new KPI
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-edit",
+            kpiId: pendingKPIData.id,
+          },
+          "*"
+        );
+      }
     }
-    
+
     setPendingAction(null);
     setPendingChartData(null);
+    setPendingKPIData(null);
   };
 
   const handleCancelDiscard = () => {
     setShowConfirmDialog(false);
     setPendingAction(null);
     setPendingChartData(null);
+    setPendingKPIData(null);
   };
 
   // Fetch compiled HTML version when we have raw PXML
@@ -1046,8 +1754,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         />
       </div>
 
-      {/* Chart Editor Sidebar */}
-      {isEditorOpen && editedChart && (
+      {/* Chart/KPI Editor Sidebar */}
+      {isEditorOpen && (editedChart || editedKPI) && (
         <div className="w-1/3 bg-background border-l overflow-hidden">
           <div className="h-full flex flex-col">
             {/* Header */}
@@ -1057,9 +1765,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                   <Settings className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold">Edit Chart</h3>
+                  <h3 className="text-sm font-semibold">
+                    {editedChart ? "Edit Chart" : "Edit KPI"}
+                  </h3>
                   <p className="text-xs text-muted-foreground">
-                    {editedChart.name || "Untitled Chart"}
+                    {editedChart?.name || editedKPI?.name || "Untitled"}
                   </p>
                 </div>
               </div>
@@ -1084,392 +1794,623 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-4 p-6">
-                {/* General Section */}
-                <div className="rounded-lg border bg-card">
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleSection('general')}
-                    className="w-full justify-between p-4 h-auto font-normal"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Palette className="h-4 w-4 text-muted-foreground" />
-                      <div className="text-left">
-                        <div className="text-sm font-medium">General</div>
-                        <div className="text-xs text-muted-foreground">Chart title and type</div>
-                      </div>
-                    </div>
-                    {expandedSections.general ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                  
-                  {expandedSections.general && (
-                    <div className="border-t bg-muted/30 p-4 space-y-4">
-                      {/* Chart Title */}
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          Chart Title
-                        </label>
-                        <input
-                          type="text"
-                          value={editedChart.name}
-                          onChange={(e) => updateChartProperty("name", e.target.value)}
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                          placeholder="Enter chart title"
-                        />
-                      </div>
-
-                      {/* Chart Type */}
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          Chart Type
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {CHART_TYPES.map((type) => {
-                            const IconComponent = type.icon;
-                            const isSelected = editedChart.type === type.value;
-                            return (
-                              <Button
-                                key={type.value}
-                                variant={isSelected ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => updateChartProperty("type", type.value)}
-                                className={cn(
-                                  "flex h-auto flex-col space-y-1 p-3",
-                                  !isSelected && "text-muted-foreground"
-                                )}
-                              >
-                                <IconComponent className="h-4 w-4" />
-                                <span className="text-xs">{type.label}</span>
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Chart Options */}
-                      <div className="space-y-4">
-                        {/* Area Option - Only for line charts */}
-                        {editedChart.type === "line" && (
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Area
-                            </label>
-                            <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
-                              <button
-                                type="button"
-                                onClick={() => updateChartOption("area", "none")}
-                                className={cn(
-                                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                  (editedChart.area || "none") === "none"
-                                    ? "bg-background text-foreground shadow"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                              >
-                                None
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => updateChartOption("area", "area")}
-                                className={cn(
-                                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                  (editedChart.area || "none") === "area"
-                                    ? "bg-background text-foreground shadow"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                              >
-                                Area
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Stacked Option - For bar, line, and radar charts with multiple series */}
-                        {(editedChart.type === "bar" || editedChart.type === "line" || editedChart.type === "horizontal_bar" || editedChart.type === "radar") && editedChart.series_list.length > 1 && (
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Stacked
-                            </label>
-                            <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
-                              <button
-                                type="button"
-                                onClick={() => updateChartOption("stacked", "none")}
-                                className={cn(
-                                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                  (editedChart.stacked || "none") === "none"
-                                    ? "bg-background text-foreground shadow"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                              >
-                                None
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => updateChartOption("stacked", "stacked")}
-                                className={cn(
-                                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                  (editedChart.stacked || "none") === "stacked"
-                                    ? "bg-background text-foreground shadow"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                              >
-                                Stacked
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => updateChartOption("stacked", "100_stacked")}
-                                className={cn(
-                                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                  (editedChart.stacked || "none") === "100_stacked"
-                                    ? "bg-background text-foreground shadow"
-                                    : "hover:bg-muted-foreground/10"
-                                )}
-                              >
-                                100%
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* X-Axis Section */}
-                <div className="rounded-lg border bg-card">
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleSection('xaxis')}
-                    className="w-full justify-between p-4 h-auto font-normal"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Database className="h-4 w-4 text-muted-foreground" />
-                      <div className="text-left">
-                        <div className="text-sm font-medium">{getAxisLabel(editedChart.type)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {editedChart.type === "horizontal_bar" ? "Value axis configuration" : 
-                           editedChart.type === "pie" || editedChart.type === "donut" ? "Label configuration" : 
-                           editedChart.type === "bubble" || editedChart.type === "scatter" ? "X-axis configuration" :
-                           editedChart.type === "radar" ? "Dimension configuration" :
-                           "Category axis configuration"}
-                        </div>
-                      </div>
-                    </div>
-                    {expandedSections.xaxis ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                  
-                  {expandedSections.xaxis && (
-                    <div className="border-t bg-muted/30 p-4 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {getAxisLabel(editedChart.type)} Name
-                        </label>
-                        <input
-                          type="text"
-                          value={editedChart.x_axis.name}
-                          onChange={(e) =>
-                            updateNestedProperty("x_axis", "name", e.target.value)
-                          }
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                          placeholder="Enter axis name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          Column
-                        </label>
-                        <select
-                          value={editedChart.x_axis.column}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (!editedChart) return;
-
-                            const updatedChart = {
-                              ...editedChart,
-                              x_axis: {
-                                ...editedChart.x_axis,
-                                column: value,
-                                group_by: value,
-                              },
-                            };
-                            setEditedChart(updatedChart);
-                            markAsChanged();
-                            updateChartInIframe(updatedChart);
-                          }}
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">Select column</option>
-                          {getAvailableColumns().map((col) => (
-                            <option key={col.letter} value={col.letter}>
-                              {col.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Series Section */}
-                <div className="rounded-lg border bg-card">
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleSection('series')}
-                    className="w-full justify-between p-4 h-auto font-normal"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      <div className="text-left">
-                        <div className="text-sm font-medium">{getSeriesLabel(editedChart.type)}</div>
-                        <div className="text-xs text-muted-foreground">{editedChart.series_list.length} configured</div>
-                      </div>
-                    </div>
-                    {expandedSections.series ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                  
-                  {expandedSections.series && (
-                    <div className="border-t bg-muted/30 p-4 space-y-3">
-                      {editedChart.series_list.map((series, index) => (
-                        <div
-                          key={index}
-                          className="rounded-md border bg-background p-4 space-y-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-medium">
-                              {editedChart.type === "line" ? `Line ${index + 1}` :
-                               editedChart.type === "pie" || editedChart.type === "donut" ? `Value ${index + 1}` :
-                               editedChart.type === "bubble" ? `Bubble ${index + 1}` :
-                               editedChart.type === "scatter" ? `Point ${index + 1}` :
-                               editedChart.type === "radar" ? `Metric ${index + 1}` :
-                               `Series ${index + 1}`}
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <div className="h-2 w-2 rounded-full bg-primary"></div>
-                              {editedChart.series_list.length > 1 && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteSeries(index)}
-                                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                {editedChart.type === "line" ? "Line Name" :
-                                 editedChart.type === "pie" || editedChart.type === "donut" ? "Value Name" :
-                                 editedChart.type === "bubble" ? "Bubble Name" :
-                                 editedChart.type === "scatter" ? "Point Name" :
-                                 editedChart.type === "radar" ? "Metric Name" :
-                                 "Series Name"}
-                              </label>
-                              <input
-                                type="text"
-                                value={series.name}
-                                onChange={(e) =>
-                                  updateSeriesProperty(index, "name", e.target.value)
-                                }
-                                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Enter series name"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-2">
-                                <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                  Column
-                                </label>
-                                <select
-                                  value={series.column}
-                                  onChange={(e) =>
-                                    updateSeriesProperty(index, "column", e.target.value)
-                                  }
-                                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  <option value="">Select column</option>
-                                  {getAvailableColumns().map((col) => (
-                                    <option key={col.letter} value={col.letter}>
-                                      {col.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                  Aggregation
-                                </label>
-                                <select
-                                  value={series.aggregation}
-                                  onChange={(e) =>
-                                    updateSeriesProperty(
-                                      index,
-                                      "aggregation",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {AGGREGATION_TYPES.map((agg) => (
-                                    <option key={agg.value} value={agg.value}>
-                                      {agg.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Add Series Button */}
+                {editedChart && (
+                  <>
+                    {/* General Section */}
+                    <div className="rounded-lg border bg-card">
                       <Button
-                        variant="outline"
-                        onClick={addSeries}
-                        className="w-full border-dashed"
-                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleSection("general")}
+                        className="w-full justify-between p-4 h-auto font-normal"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add {editedChart.type === "line" ? "Line" :
-                             editedChart.type === "pie" || editedChart.type === "donut" ? "Value" :
-                             editedChart.type === "bubble" ? "Bubble" :
-                             editedChart.type === "scatter" ? "Point" :
-                             editedChart.type === "radar" ? "Metric" :
-                             "Series"}
+                        <div className="flex items-center space-x-3">
+                          <Palette className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">General</div>
+                            <div className="text-xs text-muted-foreground">
+                              Chart title and type
+                            </div>
+                          </div>
+                        </div>
+                        {expandedSections.general ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
                       </Button>
+
+                      {expandedSections.general && (
+                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          {/* Chart Title */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Chart Title
+                            </label>
+                            <input
+                              type="text"
+                              value={editedChart.name}
+                              onChange={(e) =>
+                                updateChartProperty("name", e.target.value)
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder="Enter chart title"
+                            />
+                          </div>
+
+                          {/* Chart Type */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Chart Type
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {CHART_TYPES.map((type) => {
+                                const IconComponent = type.icon;
+                                const isSelected =
+                                  editedChart.type === type.value;
+                                return (
+                                  <Button
+                                    key={type.value}
+                                    variant={isSelected ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() =>
+                                      updateChartProperty("type", type.value)
+                                    }
+                                    className={cn(
+                                      "flex h-auto flex-col space-y-1 p-3",
+                                      !isSelected && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <IconComponent className="h-4 w-4" />
+                                    <span className="text-xs">
+                                      {type.label}
+                                    </span>
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Chart Options */}
+                          <div className="space-y-4">
+                            {/* Area Option - Only for line charts */}
+                            {editedChart.type === "line" && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                  Area
+                                </label>
+                                <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateChartOption("area", "none")
+                                    }
+                                    className={cn(
+                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      (editedChart.area || "none") === "none"
+                                        ? "bg-background text-foreground shadow"
+                                        : "hover:bg-muted-foreground/10"
+                                    )}
+                                  >
+                                    None
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateChartOption("area", "area")
+                                    }
+                                    className={cn(
+                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      (editedChart.area || "none") === "area"
+                                        ? "bg-background text-foreground shadow"
+                                        : "hover:bg-muted-foreground/10"
+                                    )}
+                                  >
+                                    Area
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Stacked Option - For bar, line, and radar charts with multiple series */}
+                            {(editedChart.type === "bar" ||
+                              editedChart.type === "line" ||
+                              editedChart.type === "horizontal_bar" ||
+                              editedChart.type === "radar") &&
+                              editedChart.series_list.length > 1 && (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    Stacked
+                                  </label>
+                                  <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateChartOption("stacked", "none")
+                                      }
+                                      className={cn(
+                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                        (editedChart.stacked || "none") ===
+                                          "none"
+                                          ? "bg-background text-foreground shadow"
+                                          : "hover:bg-muted-foreground/10"
+                                      )}
+                                    >
+                                      None
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateChartOption("stacked", "stacked")
+                                      }
+                                      className={cn(
+                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                        (editedChart.stacked || "none") ===
+                                          "stacked"
+                                          ? "bg-background text-foreground shadow"
+                                          : "hover:bg-muted-foreground/10"
+                                      )}
+                                    >
+                                      Stacked
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateChartOption(
+                                          "stacked",
+                                          "100_stacked"
+                                        )
+                                      }
+                                      className={cn(
+                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                        (editedChart.stacked || "none") ===
+                                          "100_stacked"
+                                          ? "bg-background text-foreground shadow"
+                                          : "hover:bg-muted-foreground/10"
+                                      )}
+                                    >
+                                      100%
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+
+                    {/* X-Axis Section */}
+                    <div className="rounded-lg border bg-card">
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleSection("xaxis")}
+                        className="w-full justify-between p-4 h-auto font-normal"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Database className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">
+                              {getAxisLabel(editedChart.type)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {editedChart.type === "horizontal_bar"
+                                ? "Value axis configuration"
+                                : editedChart.type === "pie" ||
+                                  editedChart.type === "donut"
+                                ? "Label configuration"
+                                : editedChart.type === "bubble" ||
+                                  editedChart.type === "scatter"
+                                ? "X-axis configuration"
+                                : editedChart.type === "radar"
+                                ? "Dimension configuration"
+                                : "Category axis configuration"}
+                            </div>
+                          </div>
+                        </div>
+                        {expandedSections.xaxis ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+
+                      {expandedSections.xaxis && (
+                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              {getAxisLabel(editedChart.type)} Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editedChart.x_axis.name}
+                              onChange={(e) =>
+                                updateNestedProperty(
+                                  "x_axis",
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder="Enter axis name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Column
+                            </label>
+                            <select
+                              value={editedChart.x_axis.column}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (!editedChart) return;
+
+                                const updatedChart = {
+                                  ...editedChart,
+                                  x_axis: {
+                                    ...editedChart.x_axis,
+                                    column: value,
+                                    group_by: value,
+                                  },
+                                };
+                                setEditedChart(updatedChart);
+                                markAsChanged();
+                                updateChartInIframe(updatedChart);
+                              }}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="">Select column</option>
+                              {getAvailableColumns().map((col) => (
+                                <option key={col.letter} value={col.letter}>
+                                  {col.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Series Section */}
+                    <div className="rounded-lg border bg-card">
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleSection("series")}
+                        className="w-full justify-between p-4 h-auto font-normal"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">
+                              {getSeriesLabel(editedChart.type)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {editedChart.series_list.length} configured
+                            </div>
+                          </div>
+                        </div>
+                        {expandedSections.series ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+
+                      {expandedSections.series && (
+                        <div className="border-t bg-muted/30 p-4 space-y-3">
+                          {editedChart.series_list.map((series, index) => (
+                            <div
+                              key={index}
+                              className="rounded-md border bg-background p-4 space-y-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">
+                                  {editedChart.type === "line"
+                                    ? `Line ${index + 1}`
+                                    : editedChart.type === "pie" ||
+                                      editedChart.type === "donut"
+                                    ? `Value ${index + 1}`
+                                    : editedChart.type === "bubble"
+                                    ? `Bubble ${index + 1}`
+                                    : editedChart.type === "scatter"
+                                    ? `Point ${index + 1}`
+                                    : editedChart.type === "radar"
+                                    ? `Metric ${index + 1}`
+                                    : `Series ${index + 1}`}
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                                  {editedChart.series_list.length > 1 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => deleteSeries(index)}
+                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {editedChart.type === "line"
+                                      ? "Line Name"
+                                      : editedChart.type === "pie" ||
+                                        editedChart.type === "donut"
+                                      ? "Value Name"
+                                      : editedChart.type === "bubble"
+                                      ? "Bubble Name"
+                                      : editedChart.type === "scatter"
+                                      ? "Point Name"
+                                      : editedChart.type === "radar"
+                                      ? "Metric Name"
+                                      : "Series Name"}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={series.name}
+                                    onChange={(e) =>
+                                      updateSeriesProperty(
+                                        index,
+                                        "name",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Enter series name"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-2">
+                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                      Column
+                                    </label>
+                                    <select
+                                      value={series.column}
+                                      onChange={(e) =>
+                                        updateSeriesProperty(
+                                          index,
+                                          "column",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <option value="">Select column</option>
+                                      {getAvailableColumns().map((col) => (
+                                        <option
+                                          key={col.letter}
+                                          value={col.letter}
+                                        >
+                                          {col.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                      Aggregation
+                                    </label>
+                                    <select
+                                      value={series.aggregation}
+                                      onChange={(e) =>
+                                        updateSeriesProperty(
+                                          index,
+                                          "aggregation",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {AGGREGATION_TYPES.map((agg) => (
+                                        <option
+                                          key={agg.value}
+                                          value={agg.value}
+                                        >
+                                          {agg.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Add Series Button */}
+                          <Button
+                            variant="outline"
+                            onClick={addSeries}
+                            className="w-full border-dashed"
+                            size="sm"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add{" "}
+                            {editedChart.type === "line"
+                              ? "Line"
+                              : editedChart.type === "pie" ||
+                                editedChart.type === "donut"
+                              ? "Value"
+                              : editedChart.type === "bubble"
+                              ? "Bubble"
+                              : editedChart.type === "scatter"
+                              ? "Point"
+                              : editedChart.type === "radar"
+                              ? "Metric"
+                              : "Series"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {editedKPI && (
+                  <>
+                    {/* KPI General Section */}
+                    <div className="rounded-lg border bg-card">
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleSection("general")}
+                        className="w-full justify-between p-4 h-auto font-normal"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Palette className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">General</div>
+                            <div className="text-xs text-muted-foreground">
+                              KPI name and icon
+                            </div>
+                          </div>
+                        </div>
+                        {expandedSections.general ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+
+                      {expandedSections.general && (
+                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          {/* KPI Name */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              KPI Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editedKPI.name}
+                              onChange={(e) =>
+                                updateKPIProperty("name", e.target.value)
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder="Enter KPI name"
+                            />
+                          </div>
+
+                          {/* KPI Icon */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Icon
+                            </label>
+                            <select
+                              value={editedKPI.fa_icon}
+                              onChange={(e) =>
+                                updateKPIProperty("fa_icon", e.target.value)
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {KPI_ICONS.map((icon) => (
+                                <option key={icon.value} value={icon.value}>
+                                  {icon.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* KPI Value Section */}
+                    <div className="rounded-lg border bg-card">
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleSection("xaxis")}
+                        className="w-full justify-between p-4 h-auto font-normal"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Database className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">
+                              Value Configuration
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Formula, format, and unit
+                            </div>
+                          </div>
+                        </div>
+                        {expandedSections.xaxis ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+
+                      {expandedSections.xaxis && (
+                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          {/* Formula */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Formula
+                            </label>
+                            <input
+                              type="text"
+                              value={editedKPI.value_formula}
+                              onChange={(e) =>
+                                updateKPIProperty(
+                                  "value_formula",
+                                  e.target.value
+                                )
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder="e.g., =SUM(G2:G)"
+                            />
+                          </div>
+
+                          {/* Format */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Format
+                            </label>
+                            <select
+                              value={editedKPI.format_type}
+                              onChange={(e) =>
+                                updateKPIProperty("format_type", e.target.value)
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {KPI_FORMATS.map((format) => (
+                                <option key={format.value} value={format.value}>
+                                  {format.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Unit */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Unit (optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={editedKPI.unit}
+                              onChange={(e) =>
+                                updateKPIProperty("unit", e.target.value)
+                              }
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder="e.g., %, units, etc."
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Actions */}
             <div className="border-t bg-muted/10 p-6">
               <div className="flex space-x-3">
-                <Button 
-                  onClick={handleSaveChart} 
+                <Button
+                  onClick={editedChart ? handleSaveChart : handleSaveKPI}
                   className="flex-1"
                   size="sm"
                 >
                   Save Changes
                 </Button>
-                <Button 
-                  onClick={handleCloseEditor} 
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handleCloseEditor} variant="outline" size="sm">
                   Cancel
                 </Button>
               </div>
@@ -1485,7 +2426,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-2">Unsaved Changes</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                You have unsaved changes to this chart. Are you sure you want to {pendingAction === 'close' ? 'close the editor' : 'switch to another chart'}? Your changes will be lost.
+                You have unsaved changes to this {editedChart ? "chart" : "KPI"}
+                . Are you sure you want to{" "}
+                {pendingAction === "close"
+                  ? "close the editor"
+                  : `switch to another ${pendingChartData ? "chart" : "KPI"}`}
+                ? Your changes will be lost.
               </p>
               <div className="flex space-x-3 justify-end">
                 <Button
