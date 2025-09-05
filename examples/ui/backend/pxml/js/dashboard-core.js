@@ -20,7 +20,6 @@ class DashboardCore {
         this.setupGlobalData();
         this.initializeComponents();
         this.updateDashboardData();
-        console.log('Dashboard initialized with', this.config.data.csv_data.length, 'rows of data');
     }
 
     /**

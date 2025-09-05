@@ -340,8 +340,8 @@ async def read_file(
         except Exception as e:
             raise
 
-        # Check if it's a PXML file and compile it
-        if file_path.lower().endswith((".pxml")):
+        # Check if it's a PXML file and compile it (unless raw mode is requested)
+        if file_path.lower().endswith((".pxml")) and not raw:
             content_bytes = content_bytes.decode("utf-8")
             html_content = await PXMLService.compile_pxml(content_bytes, local_env)
             return Response(content=html_content, media_type="text/html")
