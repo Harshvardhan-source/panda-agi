@@ -82,13 +82,14 @@ async def event_stream(
 
         # if there is only one file, read it and add the first 5 rows to the query
         if file_names and len(file_names) == 1 and file_names[0].endswith(".csv"):
-            result = await agent.environment.read_file(path=file_names[0])
-            if result["status"] == "success":
-                lines = result["content"].splitlines(keepends=True)
-                content = "".join(lines[0:5])
-                query = (
-                    f"{query}\n\nHere are the first 5 rows of the file\n\n: {content}"
-                )
+            try:
+                result = await agent.environment.read_file(path=file_names[0])
+                if result["status"] == "success":
+                    lines = result["content"].splitlines(keepends=True)
+                    content = "".join(lines[0:5])
+                    query = f"{query}\n\nHere are the first 5 rows of the file\n\n: {content}"
+            except Exception as e:
+                logger.error("error reading file: ", e)
 
         # Send conversation ID as first event
         conversation_event = {
