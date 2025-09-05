@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Settings, BarChart3, LineChart, PieChart, ChevronDown, ChevronRight, Palette, Database, TrendingUp, Plus, Trash2, Circle, MoreHorizontal, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ArtifactData } from "@/types/artifact";
 
 interface ChartConfig {
   id: string;
@@ -23,11 +24,7 @@ interface ChartConfig {
 
 interface DashboardEditorProps {
   content: string;
-  artifact?: {
-    id: string;
-    filepath: string;
-    [key: string]: unknown;
-  } | null;
+  artifact?: ArtifactData | null;
   onChange: (content: string) => void;
   availableColumns?: Array<{ letter: string; name: string }>;
 }
