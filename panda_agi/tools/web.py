@@ -23,7 +23,6 @@ class WebSearchHandler(ToolHandler):
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # await self.add_event(EventType.WEB_SEARCH, params)
         try:
             results = tavily_search_web(**params)
         except Exception as e:
