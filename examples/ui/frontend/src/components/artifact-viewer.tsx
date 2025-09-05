@@ -493,7 +493,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         }`}
       >
         <div
-          className="w-full h-full max-w-7xl mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
+          className="w-full h-full max-w-[95vw] max-h-[95vh] mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
