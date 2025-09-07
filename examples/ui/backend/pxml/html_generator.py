@@ -22,6 +22,7 @@ class HTMLGenerator:
         dashboard_data: Dict[str, Any],
         csv_data_json: str,
         column_mapping: Dict[str, str] = None,
+        artifact_id: str = None,
     ) -> str:
         """Generate complete dashboard HTML using modular approach"""
 
@@ -30,6 +31,10 @@ class HTMLGenerator:
         config = self.data_processor.process_dashboard_config(
             dashboard_data, csv_data_json, column_mapping
         )
+        
+        # Add artifact ID to the configuration if provided
+        if artifact_id:
+            config['artifact_id'] = artifact_id
 
         # Generate the complete HTML
         html = f"""<!DOCTYPE html>
@@ -560,6 +565,9 @@ class HTMLGenerator:
     <script>
         // Dashboard configuration
         const dashboardConfig = {config_json};
+        
+        // Make dashboard config available globally
+        window.dashboardConfig = dashboardConfig;
         
         {chr(10).join(js_modules)}
         

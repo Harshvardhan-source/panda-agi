@@ -154,7 +154,7 @@ async def process_artifact_pxml_to_html(
         pxml_content = content_bytes.decode("utf-8")
 
         # Use PXMLService.compile to convert PXML to HTML
-        html_content = await PXMLService.compile(pxml_content, fetch_file)
+        html_content = await PXMLService.compile(pxml_content, fetch_file, artifact_id)
 
         if html_content:
             # Convert HTML content to bytes

@@ -74,11 +74,24 @@ class CSVLoader {
      */
     async fetchCSVFromServer(filePath) {
         try {
-            // Get conversation ID from URL or use a default
-            const conversationId = this.getConversationId();
+            // Get artifact ID from dashboard configuration first, then fallback to URL parsing
+            let artifactId = null;
             
-            // Construct the API endpoint URL
-            const fileUrl = encodeURIComponent(filePath);
+            // Try to get artifact ID from dashboard configuration
+            if (window.dashboardConfig && window.dashboardConfig.artifact_id) {
+                artifactId = window.dashboardConfig.artifact_id;
+            } else {
+                // Fallback to URL parsing
+                artifactId = this.getArtifactId();
+            }
+            
+            // Use the actual file path from PXML, not hardcoded 'dataset.csv'
+            // Extract just the filename from the full path
+            const fileName = filePath.split('/').pop();
+            
+            // Construct the correct URL for the CSV file
+            // URL pattern: /creations/{artifactId}/{fileName}
+            const fileUrl = `/creations/${artifactId}/${fileName}`;
             
             const response = await fetch(fileUrl);
             
@@ -204,6 +217,37 @@ class CSVLoader {
         }
         
         // Use a default fallback
+        return 'default';
+    }
+
+    /**
+     * Get artifact ID from current URL
+     * @returns {string} Artifact ID
+     */
+    getArtifactId() {
+        // Extract artifact ID from URL pattern: /creations/{artifactId}/dashboard.pxml
+        const pathParts = window.location.pathname.split('/');
+        const creationsIndex = pathParts.indexOf('creations');
+        
+        if (creationsIndex !== -1 && pathParts[creationsIndex + 1]) {
+            return pathParts[creationsIndex + 1];
+        }
+        
+        // Try to get artifact ID from parent window if we're in an iframe
+        if (window.parent && window.parent !== window) {
+            try {
+                const parentPathParts = window.parent.location.pathname.split('/');
+                const parentCreationsIndex = parentPathParts.indexOf('creations');
+                
+                if (parentCreationsIndex !== -1 && parentPathParts[parentCreationsIndex + 1]) {
+                    return parentPathParts[parentCreationsIndex + 1];
+                }
+            } catch (e) {
+                // Cannot access parent window, continue to fallback
+            }
+        }
+        
+        // Fallback to a default artifact ID
         return 'default';
     }
 

@@ -23,7 +23,7 @@ class DashboardCompiler:
         self.formula_evaluator = FormulaEvaluator()
         self.html_generator = HTMLGenerator()
 
-    def compile_dashboard_with_csv(self, dashboard_data: dict, csv_content: str) -> str:
+    def compile_dashboard_with_csv(self, dashboard_data: dict, csv_content: str, artifact_id: str = None) -> str:
         """Compile dashboard from XML file and CSV file"""
         try:
             # Load CSV data
@@ -39,7 +39,7 @@ class DashboardCompiler:
 
             # Generate HTML dashboard
             html_content = self.html_generator.generate_dashboard_html(
-                dashboard_data, csv_data_json, column_mapping
+                dashboard_data, csv_data_json, column_mapping, artifact_id
             )
             return html_content
         except Exception as e:
