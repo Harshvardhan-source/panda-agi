@@ -1138,7 +1138,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateChartInIframe(updatedChart);
   };
 
-  // Update KPI property with visual feedback but no calculation updates
+  // Update KPI property with real-time updates for all properties
   const updateKPIProperty = (property: keyof KPIConfig, value: string) => {
     if (!editedKPI) return;
 
@@ -1146,22 +1146,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setEditedKPI(updatedKPI);
     markAsChanged();
 
-    // Show visual feedback that KPI has pending changes
-    const iframe = iframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      try {
-        iframe.contentWindow.postMessage(
-          {
-            type: "kpi-pending-changes",
-            kpiId: editedKPI.id,
-            config: updatedKPI,
-          },
-          "*"
-        );
-      } catch {
-        // Silently handle iframe communication errors
-      }
-    }
+    // Update all properties in real-time
+    updateKPIInIframe(updatedKPI);
   };
 
   const handleSaveChart = () => {

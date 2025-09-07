@@ -269,16 +269,39 @@ function updateKPI(kpiId) {
     if (kpi.formula.startsWith('=')) {
       // Use dynamic filters system to compile and evaluate the formula
       if (window.dynamicFilters && window.dynamicFilters.initialized) {
-        rawValue = window.dynamicFilters.computeFilterValues(kpi.formula);
+        const computedValues = window.dynamicFilters.computeFilterValues(kpi.formula);
+        
+        // Check if the computation returned valid results
+        if (!computedValues || computedValues.length === 0) {
+          throw new Error("Formula returned no valid results");
+        }
+        
+        // For KPI, we typically want a single value, so take the first one
+        rawValue = computedValues[0];
+        
+        // If the first value is null/undefined, it's invalid
+        if (rawValue === null || rawValue === undefined) {
+          throw new Error("Formula returned null/undefined value");
+        }
       } else {
         throw new Error("Dynamic filters not available for formula compilation");
       }
     } else {
       // Use direct evaluation for already compiled formulas
       rawValue = eval(kpi.formula);
+      
+      // Check if eval returned a valid result
+      if (rawValue === null || rawValue === undefined || isNaN(rawValue)) {
+        throw new Error("Formula evaluation returned invalid result");
+      }
     }
     
     const formattedValue = formatKPIValue(rawValue, kpi.formatType);
+    
+    // Check if formatting produced a valid result
+    if (!formattedValue || formattedValue === "NaN" || formattedValue === "Invalid") {
+      throw new Error("Formula produced invalid formatted result");
+    }
 
     valueElement.textContent = formattedValue;
 
@@ -286,9 +309,9 @@ function updateKPI(kpiId) {
       changeElement.innerHTML = "";
     }
   } catch (error) {
-    valueElement.textContent = "Error";
+    valueElement.textContent = "N/A";
     if (changeElement) {
-      changeElement.innerHTML = `<i class="fas fa-exclamation-triangle text-red-500"></i> Calculation error`;
+      changeElement.innerHTML = `<i class="fas fa-exclamation-triangle text-red-500"></i> Invalid formula`;
     }
   }
 

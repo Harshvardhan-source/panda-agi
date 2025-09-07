@@ -284,5 +284,38 @@ class DashboardCore {
     }
 }
 
+// Handle messages from parent window for real-time updates
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'update-kpi-data-attributes') {
+        const { kpiId, config } = event.data;
+        
+        // Update the KPI container with new data attributes
+        const container = document.getElementById(kpiId);
+        if (container) {
+            // Update data attributes
+            if (config.name !== undefined) {
+                container.setAttribute('data-name', config.name);
+            }
+            if (config.fa_icon !== undefined) {
+                container.setAttribute('data-fa-icon', config.fa_icon);
+            }
+            if (config.value_formula !== undefined) {
+                container.setAttribute('data-value-formula', config.value_formula);
+            }
+            if (config.format_type !== undefined) {
+                container.setAttribute('data-format-type', config.format_type);
+            }
+            if (config.unit !== undefined) {
+                container.setAttribute('data-unit', config.unit);
+            }
+            
+            // Trigger KPI update to recalculate with new formula
+            if (window.updateKPI) {
+                window.updateKPI(kpiId);
+            }
+        }
+    }
+});
+
 // Create global dashboard instance
 window.dashboard = new DashboardCore();
