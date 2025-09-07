@@ -13,7 +13,7 @@ function getColumnMapping() {
 
 // Chart card HTML template
 function createChartCardHTML(chartId, config, isLoading = false) {
-    const chart_name = config.name || "";
+    const chart_name = (config.name || "").charAt(0).toUpperCase() + (config.name || "").slice(1).replace(/_/g, ' ');
     const chart_type = config.chart_type;
     
     // Generate top N filter for bar and horizontal_bar charts
@@ -382,7 +382,24 @@ function processChartData(data, config) {
     });
     
     // Generate labels and datasets
-    let labels = Object.keys(grouped).sort();
+    let labels = Object.keys(grouped);
+    
+    // Format labels: capitalize first letter and replace underscores with spaces
+    labels = labels.map(label => {
+        return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
+    });
+    
+    // Special sorting for month names
+    const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    if (labels.every(label => monthOrder.includes(label))) {
+        // Sort by month order
+        labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+    } else {
+        // Default alphabetical sort
+        labels = labels.sort();
+    }
     const datasets = [];
     
     // Automatically assign axes based on series characteristics

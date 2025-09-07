@@ -5,7 +5,7 @@
 
 // KPI card HTML template
 function createKPICardHTML(kpiId, config, isLoading = false) {
-  const kpi_name = config.name || "";
+  const kpi_name = (config.name || "").charAt(0).toUpperCase() + (config.name || "").slice(1).replace(/_/g, ' ');
   const fa_icon = config.fa_icon;
   const unit = config.unit || "";
 

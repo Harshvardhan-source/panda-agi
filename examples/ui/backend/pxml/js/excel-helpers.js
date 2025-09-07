@@ -202,7 +202,8 @@ const ExcelHelpers = {
     // Text functions
     excelLeft: function(text, numChars) {
         const str = String(text);
-        return str.slice(0, numChars);
+        const result = str.slice(0, numChars);
+        return result;
     },
     
     excelRight: function(text, numChars) {
@@ -311,13 +312,23 @@ const ExcelHelpers = {
     getMonth: function(dateString) {
         if (!dateString || typeof dateString !== 'string') return 0;
         
+        
         // Handle various date formats
         let date;
         if (dateString.includes('-')) {
-            // Handle YYYY-MM-DD format
+            // Handle YYYY-MM or YYYY-MM-DD format
             const parts = dateString.split('-');
             if (parts.length >= 2) {
-                date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]);
+                if (!isNaN(year) && !isNaN(month)) {
+                    date = new Date(year, month - 1, 1); // month - 1 because JS months are 0-based
+                } else {
+                    // Handle partial date like "2019-" - try to extract month from the original string
+                    // If we have "2019-", we need to get the full date from the original data
+                    // For now, return 0 as fallback
+                    return 0;
+                }
             }
         } else if (dateString.includes('/')) {
             // Handle MM/DD/YYYY or DD/MM/YYYY format
@@ -327,8 +338,12 @@ const ExcelHelpers = {
             date = new Date(dateString);
         }
         
-        if (isNaN(date.getTime())) return 0;
-        return date.getMonth() + 1; // JavaScript months are 0-based, Excel is 1-based
+        if (!date || isNaN(date.getTime())) {
+            return 0;
+        }
+        
+        const result = date.getMonth() + 1; // JavaScript months are 0-based, Excel is 1-based
+        return result;
     },
 
     // Lookup functions

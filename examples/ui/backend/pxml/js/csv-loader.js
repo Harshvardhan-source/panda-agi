@@ -58,7 +58,11 @@ class CSVLoader {
             const csvData = await this.fetchCSVFromServer(filePath);
             this.csvData = csvData;
             this.columnMapping = this.generateColumnMapping(csvData);
-            return csvData;
+            
+            // Apply defined columns from transformations
+            this.applyDefinedColumns();
+            
+            return this.csvData;
         } catch (error) {
             console.error('Error loading CSV data:', error);
             this.csvData = [];
@@ -314,6 +318,177 @@ class CSVLoader {
         this.loading = false;
         this.loaded = false;
         this.loadPromise = null;
+    }
+
+    /**
+     * Apply defined columns from transformations
+     */
+    applyDefinedColumns() {
+        if (!this.csvData || !window.dashboardConfig) {
+            return;
+        }
+
+        // Get transformations from dashboard config
+        const transformations = window.dashboardConfig.transformations || [];
+        
+        for (const transformation of transformations) {
+            if (transformation.type === 'define_column' && transformation.name && transformation.formula) {
+                try {
+                    // Compute the defined column for each row
+                    const columnName = transformation.name;
+                    const formula = transformation.formula;
+                    
+                    // Add the new column to each row
+                    for (let i = 0; i < this.csvData.length; i++) {
+                        const row = this.csvData[i];
+                        const computedValue = this.evaluateFormula(formula, row, i);
+                        row[columnName] = computedValue;
+                        
+                    }
+                    
+                    // Add to column mapping
+                    const nextLetter = this.getNextColumnLetter();
+                    this.columnMapping[nextLetter] = columnName;
+                    
+                } catch (error) {
+                    console.warn(`Warning: Could not create defined column '${transformation.name}':`, error);
+                }
+            }
+        }
+    }
+
+    /**
+     * Evaluate a formula for a specific row
+     * @param {string} formula - The formula to evaluate
+     * @param {Object} row - The data row
+     * @param {number} rowIndex - The row index (0-based)
+     * @returns {*} The computed value
+     */
+    evaluateFormula(formula, row, rowIndex) {
+        // Remove the = sign if present
+        if (formula.startsWith('=')) {
+            formula = formula.substring(1);
+        }
+
+        // Replace column references with actual values
+        // A:A -> row['Month'], B:B -> row['Branch'], etc.
+        let processedFormula = formula;
+        
+        // Handle column references like A:A, B:B, etc.
+        const columnRefPattern = /([A-Z]+):([A-Z]+)/g;
+        processedFormula = processedFormula.replace(columnRefPattern, (match, startCol, endCol) => {
+            // For now, just use the start column
+            const columnName = this.columnMapping[startCol];
+            if (columnName && row[columnName] !== undefined) {
+                return `"${row[columnName]}"`;
+            }
+            return '""';
+        });
+        
+        // Special handling for month extraction from YYYY-MM format
+        // If the formula contains MONTH(LEFT(...)) and we're dealing with Month column,
+        // we can optimize this to directly extract the month
+        if (processedFormula.includes('MONTH(LEFT(') && row.Month) {
+            // Extract month directly from YYYY-MM format
+            const monthMatch = row.Month.match(/(\d{4})-(\d{2})/);
+            if (monthMatch) {
+                const month = parseInt(monthMatch[2]);
+                
+                // If this is a CHOOSE formula, apply the CHOOSE logic
+                if (processedFormula.includes('CHOOSE(')) {
+                    // Extract the choices from the CHOOSE formula
+                    const chooseMatch = processedFormula.match(/CHOOSE\((.+?),\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\)/);
+                    if (chooseMatch) {
+                        const [, , choice1, choice2, choice3] = chooseMatch; // Skip the first group (the index expression)
+                        const monthNames = [choice1, choice2, choice3];
+                        const result = monthNames[month - 1] || month; // month - 1 because CHOOSE is 1-based
+                        return result;
+                    } else {
+                    }
+                } else {
+                }
+                
+                return month;
+            }
+        }
+
+        // Handle single column references like A2, B3, etc.
+        const singleColumnPattern = /([A-Z]+)(\d+)/g;
+        processedFormula = processedFormula.replace(singleColumnPattern, (match, col, rowNum) => {
+            const columnName = this.columnMapping[col];
+            if (columnName && row[columnName] !== undefined) {
+                return `"${row[columnName]}"`;
+            }
+            return '""';
+        });
+
+        try {
+            // Use the Excel helpers if available
+            if (window.ExcelHelpers) {
+                // Create a context with Excel functions
+                const context = {
+                    LEFT: window.ExcelHelpers.excelLeft,
+                    MONTH: window.ExcelHelpers.getMonth,
+                    CHOOSE: window.ExcelHelpers.excelChoose,
+                    // Add other Excel functions as needed
+                };
+                
+                
+                // Evaluate the formula with Excel functions
+                const result = this.evaluateWithContext(processedFormula, context);
+                return result;
+            } else {
+                console.warn('ExcelHelpers not available, using fallback evaluation');
+                // Fallback to basic evaluation
+                return this.evaluateWithContext(processedFormula, {});
+            }
+        } catch (error) {
+            console.warn(`Error evaluating formula '${formula}':`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Evaluate a formula with a given context
+     * @param {string} formula - The formula to evaluate
+     * @param {Object} context - The context with available functions
+     * @returns {*} The computed value
+     */
+    evaluateWithContext(formula, context) {
+        // Create a safe evaluation context
+        
+        const safeEval = new Function(...Object.keys(context), `return ${formula}`);
+        const result = safeEval(...Object.values(context));
+        return result;
+    }
+
+    /**
+     * Get the next available column letter for defined columns
+     * @returns {string} The next column letter
+     */
+    getNextColumnLetter() {
+        const existingLetters = Object.keys(this.columnMapping);
+        
+        // Single letters A-Z
+        for (let i = 0; i < 26; i++) {
+            const letter = String.fromCharCode(65 + i); // A-Z
+            if (!existingLetters.includes(letter)) {
+                return letter;
+            }
+        }
+        
+        // Double letters AA-ZZ
+        for (let i = 0; i < 26; i++) {
+            for (let j = 0; j < 26; j++) {
+                const letter = String.fromCharCode(65 + i) + String.fromCharCode(65 + j);
+                if (!existingLetters.includes(letter)) {
+                    return letter;
+                }
+            }
+        }
+        
+        // Fallback
+        return 'ZZ';
     }
 }
 

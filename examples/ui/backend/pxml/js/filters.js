@@ -56,13 +56,17 @@ function initializeListFilter(filterId, values, filterName, isLoading = false) {
     const uniqueValues = [...new Set(values)].sort();
     
     if (optionsContainer) {
-        optionsContainer.innerHTML = uniqueValues.map(value => `
-            <div class="filter-item px-2 py-1 text-sm rounded" 
-                 onclick="toggleFilterOption('${filterId}', '${value}', '${filterName}')">
-                <input type="checkbox" id="${filterId}_${value}" class="mr-2">
-                <span>${value}</span>
-            </div>
-        `).join('');
+        optionsContainer.innerHTML = uniqueValues.map(value => {
+            // Format value: capitalize first letter and replace underscores with spaces
+            const formattedValue = value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ');
+            return `
+                <div class="filter-item px-2 py-1 text-sm rounded" 
+                     onclick="toggleFilterOption('${filterId}', '${value}', '${filterName}')">
+                    <input type="checkbox" id="${filterId}_${value}" class="mr-2">
+                    <span>${formattedValue}</span>
+                </div>
+            `;
+        }).join('');
     }
 }
 
@@ -72,13 +76,14 @@ function initializeRangeFilter(filterId, values, filterName, isLoading = false) 
     
     if (isLoading) {
         // Show skeleton loading in existing structure
+        const formattedFilterName = filterName.charAt(0).toUpperCase() + filterName.slice(1).replace(/_/g, ' ');
         if (minInput) {
-            minInput.placeholder = `Min ${filterName}`;
+            minInput.placeholder = `Min ${formattedFilterName}`;
             minInput.disabled = true;
             minInput.classList.add('animate-pulse');
         }
         if (maxInput) {
-            maxInput.placeholder = `Max ${filterName}`;
+            maxInput.placeholder = `Max ${formattedFilterName}`;
             maxInput.disabled = true;
             maxInput.classList.add('animate-pulse');
         }

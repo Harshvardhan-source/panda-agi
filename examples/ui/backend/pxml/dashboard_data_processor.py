@@ -37,14 +37,64 @@ class DashboardDataProcessor:
         filters = dashboard_data["filters"]
         grid_data = dashboard_data.get("grid", {})
 
-        # Build the simplified configuration (no CSV data or column mapping)
+        # Build the simplified configuration (include column mapping for editor)
         config = {
             "metadata": self._process_metadata(metadata),
             "filters": self._process_filters_simplified(filters),
             "components": self._process_grid_components_simplified(grid_data),
         }
+        
+        # Include transformations for client-side defined columns
+        transformations = dashboard_data.get("transformations", [])
+        if transformations:
+            config["transformations"] = [
+                {
+                    "type": "define_column",
+                    "name": transformation.name,
+                    "formula": transformation.formula
+                }
+                for transformation in transformations
+            ]
+        
+        # Include column mapping for the chart editor
+        if column_mapping:
+            # Start with the base CSV column mapping
+            full_column_mapping = column_mapping.copy()
+            
+            # Add defined columns from transformations
+            transformations = dashboard_data.get("transformations", [])
+            for transformation in transformations:
+                # TransformationSpec has name and formula attributes
+                column_name = transformation.name
+                if column_name:
+                    # Generate a letter for the defined column (after Z, use AA, AB, etc.)
+                    next_letter = self._get_next_column_letter(full_column_mapping)
+                    full_column_mapping[next_letter] = column_name
+            
+            config["column_mapping"] = full_column_mapping
 
         return config
+
+    def _get_next_column_letter(self, column_mapping: Dict[str, str]) -> str:
+        """Get the next available column letter for defined columns"""
+        # Get all existing letters
+        existing_letters = set(column_mapping.keys())
+        
+        # Single letters A-Z
+        for i in range(26):
+            letter = chr(ord('A') + i)
+            if letter not in existing_letters:
+                return letter
+        
+        # Double letters AA-ZZ
+        for i in range(26):
+            for j in range(26):
+                letter = chr(ord('A') + i) + chr(ord('A') + j)
+                if letter not in existing_letters:
+                    return letter
+        
+        # Fallback (shouldn't happen in practice)
+        return "ZZ"
 
     def _process_metadata(self, metadata: DashboardMetadata) -> Dict[str, Any]:
         """Process dashboard metadata"""

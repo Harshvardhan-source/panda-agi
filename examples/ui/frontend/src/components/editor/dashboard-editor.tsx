@@ -382,16 +382,31 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
       const iframeWindow = iframe.contentWindow as Window & {
         columnMapping?: Record<string, string>;
+        dashboardConfig?: {
+          column_mapping?: Record<string, string>;
+        };
       };
-      const columnMapping = iframeWindow.columnMapping;
+      
+      // Try window.columnMapping first (set immediately)
+      let columnMapping = iframeWindow.columnMapping;
+      
+      // Fallback to dashboardConfig.column_mapping if available
+      // Check for empty object as well as undefined/null
+      if ((!columnMapping || Object.keys(columnMapping).length === 0) && iframeWindow.dashboardConfig?.column_mapping) {
+        columnMapping = iframeWindow.dashboardConfig.column_mapping;
+      }
+
 
       if (columnMapping) {
-        return Object.entries(columnMapping).map(([letter, name]) => ({
+        const columns = Object.entries(columnMapping).map(([letter, name]) => ({
           letter,
-          name: name as string,
+          name: (name as string).charAt(0).toUpperCase() + (name as string).slice(1).replace(/_/g, ' '),
         }));
+        return columns;
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error extracting columns from iframe:', error);
+    }
     return [];
   };
 

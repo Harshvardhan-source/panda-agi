@@ -569,6 +569,11 @@ class HTMLGenerator:
         // Make dashboard config available globally
         window.dashboardConfig = dashboardConfig;
         
+        // Make column mapping available globally for the chart editor
+        if (dashboardConfig.column_mapping) {{
+            window.columnMapping = dashboardConfig.column_mapping;
+        }}
+        
         {chr(10).join(js_modules)}
         
         // Initialize dashboard when DOM is ready
