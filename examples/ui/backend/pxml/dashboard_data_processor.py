@@ -72,6 +72,9 @@ class DashboardDataProcessor:
                     full_column_mapping[next_letter] = column_name
             
             config["column_mapping"] = full_column_mapping
+            
+            # Include filter-to-column mapping for filtering functionality
+            config["filter_to_column_mapping"] = self._generate_filter_to_column_mapping(filters, full_column_mapping)
 
         return config
 

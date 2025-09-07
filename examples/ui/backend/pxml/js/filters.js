@@ -61,9 +61,9 @@ function initializeListFilter(filterId, values, filterName, isLoading = false) {
             const formattedValue = value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ');
             return `
                 <div class="filter-item px-2 py-1 text-sm rounded" 
-                     onclick="toggleFilterOption('${filterId}', '${value}', '${filterName}')">
-                    <input type="checkbox" id="${filterId}_${value}" class="mr-2">
-                    <span>${formattedValue}</span>
+                     onclick="if (event.target === this) toggleFilterOption('${filterId}', '${value}', '${filterName}')">
+                    <input type="checkbox" id="${filterId}_${value}" class="mr-2" onchange="updateListFilter('${filterId}', '${filterName}')">
+                    <label for="${filterId}_${value}" class="cursor-pointer">${formattedValue}</label>
                 </div>
             `;
         }).join('');
@@ -175,6 +175,7 @@ function initializeDateRangeFilter(filterId, values, filterName, isLoading = fal
 
 function toggleFilterOption(filterId, value, filterName) {
     const checkbox = document.getElementById(`${filterId}_${value}`);
+    // Toggle the checkbox when clicking on the div (not the checkbox or label)
     checkbox.checked = !checkbox.checked;
     updateListFilter(filterId, filterName);
 }

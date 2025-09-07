@@ -266,9 +266,15 @@ class CSVLoader {
             return [];
         }
 
-        // Since csvData doesn't include the header row, adjust startRow accordingly
+        // Use filtered data if available, otherwise use raw data
+        const data = window.getFilteredData ? window.getFilteredData() : this.csvData;
+        if (!data || data.length === 0) {
+            return [];
+        }
+
+        // Since data doesn't include the header row, adjust startRow accordingly
         const startIndex = Math.max(0, startRow - 2);
-        const result = this.csvData.slice(startIndex).map(row => row[columnName]);
+        const result = data.slice(startIndex).map(row => row[columnName]);
         return result;
     }
 
@@ -279,10 +285,12 @@ class CSVLoader {
      * @returns {*} Cell value
      */
     getCellValue(columnName, rowIndex) {
-        if (!this.csvData || !this.csvData[rowIndex]) {
+        // Use filtered data if available, otherwise use raw data
+        const data = window.getFilteredData ? window.getFilteredData() : this.csvData;
+        if (!data || !data[rowIndex]) {
             return null;
         }
-        return this.csvData[rowIndex][columnName];
+        return data[rowIndex][columnName];
     }
 
     /**

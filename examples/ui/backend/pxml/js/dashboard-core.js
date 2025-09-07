@@ -255,7 +255,8 @@ class DashboardCore {
      * Update all KPIs
      */
     updateAllKPIs() {
-        Object.keys(this.registeredKPIs).forEach(kpiId => {
+        // Use window.registeredKPIs to ensure we're using the same object
+        Object.keys(window.registeredKPIs || {}).forEach(kpiId => {
             window.updateKPI(kpiId);
         });
     }
@@ -264,7 +265,7 @@ class DashboardCore {
      * Update all charts
      */
     updateAllCharts() {
-        Object.keys(window.registeredCharts).forEach(chartId => {
+        Object.keys(window.registeredCharts || {}).forEach(chartId => {
             window.updateChart(chartId);
         });
     }
