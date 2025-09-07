@@ -21,35 +21,27 @@ class DashboardDataProcessor:
     def process_dashboard_config(
         self,
         dashboard_data: Dict[str, Any],
-        csv_data_json: str,
+        csv_data_json: str = None,
         column_mapping: Dict[str, str] = None,
     ) -> Dict[str, Any]:
         """
-        Process dashboard data into a comprehensive JSON configuration.
+        Process dashboard data into a simplified JSON configuration.
+        
+        Note: CSV data and column mapping are now loaded dynamically on the client-side,
+        so we only include the dashboard structure and metadata.
         
         Returns:
-            A complete JSON configuration that the frontend can use to render the dashboard
+            A simplified JSON configuration that the frontend can use to render the dashboard
         """
         metadata = dashboard_data["metadata"]
         filters = dashboard_data["filters"]
         grid_data = dashboard_data.get("grid", {})
 
-        # Use provided column mapping or extract from CSV data
-        if column_mapping is None:
-            column_mapping = self._extract_column_mapping_from_csv_data(csv_data_json)
-
-        # Build the complete configuration
+        # Build the simplified configuration (no CSV data or column mapping)
         config = {
             "metadata": self._process_metadata(metadata),
-            "data": {
-                "csv_data": json.loads(csv_data_json),
-                "column_mapping": column_mapping,
-            },
-            "filters": self._process_filters(filters, column_mapping),
-            "components": self._process_grid_components(grid_data, column_mapping),
-            "filter_to_column_mapping": self._generate_filter_to_column_mapping(
-                filters, column_mapping
-            ),
+            "filters": self._process_filters_simplified(filters),
+            "components": self._process_grid_components_simplified(grid_data),
         }
 
         return config
@@ -71,15 +63,37 @@ class DashboardDataProcessor:
 
         for filter_spec in filters:
             filter_id = f"filter_{filter_spec.name.lower().replace(' ', '_')}"
-            js_formula = self.formula_evaluator.get_filter_values_js(
-                filter_spec.values_formula, column_mapping
-            )
-
+            
+            # Pass the raw Excel formula to be compiled in JavaScript
+            # This allows for dynamic evaluation based on the actual CSV data
             filter_config = {
                 "id": filter_id,
                 "name": filter_spec.name,
                 "type": filter_spec.type,
-                "values_formula": js_formula,
+                "values_formula": filter_spec.values_formula,  # Raw Excel formula
+                "column_mapping": column_mapping,  # Include column mapping for JS compilation
+            }
+
+            processed_filters.append(filter_config)
+
+        return processed_filters
+
+    def _process_filters_simplified(
+        self, filters: List[FilterSpec]
+    ) -> List[Dict[str, Any]]:
+        """Process filters into simplified frontend configuration (no column mapping)"""
+        processed_filters = []
+
+        for filter_spec in filters:
+            filter_id = f"filter_{filter_spec.name.lower().replace(' ', '_')}"
+            
+            # Pass the raw Excel formula to be compiled in JavaScript
+            # Column mapping will be obtained from CSV loader on client-side
+            filter_config = {
+                "id": filter_id,
+                "name": filter_spec.name,
+                "type": filter_spec.type,
+                "values_formula": filter_spec.values_formula,  # Raw Excel formula
             }
 
             processed_filters.append(filter_config)
@@ -125,6 +139,54 @@ class DashboardDataProcessor:
                     elif content_item["type"] == "chart":
                         chart_config = self._process_chart_component(
                             content_item["spec"], column_mapping
+                        )
+                        column_component["content"].append(chart_config)
+
+                row_component["columns"].append(column_component)
+
+            components.append(row_component)
+
+        return components
+
+    def _process_grid_components_simplified(
+        self, grid_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Process grid layout and components (simplified, no column mapping)"""
+        components = []
+
+        for row_data in grid_data.get("rows", []):
+            row_id = f"row_{uuid.uuid4().hex[:8]}"
+            columns = row_data.get("columns", [])
+            total_size = sum(int(col.get("size", "1")) for col in columns)
+
+            row_component = {
+                "type": "row",
+                "id": row_id,
+                "columns": [],
+            }
+
+            for i, column_data in enumerate(columns):
+                size = int(column_data.get("size", "1"))
+                flex_grow = size
+                col_id = f"{row_id}_col_{i}"
+
+                column_component = {
+                    "type": "column",
+                    "id": col_id,
+                    "flex_grow": flex_grow,
+                    "content": [],
+                }
+
+                # Process content for this column
+                for content_item in column_data.get("content", []):
+                    if content_item["type"] == "kpi":
+                        kpi_config = self._process_kpi_component_simplified(
+                            content_item["spec"]
+                        )
+                        column_component["content"].append(kpi_config)
+                    elif content_item["type"] == "chart":
+                        chart_config = self._process_chart_component_simplified(
+                            content_item["spec"]
                         )
                         column_component["content"].append(chart_config)
 
@@ -201,6 +263,66 @@ class DashboardDataProcessor:
                 "column": series.column,
                 "aggregation": series.aggregation,
                 "format": series.format_type,
+                "unit": series.unit,
+                "filter_condition": series.filter_condition,
+                "axis": series.axis,
+            }
+            chart_config["series_list"].append(series_config)
+
+        return chart_config
+
+    def _process_kpi_component_simplified(
+        self, kpi_spec: KPISpec
+    ) -> Dict[str, Any]:
+        """Process KPI component into simplified JSON configuration (no column mapping)"""
+        kpi_id = f"kpi_{kpi_spec.name.lower().replace(' ', '_').replace('(', '').replace(')', '')}"
+        
+        # Pass the raw Excel formula to be compiled in JavaScript
+        # Column mapping will be obtained from CSV loader on client-side
+        kpi_config = {
+            "type": "kpi",
+            "id": kpi_id,
+            "name": kpi_spec.name,
+            "fa_icon": kpi_spec.fa_icon,
+            "value_formula": kpi_spec.value_formula,  # Raw Excel formula
+            "format_type": kpi_spec.format_type,
+            "unit": kpi_spec.unit,
+        }
+
+        return kpi_config
+
+    def _process_chart_component_simplified(
+        self, chart_spec: ChartSpec
+    ) -> Dict[str, Any]:
+        """Process Chart component into simplified JSON configuration (no column mapping)"""
+        chart_id = f"chart_{chart_spec.name.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('-', '_')}"
+
+        chart_config = {
+            "type": "chart",
+            "id": chart_id,
+            "chart_type": chart_spec.chart_type,
+            "name": chart_spec.name,
+            "original_name": chart_spec.name,
+            "x_axis": {
+                "name": chart_spec.x_axis.name,
+                "column": chart_spec.x_axis.column,  # Raw column reference
+                "group_by": chart_spec.x_axis.group_by,
+            },
+            "series_list": [],
+            "style": chart_spec.style,
+            "area": chart_spec.area,
+            "cumulative": chart_spec.cumulative,
+            "top_n": chart_spec.top_n,
+            "default_filter_conditions": chart_spec.default_filter_conditions,
+        }
+
+        # Process series
+        for series in chart_spec.series_list:
+            series_config = {
+                "name": series.name,
+                "column": series.column,  # Raw column reference
+                "aggregation": series.aggregation,
+                "format": series.format_type,  # Use format_type instead of format
                 "unit": series.unit,
                 "filter_condition": series.filter_condition,
                 "axis": series.axis,

@@ -39,10 +39,12 @@ const ExcelHelpers = {
     },
 
     // Array functions (used internally by formulas)
-    arraySum: function(arr) {
-        if (!Array.isArray(arr)) return 0;
-        return arr.filter(x => !isNaN(x) && x !== null && x !== '').reduce((sum, val) => sum + Number(val), 0);
-    },
+        arraySum: function(arr) {
+            if (!Array.isArray(arr)) return 0;
+            const numbers = arr.filter(x => !isNaN(x) && x !== null && x !== '').map(Number);
+            const sum = numbers.reduce((sum, val) => sum + val, 0);
+            return sum;
+        },
     
     arrayAvg: function(arr) {
         if (!Array.isArray(arr)) return 0;
@@ -303,6 +305,36 @@ const ExcelHelpers = {
             return [];
         }
         return [...new Set(arr.filter(item => item !== null && item !== undefined))];
+    },
+
+    // Date functions
+    getMonth: function(dateString) {
+        if (!dateString || typeof dateString !== 'string') return 0;
+        
+        // Handle various date formats
+        let date;
+        if (dateString.includes('-')) {
+            // Handle YYYY-MM-DD format
+            const parts = dateString.split('-');
+            if (parts.length >= 2) {
+                date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+            }
+        } else if (dateString.includes('/')) {
+            // Handle MM/DD/YYYY or DD/MM/YYYY format
+            date = new Date(dateString);
+        } else {
+            // Try to parse as-is
+            date = new Date(dateString);
+        }
+        
+        if (isNaN(date.getTime())) return 0;
+        return date.getMonth() + 1; // JavaScript months are 0-based, Excel is 1-based
+    },
+
+    // Lookup functions
+    excelChoose: function(index, ...choices) {
+        if (index < 1 || index > choices.length) return null;
+        return choices[index - 1]; // Excel CHOOSE is 1-based
     }
 };
 

@@ -25,7 +25,8 @@ class HTMLGenerator:
     ) -> str:
         """Generate complete dashboard HTML using modular approach"""
 
-        # Process dashboard data into JSON configuration
+        # Process dashboard data into simplified JSON configuration
+        # CSV data and column mapping are now loaded dynamically on client-side
         config = self.data_processor.process_dashboard_config(
             dashboard_data, csv_data_json, column_mapping
         )
@@ -533,11 +534,13 @@ class HTMLGenerator:
         js_modules = []
         js_files = [
             "excel-helpers.js",
+            "csv-loader.js",
             "data-utils.js",
             "filters.js",
             "kpis.js",
             "charts.js",
             "data-modal.js",
+            "dynamic-filters.js",
             "dashboard-core.js",
         ]
 
@@ -561,17 +564,28 @@ class HTMLGenerator:
         {chr(10).join(js_modules)}
         
         // Initialize dashboard when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {{
-            window.dashboard.initialize(dashboardConfig);
-            
-            // Initialize chart titles
-            Object.keys(window.registeredCharts).forEach(chartId => {{
-                const chartInfo = window.registeredCharts[chartId];
-                if (chartInfo && ['bar', 'horizontal_bar'].includes(chartInfo.config.chart_type)) {{
-                    updateChartTitle(chartId, chartInfo.config);
-                }}
-            }});
-            
+        document.addEventListener('DOMContentLoaded', async function() {{
+            try {{
+                // Initialize CSV loader first
+                await window.csvLoader.loadCSV(dashboardConfig.metadata.file_path);
+                
+                // Initialize dynamic filters
+                await window.dynamicFilters.initialize(dashboardConfig);
+                
+                // Initialize dashboard (this will now use the dynamic filters system)
+                window.dashboard.initialize(dashboardConfig);
+                
+                // Initialize chart titles
+                Object.keys(window.registeredCharts).forEach(chartId => {{
+                    const chartInfo = window.registeredCharts[chartId];
+                    if (chartInfo && ['bar', 'horizontal_bar'].includes(chartInfo.config.chart_type)) {{
+                        updateChartTitle(chartId, chartInfo.config);
+                    }}
+                }});
+                
+            }} catch (error) {{
+                console.error('Error during dashboard initialization:', error);
+            }}
         }});
     </script>"""
 

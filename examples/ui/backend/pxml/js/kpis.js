@@ -260,7 +260,21 @@ function updateKPI(kpiId) {
       throw new Error("Formula is empty");
     }
 
-    const rawValue = eval(kpi.formula);
+    let rawValue;
+    
+    // Check if this is a raw Excel formula that needs to be compiled
+    if (kpi.formula.startsWith('=')) {
+      // Use dynamic filters system to compile and evaluate the formula
+      if (window.dynamicFilters && window.dynamicFilters.initialized) {
+        rawValue = window.dynamicFilters.computeFilterValues(kpi.formula);
+      } else {
+        throw new Error("Dynamic filters not available for formula compilation");
+      }
+    } else {
+      // Use direct evaluation for already compiled formulas
+      rawValue = eval(kpi.formula);
+    }
+    
     const formattedValue = formatKPIValue(rawValue, kpi.formatType);
 
     valueElement.textContent = formattedValue;

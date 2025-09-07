@@ -29,9 +29,9 @@ class DashboardCompiler:
             # Load CSV data
             self.csv_processor.load_csv_from_string(csv_content)
 
-            # Apply transformations (define_column formulas)
-            transformations = dashboard_data.get("transformations", [])
-            self.csv_processor.apply_transformations(transformations)
+            # Skip server-side transformations - they will be handled client-side
+            # transformations = dashboard_data.get("transformations", [])
+            # self.csv_processor.apply_transformations(transformations)
 
             # Get data as JSON
             csv_data_json = self.csv_processor.get_data_as_json()

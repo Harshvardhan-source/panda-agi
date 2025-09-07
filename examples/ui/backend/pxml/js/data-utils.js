@@ -5,6 +5,13 @@
 
 // Data access functions used by Excel helpers
 function getColumnData(columnName, startRow = 1) {
+    // Use centralized CSV loader if available, otherwise fall back to window.dashboardData
+    if (window.csvLoader && window.csvLoader.isLoaded()) {
+        const data = window.csvLoader.getData();
+        const filtered = getFilteredData();
+        return filtered.map(row => row[columnName]).filter(val => val !== undefined);
+    }
+    
     if (!window.dashboardData || !Array.isArray(window.dashboardData)) return [];
     
     const filtered = getFilteredData();
@@ -15,6 +22,16 @@ function getColumnData(columnName, startRow = 1) {
 }
 
 function getCellValue(columnName, rowIndex) {
+    // Use centralized CSV loader if available, otherwise fall back to window.dashboardData
+    if (window.csvLoader && window.csvLoader.isLoaded()) {
+        const data = window.csvLoader.getData();
+        const filtered = getFilteredData();
+        if (rowIndex >= 0 && rowIndex < filtered.length) {
+            return filtered[rowIndex][columnName];
+        }
+        return null;
+    }
+    
     if (!window.dashboardData || !Array.isArray(window.dashboardData)) return null;
     
     const filtered = getFilteredData();
@@ -26,11 +43,19 @@ function getCellValue(columnName, rowIndex) {
 
 // Data filtering functions
 function getFilteredData() {
-    if (!window.dashboardData || window.dashboardData.length === 0) {
+    // Use CSV loader data if available, otherwise fall back to window.dashboardData
+    let data;
+    if (window.csvLoader && window.csvLoader.isLoaded()) {
+        data = window.csvLoader.getData();
+    } else {
+        data = window.dashboardData;
+    }
+    
+    if (!data || data.length === 0) {
         return [];
     }
 
-    return window.dashboardData.filter(row => {
+    return data.filter(row => {
         for (const [filterName, filterValue] of Object.entries(window.currentFilters)) {
             // Get the actual column name for this filter
             const columnMapping = window.filterToColumnMap[filterName];

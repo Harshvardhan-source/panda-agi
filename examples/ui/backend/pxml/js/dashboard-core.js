@@ -27,12 +27,17 @@ class DashboardCore {
      */
     setupGlobalData() {
         // Set up global variables for backward compatibility
-        window.dashboardData = this.config.data.csv_data;
+        // Use CSV loader data if available, otherwise use empty arrays
+        window.dashboardData = window.csvLoader && window.csvLoader.isLoaded() 
+            ? window.csvLoader.getData() 
+            : [];
         window.currentFilters = this.currentFilters;
-        window.columnMapping = this.config.data.column_mapping;
+        window.columnMapping = window.csvLoader && window.csvLoader.isLoaded()
+            ? window.csvLoader.getColumnMapping()
+            : {};
         window.registeredKPIs = this.registeredKPIs;
         window.registeredCharts = this.registeredCharts;
-        window.filterToColumnMap = this.config.filter_to_column_mapping;
+        window.filterToColumnMap = this.config.filter_to_column_mapping || {};
 
         // Debug helper function
         window.debugDashboard = () => {
@@ -93,7 +98,22 @@ class DashboardCore {
      */
     initializeFilter(filter) {
         try {
-            const values = eval(filter.values_formula);
+            // Use dynamic filters system if available, otherwise fall back to eval
+            let values = [];
+            
+            if (window.dynamicFilters && window.dynamicFilters.initialized) {
+                // Use the dynamic filters system to compute values
+                values = window.dynamicFilters.computeFilterValues(filter.values_formula);
+            } else {
+                // Fallback: try to eval the formula (for backward compatibility)
+                try {
+                    values = eval(filter.values_formula);
+                } catch (evalError) {
+                    console.warn(`Could not eval formula ${filter.values_formula}, using empty array`);
+                    values = [];
+                }
+            }
+            
             if (filter.type === 'list') {
                 window.initializeListFilter(filter.id, values || [], filter.name);
             } else if (filter.type === 'number_range') {

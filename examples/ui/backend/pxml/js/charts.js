@@ -3,6 +3,14 @@
  * Handles chart registration, rendering, updates, and Chart.js integration
  */
 
+// Helper function to get column mapping from CSV loader or fallback
+function getColumnMapping() {
+    if (window.csvLoader && window.csvLoader.isLoaded()) {
+        return window.csvLoader.getColumnMapping();
+    }
+    return window.columnMapping || {};
+}
+
 // Chart card HTML template
 function createChartCardHTML(chartId, config) {
     const chart_name = config.name || "";
@@ -160,7 +168,8 @@ function processChartData(data, config) {
     // Group data by x-axis column
     const grouped = {};
     filteredData.forEach(row => {
-        const xValue = row[window.columnMapping[x_axis.column] || x_axis.column];
+        const columnMapping = getColumnMapping();
+        const xValue = row[columnMapping[x_axis.column] || x_axis.column];
         if (!grouped[xValue]) {
             grouped[xValue] = [];
         }
@@ -195,7 +204,8 @@ function processChartData(data, config) {
             series.axis = config.chart_type === 'horizontal_bar' ? 'x' : 'y';
         }
         
-        const columnName = window.columnMapping[series.column] || series.column;
+        const columnMapping = getColumnMapping();
+        const columnName = columnMapping[series.column] || series.column;
         
         // Handle bubble chart data structure differently
         let seriesData;
@@ -206,7 +216,8 @@ function processChartData(data, config) {
                 // Apply filter condition if specified
                 if (series.filter_condition) {
                     const [filterColumn, filterValue] = series.filter_condition.split('=');
-                    const filterColumnName = window.columnMapping[filterColumn] || filterColumn;
+                    const columnMapping = getColumnMapping();
+                    const filterColumnName = columnMapping[filterColumn] || filterColumn;
                     groupData = groupData.filter(row => row[filterColumnName] === filterValue);
                 }
                 
@@ -247,7 +258,8 @@ function processChartData(data, config) {
             // Apply filter condition if specified
             if (series.filter_condition) {
                 const [filterColumn, filterValue] = series.filter_condition.split('=');
-                const filterColumnName = window.columnMapping[filterColumn] || filterColumn;
+                const columnMapping = getColumnMapping();
+                const filterColumnName = columnMapping[filterColumn] || filterColumn;
                 groupData = groupData.filter(row => row[filterColumnName] === filterValue);
             }
             
