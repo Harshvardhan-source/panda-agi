@@ -366,7 +366,217 @@ function formatKPIValue(value, formatType) {
         style: "currency",
         currency: "USD",
         minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:eur":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "EUR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:gbp":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "GBP",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:jpy":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "JPY",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:cad":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "CAD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:aud":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "AUD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:cad":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "CAD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:chf":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "CHF",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:cny":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "CNY",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:inr":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "INR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:brl":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:mxn":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "MXN",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:krw":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "KRW",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:sgd":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "SGD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:hkd":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "HKD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:nok":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "NOK",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:sek":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "SEK",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:dkk":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "DKK",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:pln":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "PLN",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:czk":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "CZK",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:huf":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "HUF",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:try":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "TRY",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:rub":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "RUB",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:zar":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "ZAR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:ils":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "ILS",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:thb":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "THB",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:php":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "PHP",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:idr":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:myr":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "MYR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:vnd":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    case "currency:nzd":
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "NZD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
       }).format(value);
     case "percentage":
       return new Intl.NumberFormat("en-US", {

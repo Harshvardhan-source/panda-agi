@@ -91,8 +91,45 @@ const KPI_ICONS = [
 const KPI_FORMATS = [
   { value: "number", label: "Number" },
   { value: "currency:usd", label: "Currency (USD)" },
+  { value: "currency:eur", label: "Currency (EUR)" },
+  { value: "currency:gbp", label: "Currency (GBP)" },
+  { value: "currency:jpy", label: "Currency (JPY)" },
+  { value: "currency:custom", label: "Custom Currency..." },
   { value: "percentage", label: "Percentage" },
   { value: "decimal", label: "Decimal" },
+];
+
+const CUSTOM_CURRENCIES = [
+  { value: "currency:usd", label: "USD - US Dollar" },
+  { value: "currency:eur", label: "EUR - Euro" },
+  { value: "currency:gbp", label: "GBP - British Pound" },
+  { value: "currency:jpy", label: "JPY - Japanese Yen" },
+  { value: "currency:cad", label: "CAD - Canadian Dollar" },
+  { value: "currency:aud", label: "AUD - Australian Dollar" },
+  { value: "currency:chf", label: "CHF - Swiss Franc" },
+  { value: "currency:cny", label: "CNY - Chinese Yuan" },
+  { value: "currency:inr", label: "INR - Indian Rupee" },
+  { value: "currency:brl", label: "BRL - Brazilian Real" },
+  { value: "currency:mxn", label: "MXN - Mexican Peso" },
+  { value: "currency:krw", label: "KRW - South Korean Won" },
+  { value: "currency:sgd", label: "SGD - Singapore Dollar" },
+  { value: "currency:hkd", label: "HKD - Hong Kong Dollar" },
+  { value: "currency:nok", label: "NOK - Norwegian Krone" },
+  { value: "currency:sek", label: "SEK - Swedish Krona" },
+  { value: "currency:dkk", label: "DKK - Danish Krone" },
+  { value: "currency:pln", label: "PLN - Polish Zloty" },
+  { value: "currency:czk", label: "CZK - Czech Koruna" },
+  { value: "currency:huf", label: "HUF - Hungarian Forint" },
+  { value: "currency:try", label: "TRY - Turkish Lira" },
+  { value: "currency:rub", label: "RUB - Russian Ruble" },
+  { value: "currency:zar", label: "ZAR - South African Rand" },
+  { value: "currency:ils", label: "ILS - Israeli Shekel" },
+  { value: "currency:thb", label: "THB - Thai Baht" },
+  { value: "currency:php", label: "PHP - Philippine Peso" },
+  { value: "currency:idr", label: "IDR - Indonesian Rupiah" },
+  { value: "currency:myr", label: "MYR - Malaysian Ringgit" },
+  { value: "currency:vnd", label: "VND - Vietnamese Dong" },
+  { value: "currency:nzd", label: "NZD - New Zealand Dollar" },
 ];
 
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
@@ -126,6 +163,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [originalKPIState, setOriginalKPIState] = useState<KPIConfig | null>(
     null
   );
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State for compiled dashboard content (moved up for proper initialization order)
@@ -2095,11 +2133,21 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </label>
                             <select
                               value={editedKPI.format_type}
-                              onChange={(e) =>
-                                updateKPIProperty("format_type", e.target.value)
-                              }
+                              onChange={(e) => {
+                                if (e.target.value === "currency:custom") {
+                                  setShowCurrencyModal(true);
+                                } else {
+                                  updateKPIProperty("format_type", e.target.value);
+                                }
+                              }}
                               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                             >
+                              {/* Show custom currency if selected */}
+                              {editedKPI.format_type.startsWith("currency:") && !KPI_FORMATS.some(f => f.value === editedKPI.format_type) && (
+                                <option value={editedKPI.format_type}>
+                                  Currency ({editedKPI.format_type.split(':')[1]?.toUpperCase() || 'CUSTOM'})
+                                </option>
+                              )}
                               {KPI_FORMATS.map((format) => (
                                 <option key={format.value} value={format.value}>
                                   {format.label}
@@ -2180,6 +2228,49 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                   Discard Changes
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Currency Modal */}
+      {showCurrencyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Select Currency</h3>
+              <button
+                onClick={() => setShowCurrencyModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-1">
+                {CUSTOM_CURRENCIES.map((currency) => (
+                  <button
+                    key={currency.value}
+                    onClick={() => {
+                      updateKPIProperty("format_type", currency.value);
+                      setShowCurrencyModal(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                  >
+                    {currency.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t">
+              <button
+                onClick={() => setShowCurrencyModal(false)}
+                className="w-full px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
