@@ -16,45 +16,137 @@ function toggleFilterDropdown(filterId) {
     }
 }
 
-function initializeListFilter(filterId, values, filterName) {
+function initializeListFilter(filterId, values, filterName, isLoading = false) {
     const optionsContainer = document.getElementById(filterId + '_options');
+    const displayElement = document.getElementById(filterId + '_display');
+    const buttonElement = document.getElementById(filterId + '_button');
+    
+    if (isLoading) {
+        // Show skeleton loading in the existing structure
+        if (displayElement) {
+            displayElement.textContent = `Select ${filterName}`;
+            displayElement.classList.add('animate-pulse');
+        }
+        if (buttonElement) {
+            buttonElement.disabled = true;
+            buttonElement.classList.add('opacity-50');
+        }
+        if (optionsContainer) {
+            optionsContainer.innerHTML = `
+                <div class="px-2 py-1 text-sm">
+                    <div class="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    // Reset loading state
+    if (displayElement) {
+        displayElement.classList.remove('animate-pulse');
+    }
+    if (buttonElement) {
+        buttonElement.disabled = false;
+        buttonElement.classList.remove('opacity-50');
+    }
+    
     const uniqueValues = [...new Set(values)].sort();
     
-    optionsContainer.innerHTML = uniqueValues.map(value => `
-        <div class="filter-item px-2 py-1 text-sm rounded" 
-             onclick="toggleFilterOption('${filterId}', '${value}', '${filterName}')">
-            <input type="checkbox" id="${filterId}_${value}" class="mr-2">
-            <span>${value}</span>
-        </div>
-    `).join('');
+    if (optionsContainer) {
+        optionsContainer.innerHTML = uniqueValues.map(value => `
+            <div class="filter-item px-2 py-1 text-sm rounded" 
+                 onclick="toggleFilterOption('${filterId}', '${value}', '${filterName}')">
+                <input type="checkbox" id="${filterId}_${value}" class="mr-2">
+                <span>${value}</span>
+            </div>
+        `).join('');
+    }
 }
 
-function initializeRangeFilter(filterId, values, filterName) {
+function initializeRangeFilter(filterId, values, filterName, isLoading = false) {
+    const minInput = document.getElementById(filterId + '_min');
+    const maxInput = document.getElementById(filterId + '_max');
+    
+    if (isLoading) {
+        // Show skeleton loading in existing structure
+        if (minInput) {
+            minInput.placeholder = `Min ${filterName}`;
+            minInput.disabled = true;
+            minInput.classList.add('animate-pulse');
+        }
+        if (maxInput) {
+            maxInput.placeholder = `Max ${filterName}`;
+            maxInput.disabled = true;
+            maxInput.classList.add('animate-pulse');
+        }
+        return;
+    }
+    
+    // Reset loading state
+    if (minInput) {
+        minInput.classList.remove('animate-pulse');
+    }
+    if (maxInput) {
+        maxInput.classList.remove('animate-pulse');
+    }
+    
     const numbers = values.filter(v => !isNaN(v) && v !== null && v !== '').map(Number);
     if (numbers.length === 0) return;
     
     const min = Math.min(...numbers);
     const max = Math.max(...numbers);
     
-    const minInput = document.getElementById(filterId + '_min');
-    const maxInput = document.getElementById(filterId + '_max');
-    
     // Set placeholder text
-    minInput.placeholder = min.toString();
-    maxInput.placeholder = max.toString();
+    if (minInput) {
+        minInput.placeholder = min.toString();
+        minInput.min = min;
+        minInput.max = max;
+        minInput.disabled = false;
+    }
+    if (maxInput) {
+        maxInput.placeholder = max.toString();
+        maxInput.min = min;
+        maxInput.max = max;
+        maxInput.disabled = false;
+    }
     
-    // Set min/max attributes to constrain input values
-    minInput.min = min;
-    minInput.max = max;
-    maxInput.min = min;
-    maxInput.max = max;
-    
-    // Update display info
-    document.getElementById(filterId + '_min_val').textContent = min;
-    document.getElementById(filterId + '_max_val').textContent = max;
+    // Update display info if elements exist
+    const minValElement = document.getElementById(filterId + '_min_val');
+    const maxValElement = document.getElementById(filterId + '_max_val');
+    if (minValElement) minValElement.textContent = min;
+    if (maxValElement) maxValElement.textContent = max;
 }
 
-function initializeDateRangeFilter(filterId, values, filterName) {
+function initializeDateRangeFilter(filterId, values, filterName, isLoading = false) {
+    const startInput = document.getElementById(filterId + '_start');
+    const endInput = document.getElementById(filterId + '_end');
+    
+    if (isLoading) {
+        // Show skeleton loading in existing structure
+        if (startInput) {
+            startInput.placeholder = `Start ${filterName}`;
+            startInput.disabled = true;
+            startInput.classList.add('animate-pulse');
+        }
+        if (endInput) {
+            endInput.placeholder = `End ${filterName}`;
+            endInput.disabled = true;
+            endInput.classList.add('animate-pulse');
+        }
+        return;
+    }
+    
+    // Reset loading state
+    if (startInput) {
+        startInput.classList.remove('animate-pulse');
+    }
+    if (endInput) {
+        endInput.classList.remove('animate-pulse');
+    }
+    
     const dates = values.filter(v => v && !isNaN(Date.parse(v))).map(v => new Date(v));
     if (dates.length === 0) return;
     
@@ -63,14 +155,17 @@ function initializeDateRangeFilter(filterId, values, filterName) {
     const minDateStr = minDate.toISOString().split('T')[0];
     const maxDateStr = maxDate.toISOString().split('T')[0];
     
-    const startInput = document.getElementById(filterId + '_start');
-    const endInput = document.getElementById(filterId + '_end');
-    
     // Set min/max constraints for both inputs
-    startInput.min = minDateStr;
-    startInput.max = maxDateStr;
-    endInput.min = minDateStr;
-    endInput.max = maxDateStr;
+    if (startInput) {
+        startInput.min = minDateStr;
+        startInput.max = maxDateStr;
+        startInput.disabled = false;
+    }
+    if (endInput) {
+        endInput.min = minDateStr;
+        endInput.max = maxDateStr;
+        endInput.disabled = false;
+    }
 }
 
 function toggleFilterOption(filterId, value, filterName) {

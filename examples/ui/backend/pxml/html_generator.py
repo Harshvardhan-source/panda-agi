@@ -78,10 +78,10 @@ class HTMLGenerator:
             color: white;
         }
         .kpi-component {
-            transition: all 0.3s ease;
+            /* Removed transition to prevent weird resize effects */
         }
         .kpi-value {
-            transition: all 0.3s ease;
+            /* Removed transition to prevent weird resize effects */
         }
         .kpi-updating {
             opacity: 0.6;
@@ -566,14 +566,14 @@ class HTMLGenerator:
         // Initialize dashboard when DOM is ready
         document.addEventListener('DOMContentLoaded', async function() {{
             try {{
-                // Initialize CSV loader first
+                // Initialize dashboard with skeleton loading first
+                window.dashboard.initialize(dashboardConfig);
+                
+                // Load CSV data in the background
                 await window.csvLoader.loadCSV(dashboardConfig.metadata.file_path);
                 
-                // Initialize dynamic filters
+                // Initialize dynamic filters with loaded data
                 await window.dynamicFilters.initialize(dashboardConfig);
-                
-                // Initialize dashboard (this will now use the dynamic filters system)
-                window.dashboard.initialize(dashboardConfig);
                 
                 // Initialize chart titles
                 Object.keys(window.registeredCharts).forEach(chartId => {{

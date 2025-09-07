@@ -12,7 +12,7 @@ function getColumnMapping() {
 }
 
 // Chart card HTML template
-function createChartCardHTML(chartId, config) {
+function createChartCardHTML(chartId, config, isLoading = false) {
     const chart_name = config.name || "";
     const chart_type = config.chart_type;
     
@@ -26,6 +26,209 @@ function createChartCardHTML(chartId, config) {
                     <option value="5">Top 5</option>
                     <option value="10" selected>Top 10</option>
                 </select>
+            </div>`;
+    }
+    
+    if (isLoading) {
+        // Generate different skeleton based on chart type
+        let skeletonContent = '';
+        
+        if (chart_type === 'bar' || chart_type === 'horizontal_bar') {
+            // Bar chart skeleton with subtle animations
+            skeletonContent = `
+                <div class="w-full h-full p-4">
+                    <!-- Skeleton chart bars with staggered animations -->
+                    <div class="flex items-end justify-between h-full space-x-1">
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 60%; animation-delay: 0s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 80%; animation-delay: 0.1s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 45%; animation-delay: 0.2s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 70%; animation-delay: 0.3s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 55%; animation-delay: 0.4s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 90%; animation-delay: 0.5s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 35%; animation-delay: 0.6s;"></div>
+                        <div class="flex-1 bg-gray-200 rounded-t bar-skeleton" style="height: 65%; animation-delay: 0.7s;"></div>
+                    </div>
+                    <!-- Skeleton axis labels with wave animation -->
+                    <div class="mt-2 flex justify-between text-xs text-gray-400">
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 0.8s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 0.9s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.0s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.1s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.2s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.3s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.4s;"></div>
+                        <div class="w-8 h-3 bg-gray-200 rounded label-skeleton" style="animation-delay: 1.5s;"></div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes barSkeletonPulse {
+                        0%, 100% { 
+                            opacity: 0.6; 
+                            transform: scaleY(1);
+                        }
+                        50% { 
+                            opacity: 1; 
+                            transform: scaleY(1.05);
+                        }
+                    }
+                    @keyframes barSkeletonWave {
+                        0%, 100% { 
+                            transform: translateY(0px);
+                        }
+                        50% { 
+                            transform: translateY(-2px);
+                        }
+                    }
+                    @keyframes labelSkeletonFade {
+                        0%, 100% { 
+                            opacity: 0.4;
+                        }
+                        50% { 
+                            opacity: 0.8;
+                        }
+                    }
+                    .bar-skeleton {
+                        animation: barSkeletonPulse 2s ease-in-out infinite, barSkeletonWave 3s ease-in-out infinite;
+                    }
+                    .label-skeleton {
+                        animation: labelSkeletonFade 1.5s ease-in-out infinite;
+                    }
+                </style>`;
+        } else if (chart_type === 'pie' || chart_type === 'doughnut') {
+            // Pie chart skeleton with subtle animations
+            skeletonContent = `
+                <div class="w-full h-full p-4 flex items-center justify-center">
+                    <div class="relative w-48 h-48">
+                        <!-- Pie chart skeleton with breathing animation -->
+                        <div class="w-full h-full rounded-full bg-gray-200 pie-skeleton"></div>
+                        <!-- Center hole for doughnut -->
+                        ${chart_type === 'doughnut' ? '<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full"></div>' : ''}
+                        <!-- Legend skeleton with staggered animation -->
+                        <div class="absolute -right-20 top-1/2 transform -translate-y-1/2 space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-gray-200 rounded legend-dot" style="animation-delay: 0s;"></div>
+                                <div class="w-16 h-3 bg-gray-200 rounded legend-text" style="animation-delay: 0.1s;"></div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-gray-200 rounded legend-dot" style="animation-delay: 0.2s;"></div>
+                                <div class="w-12 h-3 bg-gray-200 rounded legend-text" style="animation-delay: 0.3s;"></div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-gray-200 rounded legend-dot" style="animation-delay: 0.4s;"></div>
+                                <div class="w-20 h-3 bg-gray-200 rounded legend-text" style="animation-delay: 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes pieSkeletonBreath {
+                        0%, 100% { 
+                            opacity: 0.7; 
+                            transform: scale(1);
+                        }
+                        50% { 
+                            opacity: 1; 
+                            transform: scale(1.02);
+                        }
+                    }
+                    @keyframes legendFade {
+                        0%, 100% { 
+                            opacity: 0.5;
+                        }
+                        50% { 
+                            opacity: 0.9;
+                        }
+                    }
+                    .pie-skeleton {
+                        animation: pieSkeletonBreath 3s ease-in-out infinite;
+                    }
+                    .legend-dot {
+                        animation: legendFade 2s ease-in-out infinite;
+                    }
+                    .legend-text {
+                        animation: legendFade 2s ease-in-out infinite;
+                    }
+                </style>`;
+        } else if (chart_type === 'line') {
+            // Line chart skeleton
+            skeletonContent = `
+                <div class="w-full h-full p-4">
+                    <!-- Line chart skeleton -->
+                    <div class="relative w-full h-full">
+                        <!-- Grid lines -->
+                        <div class="absolute inset-0 opacity-20">
+                            <div class="h-full border-t border-gray-200" style="top: 25%;"></div>
+                            <div class="h-full border-t border-gray-200" style="top: 50%;"></div>
+                            <div class="h-full border-t border-gray-200" style="top: 75%;"></div>
+                        </div>
+                        <!-- Line path skeleton -->
+                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <path d="M 10,80 Q 20,60 30,70 T 50,50 T 70,30 T 90,40" 
+                                  stroke="#d1d5db" stroke-width="2" fill="none" 
+                                  stroke-dasharray="5,5" class="animate-pulse">
+                                <animate attributeName="stroke-dashoffset" values="0;10" dur="1s" repeatCount="indefinite"/>
+                            </path>
+                            <!-- Data points -->
+                            <circle cx="10" cy="80" r="2" fill="#d1d5db" class="animate-pulse"/>
+                            <circle cx="30" cy="70" r="2" fill="#d1d5db" class="animate-pulse"/>
+                            <circle cx="50" cy="50" r="2" fill="#d1d5db" class="animate-pulse"/>
+                            <circle cx="70" cy="30" r="2" fill="#d1d5db" class="animate-pulse"/>
+                            <circle cx="90" cy="40" r="2" fill="#d1d5db" class="animate-pulse"/>
+                        </svg>
+                        <!-- Axis labels -->
+                        <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400">
+                            <div class="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                            <div class="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                            <div class="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                            <div class="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                            <div class="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>`;
+        } else if (chart_type === 'area') {
+            // Area chart skeleton
+            skeletonContent = `
+                <div class="w-full h-full p-4">
+                    <div class="relative w-full h-full">
+                        <!-- Area chart skeleton -->
+                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#d1d5db;stop-opacity:0.3" />
+                                    <stop offset="100%" style="stop-color:#d1d5db;stop-opacity:0.1" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M 10,80 L 20,60 L 30,70 L 50,50 L 70,30 L 90,40 L 90,100 L 10,100 Z" 
+                                  fill="url(#areaGradient)" class="animate-pulse"/>
+                            <path d="M 10,80 Q 20,60 30,70 T 50,50 T 70,30 T 90,40" 
+                                  stroke="#d1d5db" stroke-width="2" fill="none" class="animate-pulse"/>
+                        </svg>
+                    </div>
+                </div>`;
+        } else {
+            // Default skeleton (fallback)
+            skeletonContent = `
+                <div class="w-full h-full p-4 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-gray-200 rounded-lg animate-pulse mx-auto mb-4"></div>
+                        <div class="w-24 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                    </div>
+                </div>`;
+        }
+        
+        return `
+            <div class="bg-white rounded-lg shadow-sm border p-6 chart-component h-full flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 id="${chartId}_title" class="text-lg font-semibold text-gray-900 chart-title" data-chart-id="${chartId}">${chart_name}</h3>
+                    <div class="flex items-center space-x-2">
+                        ${topNFilterHTML}
+                    </div>
+                </div>
+                <div class="relative flex-1 min-h-80" style="max-height: 400px; max-width: 100%; overflow: hidden;">
+                    <div class="w-full h-full bg-gray-50 rounded flex items-center justify-center">
+                        ${skeletonContent}
+                    </div>
+                </div>
             </div>`;
     }
     
@@ -50,7 +253,7 @@ function createChartCardHTML(chartId, config) {
 }
 
 // Chart Management Functions
-function renderChartCard(chartId, config) {
+function renderChartCard(chartId, config, isLoading = false) {
     const container = document.getElementById(chartId + '_container');
     if (!container) {
         console.error('❌ Chart container not found:', chartId + '_container');
@@ -58,11 +261,13 @@ function renderChartCard(chartId, config) {
     }
     
     // Render the chart card HTML
-    const html = createChartCardHTML(chartId, config);
+    const html = createChartCardHTML(chartId, config, isLoading);
     container.innerHTML = html;
     
-    // Register the chart
-    registerChart(chartId, config);
+    // Register the chart only if not loading
+    if (!isLoading) {
+        registerChart(chartId, config);
+    }
 }
 
 function registerChart(chartId, config) {
@@ -793,7 +998,7 @@ function updateChartProperty(chartId, property, value) {
 /**
  * Render chart from individual data attributes - makes each component self-contained
  */
-function renderChartFromDataAttributes(containerId) {
+function renderChartFromDataAttributes(containerId, isLoading = false) {
   const container = document.getElementById(containerId);
   if (!container) return false;
 
@@ -801,8 +1006,10 @@ function renderChartFromDataAttributes(containerId) {
   if (!config) return false;
 
   try {
-    renderChartCard(config.id, config);
-    updateChart(config.id);
+    renderChartCard(config.id, config, isLoading);
+    if (!isLoading) {
+      updateChart(config.id);
+    }
     return true;
   } catch (error) {
     console.error(`Error rendering chart ${containerId}:`, error);

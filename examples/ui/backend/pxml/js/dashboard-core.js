@@ -18,8 +18,32 @@ class DashboardCore {
     initialize(config) {
         this.config = config;
         this.setupGlobalData();
-        this.initializeComponents();
-        this.updateDashboardData();
+        
+        // Always show skeleton loading initially
+        this.initializeComponentsWithSkeleton();
+        
+        // Set up a listener for when CSV data becomes available
+        this.setupDataListener();
+    }
+
+    /**
+     * Set up a listener for CSV data availability
+     */
+    setupDataListener() {
+        // Check periodically if CSV data is loaded
+        const checkData = () => {
+            if (window.csvLoader && window.csvLoader.isLoaded()) {
+                // Data is loaded, transition to actual data
+                this.transitionToData();
+                this.updateDashboardData();
+            } else {
+                // Data not ready yet, check again in 100ms
+                setTimeout(checkData, 100);
+            }
+        };
+        
+        // Start checking
+        checkData();
     }
 
     /**
@@ -80,24 +104,86 @@ class DashboardCore {
     }
 
     /**
+     * Initialize components with skeleton loading
+     */
+    initializeComponentsWithSkeleton() {
+        // Initialize filters with skeleton loading
+        this.config.filters.forEach(filter => {
+            this.initializeFilter(filter, true);
+        });
+
+        // Initialize KPIs and Charts from components using data attributes with skeleton loading
+        this.config.components.forEach(component => {
+            this.initializeComponent(component, true);
+        });
+    }
+
+    /**
+     * Transition all components from skeleton to actual data
+     */
+    transitionToData() {
+        // Transition filters
+        this.config.filters.forEach(filter => {
+            this.initializeFilter(filter, false);
+        });
+
+        // Transition KPIs and Charts
+        this.config.components.forEach(component => {
+            this.initializeComponent(component, false);
+        });
+
+        // Re-render all components from their data attributes
+        if (window.reRenderAllKPIComponents) {
+            window.reRenderAllKPIComponents();
+        }
+        if (window.reRenderAllChartComponents) {
+            window.reRenderAllChartComponents();
+        }
+    }
+
+    /**
      * Initialize a single component recursively
      */
-    initializeComponent(component) {
+    initializeComponent(component, isLoading = false) {
         if (component.type === 'row') {
             // Initialize all columns in the row
             component.columns.forEach(column => {
                 column.content.forEach(content => {
-                    this.initializeComponent(content);
+                    this.initializeComponent(content, isLoading);
                 });
             });
+        } else if (component.type === 'kpi') {
+            // Initialize KPI component
+            const containerId = component.id + '_container';
+            if (window.renderKPIFromDataAttributes) {
+                window.renderKPIFromDataAttributes(containerId, isLoading);
+            }
+        } else if (component.type === 'chart') {
+            // Initialize Chart component
+            const containerId = component.id + '_container';
+            if (window.renderChartFromDataAttributes) {
+                window.renderChartFromDataAttributes(containerId, isLoading);
+            }
         }
     }
 
     /**
      * Initialize a filter component
      */
-    initializeFilter(filter) {
+    initializeFilter(filter, isLoading = false) {
         try {
+            if (isLoading) {
+                // Show skeleton loading
+                if (filter.type === 'list') {
+                    window.initializeListFilter(filter.id, [], filter.name, true);
+                } else if (filter.type === 'number_range') {
+                    window.initializeRangeFilter(filter.id, [], filter.name, true);
+                } else if (filter.type === 'date_range') {
+                    window.initializeDateRangeFilter(filter.id, [], filter.name, true);
+                }
+                return;
+            }
+            
             // Use dynamic filters system if available, otherwise fall back to eval
             let values = [];
             

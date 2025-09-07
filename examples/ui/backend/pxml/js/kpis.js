@@ -4,7 +4,7 @@
  */
 
 // KPI card HTML template
-function createKPICardHTML(kpiId, config) {
+function createKPICardHTML(kpiId, config, isLoading = false) {
   const kpi_name = config.name || "";
   const fa_icon = config.fa_icon;
   const unit = config.unit || "";
@@ -13,42 +13,43 @@ function createKPICardHTML(kpiId, config) {
         <div class="bg-white rounded-lg shadow-sm border p-6 kpi-component h-full flex flex-col justify-center">
             <div class="flex items-center">
                 <div class="flex-shrink-0">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas ${fa_icon} text-blue-600 text-xl kpi-icon" data-kpi-id="${kpiId}"></i>
+                    <div class="w-12 h-12 ${isLoading ? 'bg-gray-200 rounded-lg flex items-center justify-center' : 'bg-blue-100 rounded-lg flex items-center justify-center'}">
+                        <i class="fas ${fa_icon} ${isLoading ? 'text-gray-400' : 'text-blue-600'} text-xl kpi-icon" data-kpi-id="${kpiId}"></i>
                     </div>
                 </div>
                 <div class="ml-4 flex-1">
                     <h3 class="text-sm font-medium text-gray-900 mb-1 kpi-name" data-kpi-id="${kpiId}">${kpi_name}</h3>
                     <div class="flex items-center justify-between">
                         <div class="flex items-baseline">
-                            <span id="${kpiId}_value" class="text-2xl font-bold text-gray-900 kpi-value">
-                                Loading...
-                            </span>
-                            ${
-                              unit
-                                ? `<span class="ml-1 text-sm text-gray-500 kpi-unit" data-kpi-id="${kpiId}">${unit}</span>`
-                                : ""
+                            ${isLoading 
+                              ? `<div class="h-8 bg-gray-200 rounded animate-pulse w-24"></div>`
+                              : `<span id="${kpiId}_value" class="text-2xl font-bold text-gray-900 kpi-value">Loading...</span>`
+                            }
+                            ${isLoading 
+                              ? (unit ? '<div class="ml-1 h-4 bg-gray-200 rounded animate-pulse w-8"></div>' : '')
+                              : (unit ? `<span class="ml-1 text-sm text-gray-500 kpi-unit" data-kpi-id="${kpiId}">${unit}</span>` : '')
                             }
                         </div>
                     </div>
-                    <div id="${kpiId}_change" class="text-xs text-gray-500 mt-1">
-                        <!-- Change indicator will be added here -->
-                    </div>
+                    ${isLoading 
+                      ? '<div class="h-3 bg-gray-200 rounded animate-pulse mt-1 w-1/2"></div>'
+                      : `<div id="${kpiId}_change" class="text-xs text-gray-500 mt-1"><!-- Change indicator will be added here --></div>`
+                    }
                 </div>
             </div>
         </div>`;
 }
 
 // KPI Management Functions
-function renderKPICard(kpiId, config) {
+function renderKPICard(kpiId, config, isLoading = false) {
   const container = document.getElementById(kpiId + "_container");
   if (!container) {
     console.error("KPI container not found:", kpiId + "_container");
     return;
   }
 
-  // Render the KPI card HTML
-  container.innerHTML = createKPICardHTML(kpiId, config);
+  // Render the KPI card HTML (with or without skeleton loading)
+  container.innerHTML = createKPICardHTML(kpiId, config, isLoading);
 
   // Register the KPI with data params for reuse
   registerKPI(
@@ -63,7 +64,7 @@ function renderKPICard(kpiId, config) {
 /**
  * Render KPI from individual data attributes - this makes each component self-contained
  */
-function renderKPIFromDataAttributes(containerId) {
+function renderKPIFromDataAttributes(containerId, isLoading = false) {
   const container = document.getElementById(containerId);
   if (!container) return false;
 
@@ -71,8 +72,10 @@ function renderKPIFromDataAttributes(containerId) {
   if (!config) return false;
 
   try {
-    renderKPICard(config.id, config);
-    updateKPI(config.id);
+    renderKPICard(config.id, config, isLoading);
+    if (!isLoading) {
+      updateKPI(config.id);
+    }
     return true;
   } catch (error) {
     console.error(`Error rendering KPI ${containerId}:`, error);
@@ -299,6 +302,30 @@ function updateKPI(kpiId) {
 function updateAllKPIs() {
   Object.keys(window.registeredKPIs).forEach((kpiId) => {
     updateKPI(kpiId);
+  });
+}
+
+/**
+ * Transition KPI from skeleton loading to actual data
+ */
+function transitionKPIToData(kpiId) {
+  const container = document.getElementById(kpiId + "_container");
+  if (!container) return;
+
+  const config = buildConfigFromDataAttributes(container, kpiId);
+  if (!config) return;
+
+  // Re-render with actual data (no skeleton)
+  renderKPICard(kpiId, config, false);
+  updateKPI(kpiId);
+}
+
+/**
+ * Transition all KPIs from skeleton loading to actual data
+ */
+function transitionAllKPIsToData() {
+  Object.keys(window.registeredKPIs).forEach((kpiId) => {
+    transitionKPIToData(kpiId);
   });
 }
 
