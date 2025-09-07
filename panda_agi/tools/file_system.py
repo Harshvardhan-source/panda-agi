@@ -36,6 +36,12 @@ class FileReadHandler(ToolHandler):
         # await self.add_event(EventType.FILE_READ, params)
         params["start_line"] = int(params.get("start_line", 1))
         params["end_line"] = int(params.get("end_line", 1))
+
+        file = params.get("file", None)
+        # check if extension is csv set end_line
+        if file and file.endswith(".csv"):
+            params["end_line"] = min(params["end_line"], 20)
+
         result = await file_read(self.environment, **params)
         return ToolResult(
             success=result.get("status") == "success",

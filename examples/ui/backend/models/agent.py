@@ -14,6 +14,7 @@ class AgentQuery(BaseModel):
 
     query: str
     conversation_id: Optional[str] = None
+    file_names: Optional[List[str]] = None
     timeout: Optional[int] = None
 
 
