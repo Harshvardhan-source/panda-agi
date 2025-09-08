@@ -365,22 +365,37 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   }, [fileContent]);
 
 
-  const handleSaveContent = async () => {
-    if (!artifact || !hasUnsavedChanges || isSaving) return;
+  const handleSaveContent = async (directContent?: string) => {
+    if (!artifact || isSaving) return;
+
+    // If we don't have direct content and no unsaved changes, don't save
+    if (!directContent && !hasUnsavedChanges) return;
 
     setIsSaving(true);
     try {
-      // For markdown files, we should convert HTML back to markdown
-      const content =
-        getFileType(artifact.filepath) === "markdown"
-          ? await htmlToMarkdown(editorContent)
-          : editorContent;
+      // Use direct content if provided, otherwise fall back to existing logic
+      let content: string;
+      if (directContent) {
+        content = directContent;
+      } else {
+        // For markdown files, we should convert HTML back to markdown
+        // For other files (including dashboard PXML), use fileContent directly
+        content =
+          getFileType(artifact.filepath) === "markdown"
+            ? await htmlToMarkdown(editorContent)
+            : fileContent || "";
+      }
       
       await updateArtifactFile(artifact.id, artifact.filepath, content);
 
+      // Always update fileContent with the saved content
       setFileContent(content);
+      
       setHasUnsavedChanges(false);
       setJustSaved(true);
+
+      // Show success toast
+      toast.success("Dashboard saved successfully!");
 
       // Reset the "just saved" state after 2 seconds
       setTimeout(() => {
@@ -444,8 +459,8 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             onChange={(newContent) => {
               setFileContent(newContent);
               setHasUnsavedChanges(true);
-              setJustSaved(false);
             }}
+            onSave={handleSaveContent}
           />
         );
       case "iframe":
@@ -541,7 +556,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                 </span>
               ) : hasUnsavedChanges ? (
                 <Button
-                  onClick={handleSaveContent}
+                  onClick={() => handleSaveContent()}
                   size="sm"
                   title="Save changes"
                   disabled={isSaving}

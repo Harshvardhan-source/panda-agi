@@ -16,6 +16,7 @@ import {
   Circle,
   MoreHorizontal,
   Target,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArtifactData } from "@/types/artifact";
@@ -51,6 +52,7 @@ interface DashboardEditorProps {
   content: string;
   artifact?: ArtifactData | null;
   onChange: (content: string) => void;
+  onSave?: (content?: string) => Promise<void>;
   availableColumns?: Array<{ letter: string; name: string }>;
 }
 
@@ -135,7 +137,8 @@ const CUSTOM_CURRENCIES = [
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
-  onChange,
+  onChange, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onSave,
   availableColumns = [],
 }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -164,6 +167,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     null
   );
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveInProgressRef = useRef(false);
+  const lastSavedContentRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State for compiled dashboard content (moved up for proper initialization order)
@@ -301,9 +307,20 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const chartElements = doc.querySelectorAll("chart");
 
-      // Find the chart to update (by index for now)
-      const chartIndex = parseInt(chartConfig.id.replace("chart_", ""));
-      const chartEl = chartElements[chartIndex];
+      // Find the chart to update by matching the generated ID or name
+      let chartEl = null;
+      
+      // First try to match by ID attribute if it exists
+      chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.id);
+      
+      // If no ID match, try to match by generated ID from name
+      if (!chartEl) {
+        chartEl = Array.from(chartElements).find(el => {
+          const name = el.querySelector("name")?.textContent || "";
+          const generatedId = `chart_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+          return generatedId === chartConfig.id;
+        });
+      }
 
       if (chartEl) {
         // Update chart type
@@ -340,21 +357,33 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         if (xAxisGroupByEl)
           xAxisGroupByEl.textContent = chartConfig.x_axis.group_by;
 
-        // Update series
-        const seriesElements = chartEl.querySelectorAll("series");
-        chartConfig.series_list.forEach((series, index) => {
-          const seriesEl = seriesElements[index];
-          if (seriesEl) {
-            const seriesNameEl = seriesEl.querySelector("name");
-            const seriesColumnEl = seriesEl.querySelector("column");
-            const seriesAggregationEl = seriesEl.querySelector("aggregation");
-
-            if (seriesNameEl) seriesNameEl.textContent = series.name;
-            if (seriesColumnEl) seriesColumnEl.textContent = series.column;
-            if (seriesAggregationEl)
-              seriesAggregationEl.textContent = series.aggregation;
+        // Update series - remove existing series first, then add new ones
+        const seriesListEl = chartEl.querySelector("series_list");
+        if (seriesListEl) {
+          // Remove all existing series
+          while (seriesListEl.firstChild) {
+            seriesListEl.removeChild(seriesListEl.firstChild);
           }
-        });
+          
+          // Add updated series
+          chartConfig.series_list.forEach((series) => {
+            const seriesEl = doc.createElement("series");
+            
+            const seriesNameEl = doc.createElement("name");
+            seriesNameEl.textContent = series.name;
+            seriesEl.appendChild(seriesNameEl);
+            
+            const seriesColumnEl = doc.createElement("column");
+            seriesColumnEl.textContent = series.column;
+            seriesEl.appendChild(seriesColumnEl);
+            
+            const seriesAggregationEl = doc.createElement("aggregation");
+            seriesAggregationEl.textContent = series.aggregation;
+            seriesEl.appendChild(seriesAggregationEl);
+            
+            seriesListEl.appendChild(seriesEl);
+          });
+        }
       }
 
       return serializer.serializeToString(doc);
@@ -376,12 +405,20 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const kpiElements = doc.querySelectorAll("kpi");
 
-      // Find the KPI to update by matching name/id
-      const kpiEl = Array.from(kpiElements).find((el) => {
-        const name = el.querySelector("name")?.textContent || "";
-        const id = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
-        return id === kpiConfig.id;
-      });
+      // Find the KPI to update by matching the generated ID or name
+      let kpiEl = null;
+      
+      // First try to match by ID attribute if it exists  
+      kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.id);
+      
+      // If no ID match, try to match by generated ID from name
+      if (!kpiEl) {
+        kpiEl = Array.from(kpiElements).find((el) => {
+          const name = el.querySelector("name")?.textContent || "";
+          const generatedId = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+          return generatedId === kpiConfig.id;
+        });
+      }
 
       if (kpiEl) {
         // Update KPI name
@@ -823,9 +860,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               }
             });
 
-            // Listen for chart and KPI update messages from parent
-            window.addEventListener('message', (event) => {
-              if (event.data.type === 'update-kpi-data-attributes') {
+              // Listen for chart and KPI update messages from parent
+              window.addEventListener('message', (event) => {
+               if (event.data.type === 'update-kpi-data-attributes') {
                 const { kpiId, config } = event.data;
                 
                 // Add highlighting to the currently edited KPI
@@ -1006,6 +1043,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+
   // Send live chart updates to iframe for dynamic rendering using data attributes
   const updateChartInIframe = (chartConfig: ChartConfig) => {
     const iframe = iframeRef.current;
@@ -1055,6 +1093,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     if (!editedChart) return;
 
     const updatedChart = { ...editedChart, [property]: value };
+    
+    // For name changes, just update the data attributes - keep ID stable
+    if (property === "name") {
+      setEditedChart(updatedChart);
+      markAsChanged();
+      updateChartInIframe(updatedChart);
+      return;
+    }
+    
     setEditedChart(updatedChart);
     markAsChanged();
 
@@ -1181,6 +1228,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     if (!editedKPI) return;
 
     const updatedKPI = { ...editedKPI, [property]: value };
+    
+    // For name changes, just update the data attributes - keep ID stable
+    if (property === "name") {
+      setEditedKPI(updatedKPI);
+      markAsChanged();
+      updateKPIInIframe(updatedKPI);
+      return;
+    }
+    
     setEditedKPI(updatedKPI);
     markAsChanged();
 
@@ -1188,60 +1244,128 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateKPIInIframe(updatedKPI);
   };
 
-  const handleSaveChart = () => {
-    if (!editedChart) return;
+  const handleSaveChart = async () => {
+    if (!editedChart || isSaving) return;
 
-    // Use raw PXML content for updating if available
-    const contentToUpdate = rawPXMLContent || content;
-
-    const updatedContent = updatePXMLWithChart(contentToUpdate, editedChart);
-    onChange(updatedContent);
-
-    // Update the stored raw PXML content
-    if (rawPXMLContent) {
-      setRawPXMLContent(updatedContent);
-    }
-
-    // Update original state to current state since we saved
-    setOriginalChartState({ ...editedChart });
-    setHasUnsavedChanges(false);
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
     setIsEditorOpen(false);
     setEditedChart(null);
+    setEditedKPI(null);
     setOriginalChartState(null);
+    setOriginalKPIState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithChart(contentToUpdate, editedChart);
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
+
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave(updatedContent);
+      }
+
+      // Send message to iframe to refresh the chart after save
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "chart-saved",
+            chartId: editedChart.id,
+          },
+          "*"
+        );
+      }
+
+      // State already cleared at the beginning of save for responsiveness
+    } catch (error) {
+      console.error("Failed to save chart changes:", error);
+      // Don't close the editor if save failed
+    } finally {
+      setIsSaving(false);
+      
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
   };
 
-  const handleSaveKPI = () => {
-    if (!editedKPI) return;
+  const handleSaveKPI = async () => {
+    if (!editedKPI || isSaving) return;
 
-    // Use raw PXML content for updating if available
-    const contentToUpdate = rawPXMLContent || content;
-
-    const updatedContent = updatePXMLWithKPI(contentToUpdate, editedKPI);
-    onChange(updatedContent);
-
-    // Update the stored raw PXML content
-    if (rawPXMLContent) {
-      setRawPXMLContent(updatedContent);
-    }
-
-    // Send message to iframe to refresh the KPI after save
-    const iframe = iframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(
-        {
-          type: "kpi-saved",
-          kpiId: editedKPI.id,
-        },
-        "*"
-      );
-    }
-
-    // Update original state to current state since we saved
-    setOriginalKPIState({ ...editedKPI });
-    setHasUnsavedChanges(false);
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
     setIsEditorOpen(false);
+    setEditedChart(null);
     setEditedKPI(null);
+    setOriginalChartState(null);
     setOriginalKPIState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithKPI(contentToUpdate, editedKPI);
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
+
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave(updatedContent);
+      }
+
+      // Send message to iframe to refresh the KPI after save
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-saved",
+            kpiId: editedKPI.id,
+          },
+          "*"
+        );
+      }
+
+      // State already cleared at the beginning of save for responsiveness
+    } catch (error) {
+      console.error("Failed to save KPI changes:", error);
+      // Don't close the editor if save failed
+    } finally {
+      setIsSaving(false);
+      
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
   };
 
   const handleCloseEditor = () => {
@@ -1441,6 +1565,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   // Compile PXML to HTML when content changes
   useEffect(() => {
     const hasArtifact = !!artifact;
+
+
+    // Skip recompilation if this is an internal update from saving
+    const isSameAsLastSaved = lastSavedContentRef.current && content === lastSavedContentRef.current;
+    const shouldSkip = saveInProgressRef.current || isSameAsLastSaved;
+    
+    if (shouldSkip) {
+      return;
+    }
 
     if (content.trim().startsWith("<dashboard>") && hasArtifact) {
       // We have raw PXML - store it and get the compiled version for display
@@ -2186,8 +2319,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                   onClick={editedChart ? handleSaveChart : handleSaveKPI}
                   className="flex-1"
                   size="sm"
+                  disabled={isSaving || !hasUnsavedChanges}
                 >
-                  Save Changes
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
                 <Button onClick={handleCloseEditor} variant="outline" size="sm">
                   Cancel
