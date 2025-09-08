@@ -436,86 +436,50 @@ class HTMLGenerator:
         </div>"""
 
     def _generate_data_modal(self) -> str:
-        """Generate data modal HTML"""
+        """Generate minimal data modal HTML focused on the table"""
         return """
         <!-- Data Modal -->
-        <div id="dataModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
-            <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
-                <div class="mt-3">
-                    <!-- Modal Header -->
-                    <div class="flex items-center justify-between pb-4 border-b">
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-database text-2xl text-blue-600"></i>
-                            <div>
-                                <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Data File</h3>
-                                <p class="text-sm text-gray-600">Complete dataset used in this dashboard</p>
-                            </div>
+        <div id="dataModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-50 hidden">
+            <div class="relative top-2 mx-auto p-0 w-11/12 max-w-7xl shadow-2xl rounded-xl bg-white">
+                <!-- Minimal Header -->
+                <div class="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-table text-blue-600"></i>
+                        <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Data Preview</h3>
+                        <span id="dataRowCount" class="text-sm text-gray-500">(0 rows)</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input 
+                                type="text" 
+                                id="dataSearch" 
+                                placeholder="Search..." 
+                                class="pl-8 pr-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                onkeyup="filterDataTable()"
+                            />
                         </div>
+                        <button onclick="exportData()" class="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-download"></i>
+                        </button>
                         <button onclick="closeDataModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                            <i class="fas fa-times text-xl"></i>
+                            <i class="fas fa-times text-lg"></i>
                         </button>
                     </div>
-                    
-                    <!-- Modal Content -->
-                    <div class="mt-4">
-                        <!-- Data Controls -->
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center space-x-4">
-                                <div class="text-sm text-gray-600">
-                                    <span id="dataRowCount">0</span> rows, <span id="dataColumnCount">0</span> columns
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <input type="text" id="dataSearch" placeholder="Search data..." 
-                                           class="px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                           onkeyup="filterDataTable()">
-                                    <button onclick="exportData()" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                                        <i class="fas fa-download mr-1"></i>Export
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <label class="text-sm text-gray-600">Rows per page:</label>
-                                <select id="rowsPerPage" class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateRowsPerPage()">
-                                    <option value="10">10</option>
-                                    <option value="25" selected>25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Data Table Container -->
-                        <div class="border border-gray-200 rounded-lg overflow-hidden">
-                            <div class="overflow-x-auto max-h-96">
-                                <table id="dataTable" class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50 sticky top-0">
-                                        <tr id="dataTableHeader">
-                                            <!-- Headers will be populated by JavaScript -->
-                                        </tr>
-                                    </thead>
-                                    <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
-                                        <!-- Data rows will be populated by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <!-- Pagination -->
-                        <div class="flex items-center justify-between mt-4">
-                            <div class="text-sm text-gray-600">
-                                Showing <span id="showingStart">0</span> to <span id="showingEnd">0</span> of <span id="totalRows">0</span> entries
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <i class="fas fa-chevron-left"></i> Previous
-                                </button>
-                                <span id="pageInfo" class="px-3 py-1 text-sm text-gray-600">Page 1 of 1</span>
-                                <button id="nextPage" onclick="changePage(1)" class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Next <i class="fas fa-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+                
+                <!-- Data Table - Main Focus -->
+                <div class="overflow-auto rounded-b-xl" style="max-height: 85vh;">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0 z-10">
+                            <tr id="dataTableHeader">
+                                <!-- Headers will be populated by JavaScript -->
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>"""
