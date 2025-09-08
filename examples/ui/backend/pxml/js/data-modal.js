@@ -8,13 +8,19 @@ let filteredData = [];
 let allData = [];
 let sortColumn = null;
 let sortDirection = 'asc';
+let currentPage = 1;
+let rowsPerPage = 100; // Increased default for better performance
+let isRendering = false;
+let renderTimeout = null;
+let isLoadingMore = false;
+let hasMoreData = true;
 
 function openDataModal() {
     // Store all data for modal - use CSV loader data if available
     if (window.csvLoader && window.csvLoader.isLoaded()) {
         allData = [...window.csvLoader.getData()];
     } else if (window.dashboardData) {
-        allData = [...window.dashboardData];
+    allData = [...window.dashboardData];
     } else {
         allData = [];
     }
@@ -24,7 +30,9 @@ function openDataModal() {
     const dataSpan = document.querySelector('span[onclick="openDataModal()"]');
     if (dataSpan) {
         const filename = dataSpan.textContent.replace('Data: ', '');
-        document.getElementById('modalTitle').textContent = filename;
+        const titleElement = document.getElementById('modalTitle');
+        titleElement.textContent = filename;
+        titleElement.title = filename; // Set tooltip to full filename
     }
     
     // Show modal with animation
@@ -76,11 +84,11 @@ function initializeDataTable() {
         const isDesc = isSorted && sortDirection === 'desc';
         
         return `
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150" 
-                onclick="sortTable('${col}')">
-                <div class="flex items-center justify-between">
-                    <span>${formattedCol}</span>
-                    <div class="flex items-center space-x-1">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150 min-w-0" 
+                onclick="sortTable('${col}')" title="${formattedCol}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div class="flex items-center justify-between min-w-0">
+                    <span class="truncate min-w-0 flex-1" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${formattedCol}</span>
+                    <div class="flex items-center space-x-1 flex-shrink-0 ml-2">
                         ${isSorted ? `
                             <span class="text-xs text-blue-600 font-medium">
                                 ${isAsc ? '↑' : '↓'}
@@ -96,8 +104,13 @@ function initializeDataTable() {
         `;
     }).join('');
     
-    // Render all data (no pagination)
-    renderAllData();
+    // Initialize infinite scroll for large datasets
+    if (allData.length > 1000) {
+        initializeInfiniteScroll();
+        renderInfiniteData();
+    } else {
+        renderAllData();
+    }
 }
 
 function showEmptyState() {
@@ -121,20 +134,171 @@ function showEmptyState() {
 }
 
 function renderAllData() {
+    if (isRendering) return;
+    isRendering = true;
+    
+    const tbody = document.getElementById('dataTableBody');
+    if (filteredData.length === 0) {
+        showEmptyState();
+        isRendering = false;
+        return;
+    }
+    
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    // Process data in chunks to avoid blocking the UI
+    const chunkSize = 50;
+    let currentIndex = 0;
+    
+    const processChunk = () => {
+        const endIndex = Math.min(currentIndex + chunkSize, filteredData.length);
+        
+        for (let i = currentIndex; i < endIndex; i++) {
+            const row = filteredData[i];
+            const tr = document.createElement('tr');
+            tr.className = `hover:bg-blue-50 transition-colors duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`;
+            
+            Object.values(row).forEach(value => {
+                const td = document.createElement('td');
+                td.className = 'px-4 py-3 text-sm text-gray-900 border-b border-gray-100 truncate';
+                td.style.maxWidth = '200px';
+                td.innerHTML = formatCellValue(value);
+                tr.appendChild(td);
+            });
+            
+            fragment.appendChild(tr);
+        }
+        
+        currentIndex = endIndex;
+        
+        if (currentIndex < filteredData.length) {
+            // Continue processing in next frame
+            requestAnimationFrame(processChunk);
+        } else {
+            // All data processed, update DOM
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+            document.getElementById('dataRowCount').textContent = `(${filteredData.length.toLocaleString()} rows)`;
+            isRendering = false;
+        }
+    };
+    
+    processChunk();
+}
+
+function initializeInfiniteScroll() {
+    const tableContainer = document.querySelector('.overflow-auto.rounded-b-xl');
+    if (!tableContainer) return;
+    
+    // Remove existing scroll listener
+    tableContainer.removeEventListener('scroll', handleScroll);
+    
+    // Add scroll listener for infinite scroll
+    tableContainer.addEventListener('scroll', handleScroll);
+    
+    // Reset pagination state
+    currentPage = 1;
+    hasMoreData = true;
+    isLoadingMore = false;
+}
+
+function handleScroll(event) {
+    const container = event.target;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    
+    // Load more data when user scrolls to bottom (with 100px buffer)
+    if (scrollTop + clientHeight >= scrollHeight - 100 && hasMoreData && !isLoadingMore) {
+        loadMoreData();
+    }
+}
+
+function loadMoreData() {
+    if (isLoadingMore || !hasMoreData) return;
+    
+    isLoadingMore = true;
+    
+    // Show loading indicator
+    showLoadingIndicator();
+    
+    // Simulate small delay for smooth UX
+    setTimeout(() => {
+        currentPage++;
+        renderInfiniteData();
+        isLoadingMore = false;
+    }, 100);
+}
+
+function showLoadingIndicator() {
+    const tbody = document.getElementById('dataTableBody');
+    const loadingRow = document.createElement('tr');
+    loadingRow.id = 'loadingRow';
+    loadingRow.innerHTML = `
+        <td colspan="100%" class="px-4 py-8 text-center text-gray-500">
+            <div class="flex items-center justify-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span>Loading more data...</span>
+            </div>
+        </td>
+    `;
+    tbody.appendChild(loadingRow);
+}
+
+function removeLoadingIndicator() {
+    const loadingRow = document.getElementById('loadingRow');
+    if (loadingRow) {
+        loadingRow.remove();
+    }
+}
+
+function renderInfiniteData() {
     const tbody = document.getElementById('dataTableBody');
     if (filteredData.length === 0) {
         showEmptyState();
         return;
     }
     
-    tbody.innerHTML = filteredData.map((row, index) => {
-        const cells = Object.values(row).map(value => 
-            `<td class="px-4 py-3 text-sm text-gray-900 border-b border-gray-100">${formatCellValue(value)}</td>`
-        ).join('');
-        return `<tr class="hover:bg-blue-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">${cells}</tr>`;
-    }).join('');
+    const totalRowsToShow = Math.min(currentPage * rowsPerPage, filteredData.length);
+    const startIndex = currentPage === 1 ? 0 : (currentPage - 1) * rowsPerPage;
+    const endIndex = totalRowsToShow;
     
-    // Update data info in header
+    // Check if we have more data
+    hasMoreData = endIndex < filteredData.length;
+    
+    // Remove loading indicator
+    removeLoadingIndicator();
+    
+    // If it's the first page, clear the table
+    if (currentPage === 1) {
+        tbody.innerHTML = '';
+    }
+    
+    // Get new data to render
+    const newData = filteredData.slice(startIndex, endIndex);
+    
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    newData.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-blue-50 transition-colors duration-150 ${(startIndex + index) % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`;
+        
+        Object.values(row).forEach(value => {
+            const td = document.createElement('td');
+            td.className = 'px-4 py-3 text-sm text-gray-900 border-b border-gray-100 truncate';
+            td.style.maxWidth = '200px';
+            td.innerHTML = formatCellValue(value);
+            tr.appendChild(td);
+        });
+        
+        fragment.appendChild(tr);
+    });
+    
+    tbody.appendChild(fragment);
+    
+    // Update row count
     document.getElementById('dataRowCount').textContent = `(${filteredData.length.toLocaleString()} rows)`;
 }
 
@@ -150,10 +314,26 @@ function formatCellValue(value) {
 }
 
 function filterDataTable() {
+    // Debounce search to avoid excessive filtering
+    if (renderTimeout) {
+        clearTimeout(renderTimeout);
+    }
+    
+    renderTimeout = setTimeout(() => {
     const searchTerm = document.getElementById('dataSearch').value.toLowerCase();
     
     if (searchTerm === '') {
         filteredData = [...allData];
+        } else {
+            // Use more efficient filtering for large datasets
+            if (allData.length > 10000) {
+                filteredData = allData.filter(row => {
+                    // Only check first few columns for very large datasets
+                    const columnsToCheck = Object.keys(row).slice(0, 5);
+                    return columnsToCheck.some(col => 
+                        String(row[col]).toLowerCase().includes(searchTerm)
+                    );
+                });
     } else {
         filteredData = allData.filter(row => {
             return Object.values(row).some(value => 
@@ -161,14 +341,25 @@ function filterDataTable() {
             );
         });
     }
-    
-    // Apply current sorting if any
-    if (sortColumn) {
-        sortData(sortColumn, sortDirection);
-        updateSortHeaders();
-    }
-    
-    renderAllData();
+        }
+        
+        // Apply current sorting if any
+        if (sortColumn) {
+            sortData(sortColumn, sortDirection);
+            updateSortHeaders();
+        }
+        
+        // Reset to first page
+        currentPage = 1;
+        
+        // Choose rendering method based on data size
+        if (filteredData.length > 1000) {
+            initializeInfiniteScroll();
+            renderInfiniteData();
+        } else {
+            renderAllData();
+        }
+    }, 300); // 300ms debounce
 }
 
 function sortTable(column) {
@@ -181,7 +372,14 @@ function sortTable(column) {
     
     sortData(column, sortDirection);
     updateSortHeaders();
-    renderAllData();
+    
+    // Choose rendering method based on data size
+    if (filteredData.length > 1000) {
+        initializeInfiniteScroll();
+        renderInfiniteData();
+    } else {
+        renderAllData();
+    }
 }
 
 function updateSortHeaders() {
@@ -233,7 +431,7 @@ function sortData(column, direction) {
     });
 }
 
-// Pagination functions removed for cleaner, minimal design
+// Pagination functions removed - using infinite scroll instead
 
 function exportData() {
     // Create CSV content
@@ -318,7 +516,7 @@ document.addEventListener('keydown', function(event) {
     
     switch(event.key) {
         case 'Escape':
-            closeDataModal();
+        closeDataModal();
             break;
         // Arrow key navigation removed (no pagination)
         case 'f':

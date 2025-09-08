@@ -48,6 +48,22 @@ class HTMLGenerator:
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         {self._generate_styles()}
+        
+        /* Ensure table headers truncate properly */
+        #dataTable th {{
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        
+        /* Ensure table cells also truncate */
+        #dataTable td {{
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
     </style>
 </head>
 <body class="bg-gray-50">
@@ -176,7 +192,7 @@ class HTMLGenerator:
                     </div>
                     <div class="flex items-center space-x-2 text-sm text-gray-500">
                         <i class="fas fa-database"></i>
-                        <span class="cursor-pointer hover:text-blue-600 hover:underline" onclick="openDataModal()">Data: {metadata['file_path']}</span>
+                        <span id="dataPreviewButton" class="text-gray-400 cursor-not-allowed transition-colors" style="pointer-events: none;" title="Loading data...">Data: {metadata['file_path']}</span>
                     </div>
                 </div>
             </div>
@@ -443,10 +459,10 @@ class HTMLGenerator:
             <div class="relative top-2 mx-auto p-0 w-11/12 max-w-7xl shadow-2xl rounded-xl bg-white">
                 <!-- Minimal Header -->
                 <div class="flex items-center justify-between p-3 border-b bg-gray-50 rounded-t-xl">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-table text-blue-600"></i>
-                        <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Data Preview</h3>
-                        <span id="dataRowCount" class="text-sm text-gray-500">(0 rows)</span>
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <i class="fas fa-table text-blue-600 flex-shrink-0"></i>
+                        <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 truncate min-w-0" title="Data Preview">Data Preview</h3>
+                        <span id="dataRowCount" class="text-sm text-gray-500 flex-shrink-0">(0 rows)</span>
                     </div>
                     <div class="flex items-center space-x-2">
                         <div class="relative">

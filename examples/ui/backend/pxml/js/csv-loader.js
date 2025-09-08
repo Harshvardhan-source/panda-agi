@@ -62,6 +62,14 @@ class CSVLoader {
             // Apply defined columns from transformations
             this.applyDefinedColumns();
             
+            // Enable data preview button now that data is loaded
+            if (window.enableDataPreviewButton) {
+                // Use setTimeout to ensure DOM is ready
+                setTimeout(() => {
+                    window.enableDataPreviewButton();
+                }, 100);
+            }
+            
             return this.csvData;
         } catch (error) {
             console.error('Error loading CSV data:', error);

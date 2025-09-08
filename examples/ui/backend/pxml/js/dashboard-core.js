@@ -56,6 +56,26 @@ class DashboardCore {
             ? window.csvLoader.getData() 
             : [];
         window.currentFilters = this.currentFilters;
+        
+        // Make enableDataPreviewButton globally accessible
+        window.enableDataPreviewButton = () => this.enableDataPreviewButton();
+        
+        // Don't enable immediately - wait for data to be loaded
+        // The CSV loader will call this when data is ready
+        
+        // Add a periodic check as fallback (every 2 seconds for 10 seconds)
+        let checkCount = 0;
+        const maxChecks = 5;
+        const checkInterval = setInterval(() => {
+            checkCount++;
+            this.enableDataPreviewButton();
+            
+            // Stop checking after max attempts or if button is enabled
+            const dataButton = document.getElementById('dataPreviewButton');
+            if (checkCount >= maxChecks || (dataButton && !dataButton.style.pointerEvents.includes('none'))) {
+                clearInterval(checkInterval);
+            }
+        }, 2000);
         window.columnMapping = window.csvLoader && window.csvLoader.isLoaded()
             ? window.csvLoader.getColumnMapping()
             : {};
@@ -77,6 +97,43 @@ class DashboardCore {
                 console.log('Sample filtered record:', filtered[0]);
             }
         };
+    }
+
+    /**
+     * Enable data preview button once CSV is loaded
+     */
+    enableDataPreviewButton() {
+        const dataButton = document.getElementById('dataPreviewButton');
+        if (!dataButton) {
+            console.log('Data preview button not found');
+            return;
+        }
+        
+        // Check multiple ways to determine if data is loaded
+        const hasCsvLoader = window.csvLoader && window.csvLoader.isLoaded();
+        const hasCsvData = hasCsvLoader && window.csvLoader.getData().length > 0;
+        const hasDashboardData = window.dashboardData && window.dashboardData.length > 0;
+        const isDataLoaded = hasCsvData || hasDashboardData;
+        console.log('Checking data preview button:', {
+            csvLoader: !!window.csvLoader,
+            isLoaded: window.csvLoader ? window.csvLoader.isLoaded() : false,
+            dataLength: window.csvLoader ? window.csvLoader.getData().length : 0,
+            isDataLoaded
+        });
+        
+        if (isDataLoaded) {
+            dataButton.className = 'cursor-pointer hover:text-blue-600 hover:underline transition-colors';
+            dataButton.style.pointerEvents = 'auto';
+            dataButton.title = 'Click to preview data';
+            dataButton.onclick = openDataModal;
+            console.log('Data preview button enabled');
+        } else {
+            dataButton.className = 'text-gray-400 cursor-not-allowed transition-colors';
+            dataButton.style.pointerEvents = 'none';
+            dataButton.title = 'Loading data...';
+            dataButton.onclick = null;
+            console.log('Data preview button disabled');
+        }
     }
 
     /**
