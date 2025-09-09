@@ -34,6 +34,7 @@ interface ChartConfig {
     name: string;
     column: string;
     aggregation: string;
+    size_column?: string;
   }>;
   area?: "none" | "area";
   stacked?: "none" | "stacked" | "100_stacked";
@@ -60,8 +61,9 @@ const CHART_TYPES = [
   { value: "bar", label: "Bar Chart", icon: BarChart3 },
   { value: "line", label: "Line Chart", icon: LineChart },
   { value: "pie", label: "Pie Chart", icon: PieChart },
-  { value: "donut", label: "Donut Chart", icon: PieChart },
+  { value: "combo_chart", label: "Combo Chart", icon: BarChart3 },
   { value: "horizontal_bar", label: "Horizontal Bar", icon: BarChart3 },
+  { value: "donut", label: "Donut Chart", icon: PieChart },
   { value: "bubble", label: "Bubble Chart", icon: Circle },
   { value: "scatter", label: "Scatter Plot", icon: MoreHorizontal },
   { value: "radar", label: "Radar Chart", icon: Target },
@@ -518,6 +520,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         return "X-Axis";
       case "radar":
         return "Dimensions";
+      case "combo_chart":
+        return "Categories";
       case "bar":
       default:
         return "Categories";
@@ -537,6 +541,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         return "Data Points";
       case "radar":
         return "Metrics";
+      case "combo_chart":
+        return "Series";
       case "bar":
       case "horizontal_bar":
       default:
@@ -1107,6 +1113,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
     // For chart type changes, update immediately without throttling
     if (property === "type") {
+      // If changing to scatter or radar plot, set aggregation to "none" for all series
+      if (value === "scatter" || value === "radar") {
+        updatedChart.series_list = updatedChart.series_list.map(series => ({
+          ...series,
+          aggregation: "none"
+        }));
+        setEditedChart(updatedChart);
+      }
       updateChartInIframe(updatedChart);
     } else {
       // Throttle other updates to prevent too many rapid calls
@@ -1193,7 +1207,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     const newSeries = {
       name: `Series ${editedChart.series_list.length + 1}`,
       column: "",
-      aggregation: "sum",
+      aggregation: editedChart.type === "scatter" || editedChart.type === "radar" ? "none" : "sum",
     };
 
     const updatedChart = {
@@ -1808,7 +1822,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             {(editedChart.type === "bar" ||
                               editedChart.type === "line" ||
                               editedChart.type === "horizontal_bar" ||
-                              editedChart.type === "radar") &&
+                              editedChart.type === "radar" ||
+                              editedChart.type === "combo_chart") &&
                               editedChart.series_list.length > 1 && (
                                 <div className="space-y-2">
                                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -1895,6 +1910,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 ? "X-axis configuration"
                                 : editedChart.type === "radar"
                                 ? "Dimension configuration"
+                                : editedChart.type === "combo_chart"
+                                ? "Category axis configuration"
                                 : "Category axis configuration"}
                             </div>
                           </div>
@@ -2016,6 +2033,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                     ? `Point ${index + 1}`
                                     : editedChart.type === "radar"
                                     ? `Metric ${index + 1}`
+                                    : editedChart.type === "combo_chart"
+                                    ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
                                     : `Series ${index + 1}`}
                                 </div>
                                 <div className="flex items-center space-x-1">
@@ -2046,6 +2065,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       ? "Point Name"
                                       : editedChart.type === "radar"
                                       ? "Metric Name"
+                                      : editedChart.type === "combo_chart"
+                                      ? index === 0 ? "Bar Name" : "Line Name"
                                       : "Series Name"}
                                   </label>
                                   <input
@@ -2062,10 +2083,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                     placeholder="Enter series name"
                                   />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className={`grid gap-2 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
                                   <div className="space-y-2">
                                     <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                      Column
+                                      {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
                                     </label>
                                     <select
                                       value={series.column}
@@ -2089,31 +2110,61 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       ))}
                                     </select>
                                   </div>
-                                  <div className="space-y-2">
-                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                      Aggregation
-                                    </label>
-                                    <select
-                                      value={series.aggregation}
-                                      onChange={(e) =>
-                                        updateSeriesProperty(
-                                          index,
-                                          "aggregation",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {AGGREGATION_TYPES.map((agg) => (
-                                        <option
-                                          key={agg.value}
-                                          value={agg.value}
-                                        >
-                                          {agg.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
+                                  {editedChart.type === "bubble" && (
+                                    <div className="space-y-2">
+                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Size Column (Optional)
+                                      </label>
+                                      <select
+                                        value={series.size_column || ""}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "size_column",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        <option value="">Use Y-axis values for size</option>
+                                        {getAvailableColumns().map((col) => (
+                                          <option
+                                            key={col.letter}
+                                            value={col.letter}
+                                          >
+                                            {col.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+                                  {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
+                                    <div className="space-y-2">
+                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Aggregation
+                                      </label>
+                                      <select
+                                        value={series.aggregation}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "aggregation",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {AGGREGATION_TYPES.map((agg) => (
+                                          <option
+                                            key={agg.value}
+                                            value={agg.value}
+                                          >
+                                            {agg.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2139,6 +2190,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               ? "Point"
                               : editedChart.type === "radar"
                               ? "Metric"
+                              : editedChart.type === "combo_chart"
+                              ? "Series"
                               : "Series"}
                           </Button>
                         </div>

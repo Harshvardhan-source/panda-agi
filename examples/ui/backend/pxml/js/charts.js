@@ -432,47 +432,165 @@ function processChartData(data, config) {
         // Handle bubble chart data structure differently
         let seriesData;
         if (config.chart_type === 'bubble') {
-            seriesData = labels.map((label, labelIndex) => {
-                let groupData = grouped[label];
+            // For bubble charts, show individual data points without aggregation
+            const xColumnName = getColumnMapping()[x_axis.column] || x_axis.column;
+            const yColumnName = getColumnMapping()[columnName] || columnName;
+            
+            // Apply filter condition if specified
+            let bubbleData = filteredData;
+            if (series.filter_condition) {
+                const [filterColumn, filterValue] = series.filter_condition.split('=');
+                const columnMapping = getColumnMapping();
+                const filterColumnName = columnMapping[filterColumn] || filterColumn;
+                bubbleData = bubbleData.filter(row => row[filterColumnName] === filterValue);
+            }
+            
+            // For bubble charts, create meaningful bubble sizes based on data density and aggregation
+            const sizeColumnName = series.size_column;
+            
+            // Group data by x-axis values to calculate meaningful sizes
+            const groupedData = {};
+            bubbleData.forEach(row => {
+                const xValue = Number(row[xColumnName]) || 0;
+                const yValue = Number(row[yColumnName]) || 0;
                 
-                // Apply filter condition if specified
-                if (series.filter_condition) {
-                    const [filterColumn, filterValue] = series.filter_condition.split('=');
-                    const columnMapping = getColumnMapping();
-                    const filterColumnName = columnMapping[filterColumn] || filterColumn;
-                    groupData = groupData.filter(row => row[filterColumnName] === filterValue);
+                if (!groupedData[xValue]) {
+                    groupedData[xValue] = [];
                 }
+                groupedData[xValue].push({
+                    y: yValue,
+                    sizeValue: sizeColumnName && row[sizeColumnName] !== undefined ? Number(row[sizeColumnName]) || 0 : yValue
+                });
+            });
+            
+            // Calculate aggregated values and counts for each x-group
+            const aggregatedGroups = Object.entries(groupedData).map(([xValue, points]) => {
+                const yValues = points.map(p => p.y);
+                const sizeValues = points.map(p => p.sizeValue);
                 
-                const values = groupData.map(row => Number(row[columnName]) || 0);
-                let aggregatedValue = 0;
-                
+                // Calculate aggregation for Y values
+                let aggregatedY = 0;
                 switch (series.aggregation) {
                     case 'sum':
-                        aggregatedValue = values.reduce((a, b) => a + b, 0);
+                        aggregatedY = yValues.reduce((a, b) => a + b, 0);
                         break;
                     case 'avg':
-                        aggregatedValue = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                        aggregatedY = yValues.length > 0 ? yValues.reduce((a, b) => a + b, 0) / yValues.length : 0;
                         break;
                     case 'count':
-                        aggregatedValue = values.length;
+                        aggregatedY = yValues.length;
                         break;
                     case 'max':
-                        aggregatedValue = Math.max(...values);
+                        aggregatedY = Math.max(...yValues);
                         break;
                     case 'min':
-                        aggregatedValue = Math.min(...values);
+                        aggregatedY = Math.min(...yValues);
                         break;
                     default:
-                        aggregatedValue = values.reduce((a, b) => a + b, 0);
+                        aggregatedY = yValues.reduce((a, b) => a + b, 0);
                 }
                 
-                // For bubble charts: x = labelIndex, y = series value, r = bubble size based on data count
+                // Calculate size based on data density and aggregation
+                let sizeValue = 0;
+                if (sizeColumnName && points.some(p => p.sizeValue > 0)) {
+                    // Use specified size column with aggregation
+                    switch (series.aggregation) {
+                        case 'sum':
+                            sizeValue = sizeValues.reduce((a, b) => a + b, 0);
+                            break;
+                        case 'avg':
+                            sizeValue = sizeValues.length > 0 ? sizeValues.reduce((a, b) => a + b, 0) / sizeValues.length : 0;
+                            break;
+                        case 'count':
+                            sizeValue = sizeValues.length;
+                            break;
+                        case 'max':
+                            sizeValue = Math.max(...sizeValues);
+                            break;
+                        case 'min':
+                            sizeValue = Math.min(...sizeValues);
+                            break;
+                        default:
+                            sizeValue = sizeValues.reduce((a, b) => a + b, 0);
+                    }
+                } else {
+                    // Use data density (count of points) for size
+                    sizeValue = points.length;
+                }
+                
                 return {
-                    x: labelIndex,
-                    y: aggregatedValue,
-                    r: Math.max(5, Math.min(30, values.length * 3 + 5))  // Radius 5-30 based on data count
+                    x: Number(xValue),
+                    y: aggregatedY,
+                    sizeValue: sizeValue,
+                    count: points.length
                 };
             });
+            
+            // Normalize sizes to reasonable range (5-30px) based on all size values
+            const allSizeValues = aggregatedGroups.map(g => g.sizeValue);
+            const minSize = Math.min(...allSizeValues);
+            const maxSize = Math.max(...allSizeValues);
+            const sizeRange = maxSize - minSize;
+            
+            seriesData = aggregatedGroups.map(group => {
+                // Calculate bubble size based on normalized data
+                let bubbleSize = 10; // Default fallback
+                if (sizeRange > 0) {
+                    const normalizedSize = (group.sizeValue - minSize) / sizeRange;
+                    bubbleSize = Math.max(5, Math.min(30, normalizedSize * 25 + 5));
+                } else if (group.sizeValue > 0) {
+                    // If all values are the same but > 0, use a medium size
+                    bubbleSize = 15;
+                }
+                
+                return {
+                    x: group.x,
+                    y: group.y,
+                    r: bubbleSize
+                };
+            });
+        } else if (config.chart_type === 'scatter') {
+            // For scatter plots, show individual data points without aggregation
+            // Use the first series for X values and current series for Y values
+            const xColumnName = getColumnMapping()[x_axis.column] || x_axis.column;
+            const yColumnName = getColumnMapping()[columnName] || columnName;
+            
+            // Apply filter condition if specified
+            let scatterData = filteredData;
+            if (series.filter_condition) {
+                const [filterColumn, filterValue] = series.filter_condition.split('=');
+                const columnMapping = getColumnMapping();
+                const filterColumnName = columnMapping[filterColumn] || filterColumn;
+                scatterData = scatterData.filter(row => row[filterColumnName] === filterValue);
+            }
+            
+            // Create individual data points (x, y) pairs
+            // Ignore aggregation for scatter plots - always show raw data points
+            seriesData = scatterData.map(row => ({
+                x: Number(row[xColumnName]) || 0,
+                y: Number(row[yColumnName]) || 0
+            }));
+        } else if (config.chart_type === 'radar') {
+            // For radar charts, show individual data points without aggregation
+            // Use the x_axis column for labels and current series for values
+            const xColumnName = getColumnMapping()[x_axis.column] || x_axis.column;
+            const yColumnName = getColumnMapping()[columnName] || columnName;
+            
+            // Apply filter condition if specified
+            let radarData = filteredData;
+            if (series.filter_condition) {
+                const [filterColumn, filterValue] = series.filter_condition.split('=');
+                const columnMapping = getColumnMapping();
+                const filterColumnName = columnMapping[filterColumn] || filterColumn;
+                radarData = radarData.filter(row => row[filterColumnName] === filterValue);
+            }
+            
+            // Create individual data points for radar charts
+            // Ignore aggregation for radar charts - always show raw data points
+            seriesData = radarData.map(row => ({
+                label: row[xColumnName] || '',
+                value: Number(row[yColumnName]) || 0
+            }));
         } else {
             seriesData = labels.map(label => {
             let groupData = grouped[label];
@@ -750,11 +868,17 @@ function getChartOptions(config, labels) {
                     title: function(tooltipItems) {
                         const item = tooltipItems[0];
                         const point = item.raw;
-                        return labels[point.x] || `Category ${point.x}`;
+                        return `Age: ${point.x}, Credit Limit: ${point.y.toLocaleString()}`;
                     },
                     label: function(context) {
                         const point = context.raw;
-                        return `${context.dataset.label}: ${point.y} (observations: ${Math.round((point.r - 5) / 3)})`;
+                        const sizePercent = ((point.r - 5) / 25 * 100).toFixed(0);
+                        return `${context.dataset.label}: Size represents ${sizePercent}% of range (aggregated)`;
+                    },
+                    afterLabel: function(context) {
+                        const point = context.raw;
+                        // This would need to be passed from the data processing
+                        return `Bubble size based on data density and aggregation`;
                     }
                 }
             };
