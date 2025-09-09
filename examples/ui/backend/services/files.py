@@ -147,7 +147,7 @@ class FilesService:
                 if old_str and new_str:
                     file_write_content = file_write_content.replace(old_str, new_str)
                     logger.debug(
-                        f"File replace content:  Old: {old_str} \n New: {new_str}"
+                        f"File replace content:  Old: {old_str}  New: {new_str}"
                     )
 
         if file_write_content:
