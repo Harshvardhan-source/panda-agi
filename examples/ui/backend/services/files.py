@@ -6,6 +6,9 @@ from .conversation_message_parser import ConversationMessageParser
 from models.agent import ConversationMessage
 from panda_agi.envs.base_env import BaseEnv
 from utils.exceptions import FileNotFoundError, RestrictedAccessError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class FilesService:
@@ -120,7 +123,7 @@ class FilesService:
             )
 
         file_write_content = None
-        print("Total tool calls: ", len(tool_calls))
+        logger.debug("Total tool calls: ", len(tool_calls))
 
         for tool_call in tool_calls:
 
@@ -129,23 +132,23 @@ class FilesService:
                 tool_call["function_name"] == "file_write"
                 and tool_call["arguments"]["file"] == file_path
             ):
-                print("Handling file write")
-                print("tool_call: ", tool_call)
                 content = tool_call["arguments"]["content"]
                 file_write_content = content
+                logger.debug("File write content: ", file_write_content[0:500])
 
             #  handle file replace
             elif (
                 tool_call["function_name"] == "file_replace"
                 and tool_call["arguments"]["file"] == file_path
             ):
-                print("Handling file replace")
-                print("tool_call: ", tool_call)
                 old_str = tool_call["arguments"].get("find_str", None)
                 new_str = tool_call["arguments"].get("replace_str", None)
 
                 if old_str and new_str:
                     file_write_content = file_write_content.replace(old_str, new_str)
+                    logger.debug(
+                        f"File replace content:  Old: {old_str} \n New: {new_str}"
+                    )
 
         if file_write_content:
             # Convert content to bytes if it's a string
