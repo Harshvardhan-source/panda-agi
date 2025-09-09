@@ -25,6 +25,7 @@ interface ChartConfig {
   id: string;
   type: string;
   name: string;
+  originalId?: string;
   x_axis: {
     name: string;
     column: string;
@@ -44,6 +45,7 @@ interface KPIConfig {
   id: string;
   name: string;
   fa_icon: string;
+  originalId?: string;
   value_formula: string;
   format_type: string;
   unit: string;
@@ -309,11 +311,27 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const chartElements = doc.querySelectorAll("chart");
 
-      // Find the chart to update by matching the generated ID or name
+      // Find the chart to update by matching the original ID or generated ID from name
       let chartEl = null;
       
-      // First try to match by ID attribute if it exists
-      chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.id);
+      // First try to match by originalId if it exists (for name changes during save)
+      if (chartConfig.originalId) {
+        chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.originalId);
+        
+        if (!chartEl) {
+          // Try matching by generated ID from name with originalId
+          chartEl = Array.from(chartElements).find(el => {
+            const name = el.querySelector("name")?.textContent || "";
+            const generatedId = `chart_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+            return generatedId === chartConfig.originalId;
+          });
+        }
+      }
+      
+      // If still no match, try to match by the new ID
+      if (!chartEl) {
+        chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.id);
+      }
       
       // If no ID match, try to match by generated ID from name
       if (!chartEl) {
@@ -325,6 +343,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       }
 
       if (chartEl) {
+        // Update chart ID if it has changed
+        if (chartConfig.originalId && chartConfig.id !== chartConfig.originalId) {
+          chartEl.setAttribute("id", chartConfig.id);
+        }
+        
         // Update chart type
         chartEl.setAttribute("type", chartConfig.type);
 
@@ -407,11 +430,27 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const kpiElements = doc.querySelectorAll("kpi");
 
-      // Find the KPI to update by matching the generated ID or name
+      // Find the KPI to update by matching the original ID or generated ID from name
       let kpiEl = null;
       
-      // First try to match by ID attribute if it exists  
-      kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.id);
+      // First try to match by originalId if it exists (for name changes during save)
+      if (kpiConfig.originalId) {
+        kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.originalId);
+        
+        if (!kpiEl) {
+          // Try matching by generated ID from name with originalId
+          kpiEl = Array.from(kpiElements).find(el => {
+            const name = el.querySelector("name")?.textContent || "";
+            const generatedId = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+            return generatedId === kpiConfig.originalId;
+          });
+        }
+      }
+      
+      // If still no match, try to match by the new ID
+      if (!kpiEl) {
+        kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.id);
+      }
       
       // If no ID match, try to match by generated ID from name
       if (!kpiEl) {
@@ -423,6 +462,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       }
 
       if (kpiEl) {
+        // Update KPI ID if it has changed
+        if (kpiConfig.originalId && kpiConfig.id !== kpiConfig.originalId) {
+          kpiEl.setAttribute("id", kpiConfig.id);
+        }
+        
         // Update KPI name
         const nameEl = kpiEl.querySelector("name");
         if (nameEl) nameEl.textContent = kpiConfig.name;
@@ -1100,7 +1144,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
     const updatedChart = { ...editedChart, [property]: value };
     
-    // For name changes, just update the data attributes - keep ID stable
+    // For name changes, just update the data attributes - keep ID stable for real-time updates
     if (property === "name") {
       setEditedChart(updatedChart);
       markAsChanged();
@@ -1243,7 +1287,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
     const updatedKPI = { ...editedKPI, [property]: value };
     
-    // For name changes, just update the data attributes - keep ID stable
+    // For name changes, just update the data attributes - keep ID stable for real-time updates
     if (property === "name") {
       setEditedKPI(updatedKPI);
       markAsChanged();
@@ -1275,10 +1319,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     saveInProgressRef.current = true;
 
     try {
+      // Create chart config with updated ID for saving, but keep original ID for finding
+      const newId = `chart_${editedChart.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+      const chartToSave = {
+        ...editedChart,
+        id: newId,
+        originalId: editedChart.id // Keep track of original ID for finding the element
+      };
+
       // Use raw PXML content for updating if available
       const contentToUpdate = rawPXMLContent || content;
 
-      const updatedContent = updatePXMLWithChart(contentToUpdate, editedChart);
+      const updatedContent = updatePXMLWithChart(contentToUpdate, chartToSave);
       
       // Don't call onChange during save - the onSave callback will handle the content update
       // onChange(updatedContent);
@@ -1302,10 +1354,23 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         iframe.contentWindow.postMessage(
           {
             type: "chart-saved",
-            chartId: editedChart.id,
+            chartId: newId,
           },
           "*"
         );
+
+        // If the ID changed, also update the container ID in the iframe
+        if (editedChart.id !== newId) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-container-id-after-save",
+              oldId: editedChart.id,
+              newId: newId,
+              componentType: "chart"
+            },
+            "*"
+          );
+        }
       }
 
       // State already cleared at the beginning of save for responsiveness
@@ -1337,10 +1402,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     saveInProgressRef.current = true;
 
     try {
+      // Create KPI config with updated ID for saving, but keep original ID for finding
+      const newId = `kpi_${editedKPI.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+      const kpiToSave = {
+        ...editedKPI,
+        id: newId,
+        originalId: editedKPI.id // Keep track of original ID for finding the element
+      };
+
       // Use raw PXML content for updating if available
       const contentToUpdate = rawPXMLContent || content;
 
-      const updatedContent = updatePXMLWithKPI(contentToUpdate, editedKPI);
+      const updatedContent = updatePXMLWithKPI(contentToUpdate, kpiToSave);
       
       // Don't call onChange during save - the onSave callback will handle the content update
       // onChange(updatedContent);
@@ -1364,10 +1437,23 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         iframe.contentWindow.postMessage(
           {
             type: "kpi-saved",
-            kpiId: editedKPI.id,
+            kpiId: newId,
           },
           "*"
         );
+
+        // If the ID changed, also update the container ID in the iframe
+        if (editedKPI.id !== newId) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-container-id-after-save",
+              oldId: editedKPI.id,
+              newId: newId,
+              componentType: "kpi"
+            },
+            "*"
+          );
+        }
       }
 
       // State already cleared at the beginning of save for responsiveness

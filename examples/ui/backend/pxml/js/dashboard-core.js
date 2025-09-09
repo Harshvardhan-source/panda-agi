@@ -406,6 +406,54 @@ window.addEventListener("message", (event) => {
         window.updateKPI(kpiId);
       }
     }
+  } else if (event.data.type === "update-container-id-after-save") {
+    const { oldId, newId, componentType } = event.data;
+    
+    // Find and update the container ID and its click handler
+    const oldContainer = document.getElementById(oldId + '_container');
+    if (oldContainer) {
+      // Simply update the container ID without cloning to preserve all state
+      oldContainer.id = newId + '_container';
+      
+      // Remove existing click listeners by resetting onclick and event listeners
+      const newContainer = oldContainer;
+      newContainer.onclick = null;
+      
+      // Add the new click handler with the correct ID
+      newContainer.style.cursor = "pointer";
+      newContainer.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (componentType === "chart") {
+          parent.postMessage({ type: "chart-edit", chartId: newId }, "*");
+        } else if (componentType === "kpi") {
+          parent.postMessage({ type: "kpi-edit", kpiId: newId }, "*");
+        }
+      });
+      
+      // Update registered components mapping if the ID changed
+      if (oldId !== newId) {
+        if (componentType === "chart" && window.registeredCharts) {
+          // Move the chart registration from old ID to new ID
+          if (window.registeredCharts[oldId]) {
+            window.registeredCharts[newId] = window.registeredCharts[oldId];
+            delete window.registeredCharts[oldId];
+          }
+        } else if (componentType === "kpi" && window.registeredKPIs) {
+          // Move the KPI registration from old ID to new ID
+          if (window.registeredKPIs[oldId]) {
+            window.registeredKPIs[newId] = window.registeredKPIs[oldId];
+            delete window.registeredKPIs[oldId];
+          }
+        }
+      }
+      
+      // Trigger a re-render to ensure the component displays correctly with the new ID
+      if (componentType === "chart" && window.updateChart) {
+        window.updateChart(newId);
+      } else if (componentType === "kpi" && window.updateKPI) {
+        window.updateKPI(newId);
+      }
+    }
   }
 });
 
