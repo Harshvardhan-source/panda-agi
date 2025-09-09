@@ -47,7 +47,7 @@ async def get_conversation_messages(
 
     Args:
         conversation_id: ID of the conversation
-        api_key_info: API key information from authentication middleware
+        api_key: API key information from authentication middleware
         timestamp: Optional timestamp to filter messages
 
     Returns:
