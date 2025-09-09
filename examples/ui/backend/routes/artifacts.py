@@ -13,6 +13,8 @@ import traceback
 import mimetypes
 from typing import Optional, Tuple
 
+from utils.datetime_utils import parse_timestamp
+from routes.conversation import get_conversation_messages
 from services.artifacts import DEFAULT_ARTIFACT_NAME, ArtifactsService
 from services.pxml import PXMLService
 from utils.markdown_utils import (
@@ -26,6 +28,7 @@ from models.agent import (
     ArtifactNameUpdateRequest,
     ArtifactFileUpdateRequest,
 )
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +185,7 @@ class ArtifactPayload(BaseModel):
     type: str
     name: str
     filepath: str
+    timestamp: Optional[str] = None
 
 
 class ArtifactUpdateRequest(BaseModel):
@@ -404,8 +408,22 @@ async def save_artifact(
                 artifact = response.get("artifact")
                 artifact_id = artifact.get("id") if artifact else None
 
+        # Get conversation messages for artifact
+
+        if payload.timestamp:
+            conversation_messages = await get_conversation_messages(
+                conversation_id, api_key, parse_timestamp(payload.timestamp)
+            )
+        else:
+            conversation_messages = None
+
+        # Get files for artifact
         files_generator = ArtifactsService.get_files_for_artifact(
-            payload.type, payload.filepath, conversation_id, artifact_id
+            payload.type,
+            payload.filepath,
+            conversation_id,
+            artifact_id,
+            conversation_messages,
         )
         total_files = 0
         async for file_bytes, relative_path in files_generator:

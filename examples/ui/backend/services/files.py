@@ -2,6 +2,8 @@ import mimetypes
 import os
 from pathlib import Path
 
+from .conversation_message_parser import ConversationMessageParser
+from models.agent import ConversationMessage
 from panda_agi.envs.base_env import BaseEnv
 from utils.exceptions import FileNotFoundError, RestrictedAccessError
 
@@ -101,3 +103,62 @@ class FilesService:
             return content_bytes, mime_type
         except Exception as e:
             raise
+
+    @staticmethod
+    async def get_file_from_conversation_messages(
+        conversation_messages: list[ConversationMessage], file_path: str
+    ) -> tuple[bytes, str]:
+        tool_calls = []
+        for message in conversation_messages:
+            # Process the content of the message
+            # the message contains the tool call or the user message
+            # Get tool calls from the message
+            tool_calls.extend(
+                ConversationMessageParser().extract_tool_calls_from_message(
+                    message.content["content"]
+                )
+            )
+
+        file_write_content = None
+        print("Total tool calls: ", len(tool_calls))
+
+        for tool_call in tool_calls:
+
+            #  handle file write
+            if (
+                tool_call["function_name"] == "file_write"
+                and tool_call["arguments"]["file"] == file_path
+            ):
+                print("Handling file write")
+                print("tool_call: ", tool_call)
+                content = tool_call["arguments"]["content"]
+                file_write_content = content
+
+            #  handle file replace
+            elif (
+                tool_call["function_name"] == "file_replace"
+                and tool_call["arguments"]["file"] == file_path
+            ):
+                print("Handling file replace")
+                print("tool_call: ", tool_call)
+                old_str = tool_call["arguments"].get("find_str", None)
+                new_str = tool_call["arguments"].get("replace_str", None)
+
+                if old_str and new_str:
+                    file_write_content = file_write_content.replace(old_str, new_str)
+
+        if file_write_content:
+            # Convert content to bytes if it's a string
+            if isinstance(file_write_content, str):
+                file_bytes = file_write_content.encode("utf-8")
+            else:
+                file_bytes = file_write_content
+
+            # Determine MIME type by file extension
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type:
+                mime_type = "application/octet-stream"
+
+            return file_bytes, mime_type
+        else:
+            return None, None

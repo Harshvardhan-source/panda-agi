@@ -21,6 +21,7 @@ interface FileUploadEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?:string;
 }
 
 // File type icon utility function
@@ -112,6 +113,7 @@ const getFileTypeIcon = (filename: string) => {
 const FileUploadEvent: React.FC<FileUploadEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -135,6 +137,7 @@ const FileUploadEvent: React.FC<FileUploadEventProps> = ({
         filename: filename,
         title: filename,
         type: fileType,
+        timestamp: timestamp,
       });
     }
   };

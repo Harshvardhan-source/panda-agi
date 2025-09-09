@@ -29,6 +29,7 @@ interface SaveArtifactButtonProps {
     url?: string;
     content?: string;
     type?: string;
+    timestamp?: string;
   };
   onSave?: (artifactData: {
     artifact: ArtifactResponse;
@@ -64,7 +65,8 @@ const SaveArtifactButton = React.forwardRef<
       const savedArtifact = await saveArtifact(conversationId, {
         type: previewData?.type || "text",
         name: artifactName.trim(),
-        filepath: previewData?.filename || previewData?.url || ""
+        filepath: previewData?.filename || previewData?.url || "",
+        timestamp: previewData?.timestamp,
       });
       // toast.success("Creation saved successfully!");
       setIsOpen(false);

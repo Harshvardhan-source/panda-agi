@@ -2,9 +2,11 @@
 Agent models for the PandaAGI SDK API.
 """
 
-from typing import Optional, List
+from typing import Dict
+from typing import Any, Optional, List, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
+from uuid import UUID, uuid4
 
 
 class AgentQuery(BaseModel):
@@ -58,3 +60,15 @@ class ArtifactFileUpdateRequest(BaseModel):
         ..., description="Path to the file to update within the artifact"
     )
     content: str = Field(..., description="New content for the file")
+
+
+class ConversationMessage(BaseModel):
+    """Model representing a message in a conversation."""
+
+    id: UUID = Field(default_factory=uuid4)
+    conversation_id: UUID
+    content: Dict[str, Any]
+    role: str  # can be "user", "assistant", "tool", "system"
+    created_at: datetime = Field(default_factory=datetime.now)
+    message_index: int
+    tokens_used: int = 0

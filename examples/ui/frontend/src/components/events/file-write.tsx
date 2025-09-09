@@ -8,11 +8,13 @@ interface FileWriteEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?: string;
 }
 
 const FileWriteEvent: React.FC<FileWriteEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -77,6 +79,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({
         filename: filePath,
         title: filename.split("/").pop(),
         type: getFileType(filename),
+        timestamp: timestamp,
       });
     }
   };

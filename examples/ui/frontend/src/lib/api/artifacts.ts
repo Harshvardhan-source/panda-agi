@@ -5,6 +5,7 @@ interface ArtifactPayload {
     type: string;
     name: string;
     filepath: string;
+    timestamp?: string;
 }
 
 interface NameSuggestionRequest {

@@ -8,11 +8,13 @@ interface FileReplaceEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?: string;
 }
 
 const FileReplaceEvent: React.FC<FileReplaceEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -76,6 +78,7 @@ const FileReplaceEvent: React.FC<FileReplaceEventProps> = ({
         filename: filename,
         title: filename.split("/").pop(),
         type: getFileType(filename),
+        timestamp: timestamp,
       });
     }
   };

@@ -244,7 +244,18 @@ export const getLanguage = (language?: string): string => {
 };
 
 
-export const getFileUrl = (filename: string, conversationId: string, raw: boolean=false) => {
+export const getFileUrl = (filename: string, conversationId: string, raw: boolean=false, timestamp?: string) => {
+  // timestamp is in ISO format with timezone
   const baseUrl = getBackendServerURL(`/${conversationId}/files/${encodeURIComponent(filename)}`);
-  return raw ? `${baseUrl}?raw=true` : baseUrl;
+  
+  const params = new URLSearchParams();
+  if (raw) {
+    params.append('raw', 'true');
+  }
+  if (timestamp) {
+    params.append('timestamp', timestamp);
+  }
+  
+  const queryString = params.toString();
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 };

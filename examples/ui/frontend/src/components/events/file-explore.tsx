@@ -8,11 +8,13 @@ interface FileExploreEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?: string;
 }
 
 const FileExploreEvent: React.FC<FileExploreEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -34,6 +36,7 @@ const FileExploreEvent: React.FC<FileExploreEventProps> = ({
         filename: filename,
         title: filename.split("/").pop(),
         type: "text",
+        timestamp: timestamp,
       });
     }
   };

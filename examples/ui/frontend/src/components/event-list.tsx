@@ -145,6 +145,7 @@ const EventList: React.FC<EventListProps> = ({
   if (eventType in SPECIAL_EVENT_HANDLERS) {
     const userMessagePayload = payload as unknown as UserMessagePayload;
     const SpecialComponent = SPECIAL_EVENT_HANDLERS[eventType as keyof typeof SPECIAL_EVENT_HANDLERS];
+    console.log("message.event.timestamp: ", message);
     return (
       <SpecialComponent
         payload={userMessagePayload}
@@ -167,6 +168,7 @@ const EventList: React.FC<EventListProps> = ({
       payload,
       onPreviewClick,
       openUpgradeModal,
+      timestamp:message.event.timestamp
     };
     return <Component {...componentProps} />;
   } else if (!["completed_task", "planning"].includes(eventType)) {
@@ -178,7 +180,8 @@ const EventList: React.FC<EventListProps> = ({
         data: typeof eventData.input_params === 'string' 
           ? eventData.input_params 
           : eventData.input_params as Record<string, unknown> || "Tool executed successfully"
-      }
+      },
+      timestamp:message.event.timestamp
     };
     
     return <ToolUseEvent payload={toolPayload} />;

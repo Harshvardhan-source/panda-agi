@@ -43,32 +43,36 @@ export default function Home() {
     setPreviewData(undefined);
   };
 
-  const handlePxmlClick = (filename: string, conversationId: string) => {
+  const handlePxmlClick = (filename: string, conversationId: string, timestamp?: string) => {
     if (!conversationId) {
       console.error("DEBUG: No conversation ID");
       return;
     }
-    const fileUrl = getFileUrl(filename, conversationId);
+    const fileUrl = getFileUrl(filename, conversationId, false, timestamp);
     setPreviewData({
       url: fileUrl,
       content: "",
       title: filename,
       type: "pxml",
-      filename: filename
+      filename: filename,
+      timestamp: timestamp,
     });
   };
 
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
-  const handleFileClick = (filename: string) => {
+  const handleFileClick = (filename: string, timestamp?: string) => {
     const fileType = getFileType(filename);
+    console.log("timestamp: ", timestamp);
 
     if (fileType === "pxml" && filename && conversationId) {
-      handlePxmlClick(filename, conversationId);
+      handlePxmlClick(filename, conversationId, timestamp);
     } else {
+      console.log("timestamp: ", timestamp);
       setPreviewData({
         filename: filename,
         title: `File: ${filename.split("/").pop()}`,
         type: fileType,
+        timestamp: timestamp,
       });
     }
     setSidebarOpen(true);

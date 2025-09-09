@@ -28,6 +28,7 @@ export interface PreviewData {
   url?: string;
   content?: string;
   type?: string;
+  timestamp?: string;
 }
 
 interface ContentSidebarProps {
@@ -260,7 +261,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
     try {
       const fileUrl = getBackendServerURL(
-        `/${conversationId}/files/${encodeURIComponent(filename)}?raw=true`
+        `/${conversationId}/files/${encodeURIComponent(filename)}?raw=true&timestamp=${previewData?.timestamp}`
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -589,7 +590,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       case "image":
         // For images, construct the URL from the filename
         const imageUrl = getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
         );
 
         return (
@@ -850,6 +851,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
               url: previewData.url,
               filename: previewData.filename,
               content: previewData.content || (fileContent as string) || "",
+              timestamp: previewData.timestamp,
             }}
             onSave={handleArtifactSaved}
           />
@@ -885,7 +887,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     previewData.url ||
     (normalizedFilename && conversationId
       ? getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
         )
       : undefined);
 
