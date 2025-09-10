@@ -38,7 +38,7 @@ interface ResizableSidebarProps {
   className?: string;
   // New props for enhanced functionality
   editableTitle?: boolean;
-  onTitleChange?: (newTitle: string) => Promise<void>;
+  onTitleChange?: (newTitle: string) => void;
   onEditTitle?: (triggerEdit: () => void) => void;
   onShare?: () => void;
   onDelete?: () => void;
@@ -132,8 +132,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       setIsSavingTitle(true);
       try {
         if (onTitleChange) {
-          await onTitleChange(newTitle);
-          toast.success("Creation updated successfully");
+          onTitleChange(newTitle);
         }
       } catch (error) {
         console.error("Failed to update title:", error);
@@ -394,7 +393,8 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
                     onBlur={handleTitleBlur}
                     onKeyDown={handleTitleKeyDown}
                     disabled={isSavingTitle}
-                    className="bg-transparent border-none outline-none font-semibold text-foreground w-full px-2 py-1 -mx-2 -my-1 rounded focus:bg-accent"
+                    className="bg-transparent border-none outline-none font-semibold text-foreground w-full min-w-[300px] max-w-[600px] px-2 py-1 -mx-2 -my-1 rounded focus:bg-accent"
+                    style={{ width: 'max(300px, min(600px, 100%))' }}
                   />
                 ) : (
                   <div

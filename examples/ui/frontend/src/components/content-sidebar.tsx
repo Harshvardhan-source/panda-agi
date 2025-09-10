@@ -4,7 +4,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownEditor from "./markdown-editor";
 import { markdownToHtml, htmlToMarkdown } from "./artifact-viewer";
-import { updateArtifactFile } from "@/lib/api/artifacts";
+import { updateArtifactFile, suggestArtifactName } from "@/lib/api/artifacts";
 import SaveArtifactButton from "./save-artifact-button";
 import { Button } from "./ui/button";
 import ResizableSidebar from "./ui/resizable-sidebar";
@@ -13,6 +13,7 @@ import ExcelViewer from "./excel-viewer";
 import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
+import { config } from "@/lib/config";
 import { toast } from "react-hot-toast";
 import {
   getFileExtension,
@@ -85,6 +86,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [shouldOpenSaveDialog, setShouldOpenSaveDialog] = useState(false);
   const saveArtifactButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Suggested name state
+  const [suggestedName, setSuggestedName] = useState<string>("");
+
+  // State to trigger title editing from ArtifactActions
+  const [shouldTriggerEdit, setShouldTriggerEdit] = useState(false);
+
+  // Ref for triggering title edit from ArtifactActions
+  const onEditTitleRef = useRef<(() => void) | null>(null);
+
   // Reset saved state when sidebar closes
   useEffect(() => {
     if (!isOpen) {
@@ -93,8 +103,49 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setHasUnsavedChanges(false);
       setIsSaving(false);
       setJustSaved(false);
+      setSuggestedName("");
+      setShouldTriggerEdit(false);
     }
   }, [isOpen]);
+
+  // Function to get suggested name
+  const getSuggestedName = async () => {
+    if (
+      !conversationId ||
+      !previewData?.type ||
+      (!previewData?.url && !previewData?.filename)
+    ) {
+      return;
+    }
+
+    try {
+      const response = await suggestArtifactName(
+        conversationId,
+        {
+          type: previewData.type,
+          filepath: previewData.filename || previewData.url || "",
+          content: (previewData.content || "").substring(
+            0,
+            config.markdown.maxContentLength
+          ),
+        }
+      );
+
+      if (response.suggested_name) {
+        setSuggestedName(response.suggested_name);
+      }
+    } catch (error) {
+      console.error("Name suggestion error:", error);
+      // Don't show error toast for name suggestion failures - just use default
+    }
+  };
+
+  // Get suggested name when sidebar opens
+  useEffect(() => {
+    if (isOpen && previewData && conversationId) {
+      getSuggestedName();
+    }
+  }, [isOpen, previewData, conversationId]);
 
   // Convert markdown content to HTML for editor
   useEffect(() => {
@@ -113,6 +164,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       convertContent();
     }
+
+    
   }, [fileContent, previewData?.type]);
 
   // Effect to trigger SaveArtifactButton click when shouldOpenSaveDialog becomes true
@@ -127,6 +180,19 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       }, 100);
     }
   }, [shouldOpenSaveDialog]);
+
+  // Effect to trigger title editing when shouldTriggerEdit becomes true
+  useEffect(() => {
+    if (shouldTriggerEdit && onEditTitleRef.current) {
+      // Use setTimeout to ensure the dropdown closes before focusing
+      setTimeout(() => {
+        if (onEditTitleRef.current) {
+          onEditTitleRef.current();
+        }
+        setShouldTriggerEdit(false);
+      }, 150);
+    }
+  }, [shouldTriggerEdit]);
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -146,6 +212,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         filename = path.startsWith("/") ? path.substring(1) : path;
       }
     }
+
     if (filename) {
       const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
@@ -759,6 +826,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   }) => {
     setIsSaved(true);
     setSavedArtifact(artifactData.artifact);
+    setSuggestedName(artifactData.artifact.name);
 
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
@@ -809,6 +877,41 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     onClose();
   };
 
+  // Handle edit name - trigger title editing in ResizableSidebar
+  const handleEditName = () => {
+    setShouldTriggerEdit(true);
+  };
+
+  // Handle title change - update both suggestedName and potentially the saved artifact
+  const handleTitleChange = async (newTitle: string) => {
+    setSuggestedName(newTitle);
+    
+    // If we have a saved artifact, update it as well
+    if (savedArtifact) {
+      try {
+        const { updateArtifact } = await import("@/lib/api/artifacts");
+        const updatedArtifact = await updateArtifact(savedArtifact.id, {
+          name: newTitle,
+        });
+        
+        // Update the saved artifact state
+        setSavedArtifact({
+          ...savedArtifact,
+          name: updatedArtifact.name,
+        });
+        
+        toast.success("Creation name updated successfully");
+      } catch (error) {
+        console.error("Failed to update artifact name:", error);
+        if (error instanceof Error) {
+          toast.error(`Failed to update creation name: ${error.message}`);
+        } else {
+          toast.error("Failed to update creation name");
+        }
+      }
+    }
+  };
+
   // Create header actions
   const headerActions = (
     <>
@@ -853,6 +956,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
               content: previewData.content || (fileContent as string) || "",
               timestamp: previewData.timestamp,
             }}
+            suggestedName={suggestedName}
             onSave={handleArtifactSaved}
           />
         </div>
@@ -867,6 +971,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             filename: previewData.filename,
             content: previewData.content || (fileContent as string) || "",
           }}
+          suggestedName={suggestedName}
           onSave={handleArtifactSaved}
         />
       )}
@@ -879,6 +984,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         isSaved={isSaved}
         previewData={previewData}
         conversationId={conversationId}
+        onEditName={
+          savedArtifact && suggestedName
+            ? handleEditName
+            : null
+        }
       />
     </>
   );
@@ -899,9 +1009,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       <ResizableSidebar
         isOpen={isOpen}
         onClose={onClose}
-        title={previewData.title}
+        title={suggestedName || previewData.title}
         subtitle={
-          normalizedFilename || previewData.url
+           normalizedFilename || previewData.url
             ? {
                 text: normalizedFilename || previewData.url || "",
                 href: subtitleHref,
@@ -921,6 +1031,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         loading={isLoading}
         error={error}
         className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
+        editableTitle={!!(suggestedName)}
+        onTitleChange={handleTitleChange}
+        onEditTitle={(triggerEdit) => {
+          onEditTitleRef.current = triggerEdit;
+        }}
       >
         {isFullHeightContent() ? (
           <div className="h-full">{renderContent()}</div>

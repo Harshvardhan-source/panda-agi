@@ -672,7 +672,7 @@ async def update_artifact(
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to update creation",
+                        detail=response.get("detail", "Failed to update creation"),
                     )
 
                 return await resp.json()
