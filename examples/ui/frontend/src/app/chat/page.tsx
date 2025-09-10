@@ -636,7 +636,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  PandaAGI
+                  ShastraAI
                 </h1>
                 <p className="text-sm text-gray-500">
                   {isConnected ? (
@@ -714,7 +714,7 @@ function App() {
                   🐼
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Welcome to PandaAGI
+                  Welcome to ShastraAI
                 </h3>
                 <p className="text-gray-600 mb-8 max-w-lg mx-auto">
                   I can help you with coding, research, and much more. What
