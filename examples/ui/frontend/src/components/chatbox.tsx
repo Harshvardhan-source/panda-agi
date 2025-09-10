@@ -724,6 +724,8 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                     }
                   }
 
+                  console.log("eventData: ", eventData);
+
                   const message: Message = {
                     id: Date.now() + Math.random(),
                     type: "event",

@@ -32,7 +32,7 @@ export interface UserMessageEventProps {
   payload?: UserMessagePayload;
   onPreviewClick?: (previewData: PreviewData) => void;
   conversationId?: string;
-  onFileClick?: (filename: string) => void;
+  onFileClick?: (filename: string, timestamp?: string) => void;
   timestamp?: string;
   openUpgradeModal?: () => void;
 }
@@ -51,7 +51,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
 
   const handleFileClick = (filename: string) => {
     if (onFileClick) {
-      onFileClick(filename);
+      onFileClick(filename, timestamp);
     }
   };
 

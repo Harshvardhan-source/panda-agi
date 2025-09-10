@@ -2,8 +2,10 @@
 File routes for the PandaAGI SDK API.
 """
 
+import datetime
 import logging
 import mimetypes
+from operator import or_
 import os
 import tempfile
 from pathlib import Path
@@ -11,9 +13,11 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from .conversation import get_conversation_messages
 from services.pxml import PXMLService
 from utils.exceptions import RestrictedAccessError, FileNotFoundError
 from utils.markdown_utils import process_markdown_to_pdf
+from utils.datetime_utils import parse_timestamp
 from services.files import FilesService
 from services.agent import get_or_create_agent
 
@@ -306,6 +310,9 @@ async def read_file(
     file_path: str,
     request: Request,
     raw: bool = Query(False, alias="raw"),
+    timestamp: Optional[str] = Query(
+        None, description="Filter messages with created_at <= timestamp"
+    ),
 ):
     """
     Read a file from the E2B sandbox workspace and serve it directly.
@@ -329,9 +336,23 @@ async def read_file(
             )
 
         try:
-            content_bytes, mime_type = await FilesService.get_file_from_env(
-                file_path, local_env
-            )
+            date_time = parse_timestamp(timestamp)
+
+            if date_time:
+                conversation_messages = await get_conversation_messages(
+                    conversation_id, api_key, date_time
+                )
+
+                content_bytes, mime_type = (
+                    await FilesService.get_file_from_conversation_messages(
+                        conversation_messages, file_path
+                    )
+                )
+
+            if not date_time or not content_bytes:
+                content_bytes, mime_type = await FilesService.get_file_from_env(
+                    file_path, local_env
+                )
 
         except RestrictedAccessError as e:
             raise HTTPException(status_code=403, detail=str(e))
@@ -346,7 +367,9 @@ async def read_file(
             # Extract artifact ID from the conversation_id for now
             # In the future, this should be passed as a parameter
             artifact_id = conversation_id
-            html_content = await PXMLService.compile_pxml(content_bytes, local_env, artifact_id)
+            html_content = await PXMLService.compile_pxml(
+                content_bytes, local_env, artifact_id
+            )
             return Response(content=html_content, media_type="text/html")
 
         # Check if it's a markdown file and raw mode is not requested

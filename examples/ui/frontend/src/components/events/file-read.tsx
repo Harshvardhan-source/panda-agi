@@ -11,11 +11,13 @@ interface FileReadEventProps {
     end_line?: number;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?: string;
 }
 
 const FileReadEvent: React.FC<FileReadEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -55,6 +57,7 @@ const FileReadEvent: React.FC<FileReadEventProps> = ({
         filename: filename,
         title: filename.split("/").pop(),
         type: fileType,
+        timestamp: timestamp,
       });
     }
   };

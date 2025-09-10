@@ -8,11 +8,13 @@ interface FileFindEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
+  timestamp?: string;
 }
 
 const FileFindEvent: React.FC<FileFindEventProps> = ({
   payload,
   onPreviewClick,
+  timestamp,
 }) => {
   if (!payload) return null;
 
@@ -24,6 +26,7 @@ const FileFindEvent: React.FC<FileFindEventProps> = ({
         filename: filename,
         title: filename.split("/").pop(),
         type: "text",
+        timestamp: timestamp,
       });
     }
   };

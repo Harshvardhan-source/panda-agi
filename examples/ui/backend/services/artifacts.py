@@ -7,6 +7,8 @@ import os
 from typing import List, Set
 from urllib.parse import urlparse
 
+from models.agent import ConversationMessage
+
 from .chat_env import get_env
 from .files import FilesService
 from panda_agi.envs.base_env import BaseEnv
@@ -29,6 +31,29 @@ DEFAULT_ARTIFACT_NAME = "New Creation"
 
 
 class ArtifactsService:
+
+    @staticmethod
+    async def get_file_for_artifact(
+        file_path: str,
+        env: BaseEnv,
+        conversation_messages: list[ConversationMessage] = None,
+    ) -> str:
+        """
+        Get the name of an artifact based on its ID.
+        """
+        content_bytes = None
+        mime_type = None
+        if conversation_messages:
+            content_bytes, mime_type = (
+                await FilesService.get_file_from_conversation_messages(
+                    conversation_messages, file_path
+                )
+            )
+
+        if not content_bytes:
+            return await FilesService.get_file_from_env(file_path, env)
+
+        return content_bytes, mime_type
 
     @staticmethod
     async def suggest_artifact_name(
@@ -177,7 +202,11 @@ Suggested name:"""
 
     @staticmethod
     async def get_files_for_artifact(
-        type: str, filepath: str, conversation_id: str, artifact_id: str = None
+        type: str,
+        filepath: str,
+        conversation_id: str,
+        artifact_id: str = None,
+        conversation_messages: list[ConversationMessage] = None,
     ):
 
         env: BaseEnv = await get_env(
@@ -188,19 +217,25 @@ Suggested name:"""
             async for (
                 file_bytes,
                 relative_path,
-            ) in ArtifactsService.get_files_for_markdown(filepath, env, artifact_id):
+            ) in ArtifactsService.get_files_for_markdown(
+                filepath, env, artifact_id, conversation_messages
+            ):
                 yield file_bytes, relative_path
         elif type == "iframe":
             async for (
                 file_bytes,
                 relative_path,
-            ) in ArtifactsService.get_files_for_iframe(filepath, env, artifact_id):
+            ) in ArtifactsService.get_files_for_iframe(
+                filepath, env, artifact_id, conversation_messages
+            ):
                 yield file_bytes, relative_path
         elif type == "pxml":
             async for (
                 file_bytes,
                 relative_path,
-            ) in ArtifactsService.get_files_for_pxml(filepath, env, artifact_id):
+            ) in ArtifactsService.get_files_for_pxml(
+                filepath, env, artifact_id, conversation_messages
+            ):
                 yield file_bytes, relative_path
         else:
             raise ValueError(f"Error: Unsupported creation type provided {type}")
@@ -227,7 +262,10 @@ Suggested name:"""
 
     @staticmethod
     async def get_files_for_markdown(
-        filepath: str, env: BaseEnv, artifact_id: str = None
+        filepath: str,
+        env: BaseEnv,
+        artifact_id: str = None,
+        conversation_messages: list[ConversationMessage] = None,
     ):
         """
         Recursively get all files referenced in markdown content.
@@ -247,8 +285,8 @@ Suggested name:"""
             processed_files.add(current_file)
 
             try:
-                content_bytes, _ = await FilesService.get_file_from_env(
-                    current_file, env
+                content_bytes, _ = await ArtifactsService.get_file_for_artifact(
+                    current_file, env, conversation_messages
                 )
                 yield content_bytes, current_file
 
@@ -274,8 +312,8 @@ Suggested name:"""
                                 # For non-markdown files, yield them immediately
                                 try:
                                     file_content_bytes, _ = (
-                                        await FilesService.get_file_from_env(
-                                            relative_path, env
+                                        await ArtifactsService.get_file_for_artifact(
+                                            relative_path, env, conversation_messages
                                         )
                                     )
                                     yield file_content_bytes, relative_path
@@ -291,7 +329,10 @@ Suggested name:"""
 
     @staticmethod
     async def get_files_for_iframe(
-        filepath: str, env: BaseEnv, artifact_id: str = None
+        filepath: str,
+        env: BaseEnv,
+        artifact_id: str = None,
+        conversation_messages: list[ConversationMessage] = None,
     ):
         """
         Get all relevant files for the index_html_file_path following a simplified approach:
@@ -344,8 +385,8 @@ Suggested name:"""
 
             try:
                 file_path = None
-                content_bytes, mime_type = await FilesService.get_file_from_env(
-                    current_file, env
+                content_bytes, mime_type = await ArtifactsService.get_file_for_artifact(
+                    current_file, env, conversation_messages
                 )
                 file_content = content_bytes.decode("utf-8")
 
@@ -368,8 +409,8 @@ Suggested name:"""
             try:
 
                 logger.info(f"Getting file {file_path}")
-                content_bytes, mime_type = await FilesService.get_file_from_env(
-                    file_path, env
+                content_bytes, mime_type = await ArtifactsService.get_file_for_artifact(
+                    file_path, env, conversation_messages
                 )
 
                 # Replace window.location.origin for HTML and JavaScript files if artifact_id is provided
@@ -390,7 +431,12 @@ Suggested name:"""
                 continue
 
     @staticmethod
-    async def get_files_for_pxml(filepath: str, env: BaseEnv, artifact_id: str = None):
+    async def get_files_for_pxml(
+        filepath: str,
+        env: BaseEnv,
+        artifact_id: str = None,
+        conversation_messages: list[ConversationMessage] = None,
+    ):
         """
         Get all relevant files for PXML files:
         1. Parse the PXML file to extract CSV file references
@@ -400,7 +446,9 @@ Suggested name:"""
         try:
             # Get the PXML file content
             filepath = await FilesService.validate_and_correct_file_path(env, filepath)
-            pxml_content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
+            pxml_content_bytes, _ = await ArtifactsService.get_file_for_artifact(
+                filepath, env, conversation_messages
+            )
             pxml_content = pxml_content_bytes.decode("utf-8")
 
             pxml_content = await PXMLService.process_xml_content_for_csv_file_path(
@@ -424,7 +472,7 @@ Suggested name:"""
             logger.error(f"Traceback: {traceback.format_exc()}")
             # If there's an error, still try to yield the PXML file itself
             try:
-                pxml_content_bytes, _ = await FilesService.get_file_from_env(
+                pxml_content_bytes, _ = await ArtifactsService.get_file_for_artifact(
                     filepath, env
                 )
                 yield pxml_content_bytes, filepath
