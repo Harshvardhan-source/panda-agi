@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Save, Sparkles } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,10 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   saveArtifact,
-  suggestArtifactName,
   ArtifactResponse,
 } from "@/lib/api/artifacts";
-import { config } from "@/lib/config";
 
 import { toast } from "react-hot-toast";
 
@@ -31,6 +29,7 @@ interface SaveArtifactButtonProps {
     type?: string;
     timestamp?: string;
   };
+  suggestedName?: string;
   onSave?: (artifactData: {
     artifact: ArtifactResponse;
     detail: string;
@@ -40,14 +39,12 @@ interface SaveArtifactButtonProps {
 const SaveArtifactButton = React.forwardRef<
   HTMLButtonElement,
   SaveArtifactButtonProps
->(({ conversationId, previewData, onSave }, ref) => {
+>(({ conversationId, previewData, suggestedName, onSave }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [artifactName, setArtifactName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuggestingName, setIsSuggestingName] = useState(false);
   const [userHasEdited, setUserHasEdited] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSaveArtifact = async () => {
     if (!conversationId) {
@@ -90,84 +87,24 @@ const SaveArtifactButton = React.forwardRef<
 
   const handleOpenDialog = async () => {
     setIsOpen(true);
-    setArtifactName("");
+    setArtifactName(suggestedName || "");
     setUserHasEdited(false);
 
-    // Automatically suggest a name if we have the required data
-    if (
-      conversationId &&
-      previewData?.type &&
-      (previewData?.url || previewData?.filename)
-    ) {
-      await suggestName();
+    // Select all text if we have a suggested name
+    if (suggestedName) {
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.select();
+          inputRef.current.focus();
+        }
+      }, 100);
     }
   };
 
-  const suggestName = async () => {
-    if (
-      !conversationId ||
-      !previewData?.type ||
-      (!previewData?.url && !previewData?.filename)
-    ) {
-      return;
-    }
-
-    // Cancel any existing suggestion request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-
-    setIsSuggestingName(true);
-    try {
-      const response = await suggestArtifactName(
-        conversationId,
-        {
-          type: previewData.type,
-          filepath: previewData.filename || previewData.url || "",
-          content: (previewData.content || "").substring(
-            0,
-            config.markdown.maxContentLength
-          ),
-        },
-        abortControllerRef.current.signal
-      );
-
-      // Check if user has started typing during the API call
-      if (response.suggested_name && !userHasEdited) {
-        setArtifactName(response.suggested_name);
-        // Select all text after setting the value
-        setTimeout(() => {
-          if (inputRef.current && !userHasEdited) {
-            inputRef.current.select();
-            inputRef.current.focus();
-          }
-        }, 100);
-      }
-    } catch (error) {
-      // Only log error if it's not an abort error
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Name suggestion error:", error);
-      }
-      // Don't show error toast for name suggestion failures - just use default
-    } finally {
-      setIsSuggestingName(false);
-      abortControllerRef.current = null;
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setArtifactName(newValue);
-
-    // If user starts typing and we're currently suggesting a name, cancel the request
-    if (isSuggestingName && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsSuggestingName(false);
-    }
-
     setUserHasEdited(true);
   };
 
@@ -198,7 +135,7 @@ const SaveArtifactButton = React.forwardRef<
             <Label htmlFor="artifact-name" className="text-right">
               Name
             </Label>
-            <div className="col-span-3 relative">
+            <div className="col-span-3">
               <Input
                 ref={inputRef}
                 id="artifact-name"
@@ -212,11 +149,6 @@ const SaveArtifactButton = React.forwardRef<
                   }
                 }}
               />
-              {isSuggestingName && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <Sparkles className="w-3 h-3 text-gray-400 animate-pulse" />
-                </div>
-              )}
             </div>
           </div>
         </div>
