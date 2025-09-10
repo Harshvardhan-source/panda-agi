@@ -105,6 +105,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setJustSaved(false);
       setSuggestedName("");
       setShouldTriggerEdit(false);
+      setFileContent(null);
     }
   }, [isOpen]);
 
@@ -124,7 +125,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         {
           type: previewData.type,
           filepath: previewData.filename || previewData.url || "",
-          content: (previewData.content || "").substring(
+          content: (fileContent as string || "").substring(
             0,
             config.markdown.maxContentLength
           ),
@@ -142,10 +143,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
   // Get suggested name when sidebar opens
   useEffect(() => {
-    if (isOpen && previewData && conversationId) {
+    if (fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
       getSuggestedName();
     }
-  }, [isOpen, previewData, conversationId]);
+  }, [fileContent]);
 
   // Convert markdown content to HTML for editor
   useEffect(() => {
