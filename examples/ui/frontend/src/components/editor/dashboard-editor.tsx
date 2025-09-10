@@ -16,6 +16,7 @@ import {
   Circle,
   MoreHorizontal,
   Target,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArtifactData } from "@/types/artifact";
@@ -24,6 +25,7 @@ interface ChartConfig {
   id: string;
   type: string;
   name: string;
+  originalId?: string;
   x_axis: {
     name: string;
     column: string;
@@ -33,6 +35,7 @@ interface ChartConfig {
     name: string;
     column: string;
     aggregation: string;
+    size_column?: string;
   }>;
   area?: "none" | "area";
   stacked?: "none" | "stacked" | "100_stacked";
@@ -42,6 +45,7 @@ interface KPIConfig {
   id: string;
   name: string;
   fa_icon: string;
+  originalId?: string;
   value_formula: string;
   format_type: string;
   unit: string;
@@ -51,6 +55,7 @@ interface DashboardEditorProps {
   content: string;
   artifact?: ArtifactData | null;
   onChange: (content: string) => void;
+  onSave?: (content?: string) => Promise<void>;
   availableColumns?: Array<{ letter: string; name: string }>;
 }
 
@@ -58,8 +63,9 @@ const CHART_TYPES = [
   { value: "bar", label: "Bar Chart", icon: BarChart3 },
   { value: "line", label: "Line Chart", icon: LineChart },
   { value: "pie", label: "Pie Chart", icon: PieChart },
-  { value: "donut", label: "Donut Chart", icon: PieChart },
+  { value: "combo_chart", label: "Combo Chart", icon: BarChart3 },
   { value: "horizontal_bar", label: "Horizontal Bar", icon: BarChart3 },
+  { value: "donut", label: "Donut Chart", icon: PieChart },
   { value: "bubble", label: "Bubble Chart", icon: Circle },
   { value: "scatter", label: "Scatter Plot", icon: MoreHorizontal },
   { value: "radar", label: "Radar Chart", icon: Target },
@@ -135,7 +141,8 @@ const CUSTOM_CURRENCIES = [
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
-  onChange,
+  onChange, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onSave,
   availableColumns = [],
 }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -164,6 +171,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     null
   );
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveInProgressRef = useRef(false);
+  const lastSavedContentRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State for compiled dashboard content (moved up for proper initialization order)
@@ -301,11 +311,43 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const chartElements = doc.querySelectorAll("chart");
 
-      // Find the chart to update (by index for now)
-      const chartIndex = parseInt(chartConfig.id.replace("chart_", ""));
-      const chartEl = chartElements[chartIndex];
+      // Find the chart to update by matching the original ID or generated ID from name
+      let chartEl = null;
+      
+      // First try to match by originalId if it exists (for name changes during save)
+      if (chartConfig.originalId) {
+        chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.originalId);
+        
+        if (!chartEl) {
+          // Try matching by generated ID from name with originalId
+          chartEl = Array.from(chartElements).find(el => {
+            const name = el.querySelector("name")?.textContent || "";
+            const generatedId = `chart_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+            return generatedId === chartConfig.originalId;
+          });
+        }
+      }
+      
+      // If still no match, try to match by the new ID
+      if (!chartEl) {
+        chartEl = Array.from(chartElements).find(el => el.getAttribute("id") === chartConfig.id);
+      }
+      
+      // If no ID match, try to match by generated ID from name
+      if (!chartEl) {
+        chartEl = Array.from(chartElements).find(el => {
+          const name = el.querySelector("name")?.textContent || "";
+          const generatedId = `chart_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+          return generatedId === chartConfig.id;
+        });
+      }
 
       if (chartEl) {
+        // Update chart ID if it has changed
+        if (chartConfig.originalId && chartConfig.id !== chartConfig.originalId) {
+          chartEl.setAttribute("id", chartConfig.id);
+        }
+        
         // Update chart type
         chartEl.setAttribute("type", chartConfig.type);
 
@@ -340,21 +382,33 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         if (xAxisGroupByEl)
           xAxisGroupByEl.textContent = chartConfig.x_axis.group_by;
 
-        // Update series
-        const seriesElements = chartEl.querySelectorAll("series");
-        chartConfig.series_list.forEach((series, index) => {
-          const seriesEl = seriesElements[index];
-          if (seriesEl) {
-            const seriesNameEl = seriesEl.querySelector("name");
-            const seriesColumnEl = seriesEl.querySelector("column");
-            const seriesAggregationEl = seriesEl.querySelector("aggregation");
-
-            if (seriesNameEl) seriesNameEl.textContent = series.name;
-            if (seriesColumnEl) seriesColumnEl.textContent = series.column;
-            if (seriesAggregationEl)
-              seriesAggregationEl.textContent = series.aggregation;
+        // Update series - remove existing series first, then add new ones
+        const seriesListEl = chartEl.querySelector("series_list");
+        if (seriesListEl) {
+          // Remove all existing series
+          while (seriesListEl.firstChild) {
+            seriesListEl.removeChild(seriesListEl.firstChild);
           }
-        });
+          
+          // Add updated series
+          chartConfig.series_list.forEach((series) => {
+            const seriesEl = doc.createElement("series");
+            
+            const seriesNameEl = doc.createElement("name");
+            seriesNameEl.textContent = series.name;
+            seriesEl.appendChild(seriesNameEl);
+            
+            const seriesColumnEl = doc.createElement("column");
+            seriesColumnEl.textContent = series.column;
+            seriesEl.appendChild(seriesColumnEl);
+            
+            const seriesAggregationEl = doc.createElement("aggregation");
+            seriesAggregationEl.textContent = series.aggregation;
+            seriesEl.appendChild(seriesAggregationEl);
+            
+            seriesListEl.appendChild(seriesEl);
+          });
+        }
       }
 
       return serializer.serializeToString(doc);
@@ -376,14 +430,43 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const doc = parser.parseFromString(originalContent, "text/xml");
       const kpiElements = doc.querySelectorAll("kpi");
 
-      // Find the KPI to update by matching name/id
-      const kpiEl = Array.from(kpiElements).find((el) => {
-        const name = el.querySelector("name")?.textContent || "";
-        const id = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
-        return id === kpiConfig.id;
-      });
+      // Find the KPI to update by matching the original ID or generated ID from name
+      let kpiEl = null;
+      
+      // First try to match by originalId if it exists (for name changes during save)
+      if (kpiConfig.originalId) {
+        kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.originalId);
+        
+        if (!kpiEl) {
+          // Try matching by generated ID from name with originalId
+          kpiEl = Array.from(kpiElements).find(el => {
+            const name = el.querySelector("name")?.textContent || "";
+            const generatedId = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+            return generatedId === kpiConfig.originalId;
+          });
+        }
+      }
+      
+      // If still no match, try to match by the new ID
+      if (!kpiEl) {
+        kpiEl = Array.from(kpiElements).find(el => el.getAttribute("id") === kpiConfig.id);
+      }
+      
+      // If no ID match, try to match by generated ID from name
+      if (!kpiEl) {
+        kpiEl = Array.from(kpiElements).find((el) => {
+          const name = el.querySelector("name")?.textContent || "";
+          const generatedId = `kpi_${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+          return generatedId === kpiConfig.id;
+        });
+      }
 
       if (kpiEl) {
+        // Update KPI ID if it has changed
+        if (kpiConfig.originalId && kpiConfig.id !== kpiConfig.originalId) {
+          kpiEl.setAttribute("id", kpiConfig.id);
+        }
+        
         // Update KPI name
         const nameEl = kpiEl.querySelector("name");
         if (nameEl) nameEl.textContent = kpiConfig.name;
@@ -481,6 +564,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         return "X-Axis";
       case "radar":
         return "Dimensions";
+      case "combo_chart":
+        return "Categories";
       case "bar":
       default:
         return "Categories";
@@ -500,6 +585,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         return "Data Points";
       case "radar":
         return "Metrics";
+      case "combo_chart":
+        return "Series";
       case "bar":
       case "horizontal_bar":
       default:
@@ -823,9 +910,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               }
             });
 
-            // Listen for chart and KPI update messages from parent
-            window.addEventListener('message', (event) => {
-              if (event.data.type === 'update-kpi-data-attributes') {
+              // Listen for chart and KPI update messages from parent
+              window.addEventListener('message', (event) => {
+               if (event.data.type === 'update-kpi-data-attributes') {
                 const { kpiId, config } = event.data;
                 
                 // Add highlighting to the currently edited KPI
@@ -1006,6 +1093,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+
   // Send live chart updates to iframe for dynamic rendering using data attributes
   const updateChartInIframe = (chartConfig: ChartConfig) => {
     const iframe = iframeRef.current;
@@ -1055,11 +1143,28 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     if (!editedChart) return;
 
     const updatedChart = { ...editedChart, [property]: value };
+    
+    // For name changes, just update the data attributes - keep ID stable for real-time updates
+    if (property === "name") {
+      setEditedChart(updatedChart);
+      markAsChanged();
+      updateChartInIframe(updatedChart);
+      return;
+    }
+    
     setEditedChart(updatedChart);
     markAsChanged();
 
     // For chart type changes, update immediately without throttling
     if (property === "type") {
+      // If changing to scatter or radar plot, set aggregation to "none" for all series
+      if (value === "scatter" || value === "radar") {
+        updatedChart.series_list = updatedChart.series_list.map(series => ({
+          ...series,
+          aggregation: "none"
+        }));
+        setEditedChart(updatedChart);
+      }
       updateChartInIframe(updatedChart);
     } else {
       // Throttle other updates to prevent too many rapid calls
@@ -1146,7 +1251,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     const newSeries = {
       name: `Series ${editedChart.series_list.length + 1}`,
       column: "",
-      aggregation: "sum",
+      aggregation: editedChart.type === "scatter" || editedChart.type === "radar" ? "none" : "sum",
     };
 
     const updatedChart = {
@@ -1181,6 +1286,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     if (!editedKPI) return;
 
     const updatedKPI = { ...editedKPI, [property]: value };
+    
+    // For name changes, just update the data attributes - keep ID stable for real-time updates
+    if (property === "name") {
+      setEditedKPI(updatedKPI);
+      markAsChanged();
+      updateKPIInIframe(updatedKPI);
+      return;
+    }
+    
     setEditedKPI(updatedKPI);
     markAsChanged();
 
@@ -1188,60 +1302,170 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateKPIInIframe(updatedKPI);
   };
 
-  const handleSaveChart = () => {
-    if (!editedChart) return;
+  const handleSaveChart = async () => {
+    if (!editedChart || isSaving) return;
 
-    // Use raw PXML content for updating if available
-    const contentToUpdate = rawPXMLContent || content;
-
-    const updatedContent = updatePXMLWithChart(contentToUpdate, editedChart);
-    onChange(updatedContent);
-
-    // Update the stored raw PXML content
-    if (rawPXMLContent) {
-      setRawPXMLContent(updatedContent);
-    }
-
-    // Update original state to current state since we saved
-    setOriginalChartState({ ...editedChart });
-    setHasUnsavedChanges(false);
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
     setIsEditorOpen(false);
     setEditedChart(null);
+    setEditedKPI(null);
     setOriginalChartState(null);
+    setOriginalKPIState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // Create chart config with updated ID for saving, but keep original ID for finding
+      const newId = `chart_${editedChart.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+      const chartToSave = {
+        ...editedChart,
+        id: newId,
+        originalId: editedChart.id // Keep track of original ID for finding the element
+      };
+
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithChart(contentToUpdate, chartToSave);
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
+
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave(updatedContent);
+      }
+
+      // Send message to iframe to refresh the chart after save
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "chart-saved",
+            chartId: newId,
+          },
+          "*"
+        );
+
+        // If the ID changed, also update the container ID in the iframe
+        if (editedChart.id !== newId) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-container-id-after-save",
+              oldId: editedChart.id,
+              newId: newId,
+              componentType: "chart"
+            },
+            "*"
+          );
+        }
+      }
+
+      // State already cleared at the beginning of save for responsiveness
+    } catch (error) {
+      console.error("Failed to save chart changes:", error);
+      // Don't close the editor if save failed
+    } finally {
+      setIsSaving(false);
+      
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
   };
 
-  const handleSaveKPI = () => {
-    if (!editedKPI) return;
+  const handleSaveKPI = async () => {
+    if (!editedKPI || isSaving) return;
 
-    // Use raw PXML content for updating if available
-    const contentToUpdate = rawPXMLContent || content;
-
-    const updatedContent = updatePXMLWithKPI(contentToUpdate, editedKPI);
-    onChange(updatedContent);
-
-    // Update the stored raw PXML content
-    if (rawPXMLContent) {
-      setRawPXMLContent(updatedContent);
-    }
-
-    // Send message to iframe to refresh the KPI after save
-    const iframe = iframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(
-        {
-          type: "kpi-saved",
-          kpiId: editedKPI.id,
-        },
-        "*"
-      );
-    }
-
-    // Update original state to current state since we saved
-    setOriginalKPIState({ ...editedKPI });
-    setHasUnsavedChanges(false);
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
     setIsEditorOpen(false);
+    setEditedChart(null);
     setEditedKPI(null);
+    setOriginalChartState(null);
     setOriginalKPIState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // Create KPI config with updated ID for saving, but keep original ID for finding
+      const newId = `kpi_${editedKPI.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+      const kpiToSave = {
+        ...editedKPI,
+        id: newId,
+        originalId: editedKPI.id // Keep track of original ID for finding the element
+      };
+
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithKPI(contentToUpdate, kpiToSave);
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
+
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave(updatedContent);
+      }
+
+      // Send message to iframe to refresh the KPI after save
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-saved",
+            kpiId: newId,
+          },
+          "*"
+        );
+
+        // If the ID changed, also update the container ID in the iframe
+        if (editedKPI.id !== newId) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-container-id-after-save",
+              oldId: editedKPI.id,
+              newId: newId,
+              componentType: "kpi"
+            },
+            "*"
+          );
+        }
+      }
+
+      // State already cleared at the beginning of save for responsiveness
+    } catch (error) {
+      console.error("Failed to save KPI changes:", error);
+      // Don't close the editor if save failed
+    } finally {
+      setIsSaving(false);
+      
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
   };
 
   const handleCloseEditor = () => {
@@ -1441,6 +1665,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   // Compile PXML to HTML when content changes
   useEffect(() => {
     const hasArtifact = !!artifact;
+
+
+    // Skip recompilation if this is an internal update from saving
+    const isSameAsLastSaved = lastSavedContentRef.current && content === lastSavedContentRef.current;
+    const shouldSkip = saveInProgressRef.current || isSameAsLastSaved;
+    
+    if (shouldSkip) {
+      return;
+    }
 
     if (content.trim().startsWith("<dashboard>") && hasArtifact) {
       // We have raw PXML - store it and get the compiled version for display
@@ -1675,7 +1908,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             {(editedChart.type === "bar" ||
                               editedChart.type === "line" ||
                               editedChart.type === "horizontal_bar" ||
-                              editedChart.type === "radar") &&
+                              editedChart.type === "radar" ||
+                              editedChart.type === "combo_chart") &&
                               editedChart.series_list.length > 1 && (
                                 <div className="space-y-2">
                                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -1762,6 +1996,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 ? "X-axis configuration"
                                 : editedChart.type === "radar"
                                 ? "Dimension configuration"
+                                : editedChart.type === "combo_chart"
+                                ? "Category axis configuration"
                                 : "Category axis configuration"}
                             </div>
                           </div>
@@ -1883,6 +2119,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                     ? `Point ${index + 1}`
                                     : editedChart.type === "radar"
                                     ? `Metric ${index + 1}`
+                                    : editedChart.type === "combo_chart"
+                                    ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
                                     : `Series ${index + 1}`}
                                 </div>
                                 <div className="flex items-center space-x-1">
@@ -1913,6 +2151,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       ? "Point Name"
                                       : editedChart.type === "radar"
                                       ? "Metric Name"
+                                      : editedChart.type === "combo_chart"
+                                      ? index === 0 ? "Bar Name" : "Line Name"
                                       : "Series Name"}
                                   </label>
                                   <input
@@ -1929,10 +2169,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                     placeholder="Enter series name"
                                   />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className={`grid gap-2 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
                                   <div className="space-y-2">
                                     <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                      Column
+                                      {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
                                     </label>
                                     <select
                                       value={series.column}
@@ -1956,31 +2196,61 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       ))}
                                     </select>
                                   </div>
-                                  <div className="space-y-2">
-                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                      Aggregation
-                                    </label>
-                                    <select
-                                      value={series.aggregation}
-                                      onChange={(e) =>
-                                        updateSeriesProperty(
-                                          index,
-                                          "aggregation",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {AGGREGATION_TYPES.map((agg) => (
-                                        <option
-                                          key={agg.value}
-                                          value={agg.value}
-                                        >
-                                          {agg.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
+                                  {editedChart.type === "bubble" && (
+                                    <div className="space-y-2">
+                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Size Column (Optional)
+                                      </label>
+                                      <select
+                                        value={series.size_column || ""}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "size_column",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        <option value="">Use Y-axis values for size</option>
+                                        {getAvailableColumns().map((col) => (
+                                          <option
+                                            key={col.letter}
+                                            value={col.letter}
+                                          >
+                                            {col.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+                                  {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
+                                    <div className="space-y-2">
+                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Aggregation
+                                      </label>
+                                      <select
+                                        value={series.aggregation}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "aggregation",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {AGGREGATION_TYPES.map((agg) => (
+                                          <option
+                                            key={agg.value}
+                                            value={agg.value}
+                                          >
+                                            {agg.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2006,6 +2276,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               ? "Point"
                               : editedChart.type === "radar"
                               ? "Metric"
+                              : editedChart.type === "combo_chart"
+                              ? "Series"
                               : "Series"}
                           </Button>
                         </div>
@@ -2186,8 +2458,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                   onClick={editedChart ? handleSaveChart : handleSaveKPI}
                   className="flex-1"
                   size="sm"
+                  disabled={isSaving || !hasUnsavedChanges}
                 >
-                  Save Changes
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
                 <Button onClick={handleCloseEditor} variant="outline" size="sm">
                   Cancel
