@@ -631,12 +631,16 @@ function App() {
         >
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                <span className="text-2xl select-none">🐼</span>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center">
+                <img
+                  src="/shastra-logo.png"
+                  alt="ShastraAI Logo"
+                  className="w-28 h-28 object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  PandaAGI
+                  ShastraAI
                 </h1>
                 <p className="text-sm text-gray-500">
                   {isConnected ? (
@@ -645,7 +649,7 @@ function App() {
                       Connected
                     </span>
                   ) : (
-                    "Ready to help"
+                    "Assist your Administration"
                   )}
                 </p>
               </div>
@@ -710,66 +714,77 @@ function App() {
           <div className="max-w-4xl mx-auto space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-16">
-                <div className="text-6xl mb-6 transition-transform duration-300 hover:scale-110 animate-bounce">
-                  🐼
+                <div className="flex justify-center mb-4">
+                  <img
+                    src="/shastra-logo.png"
+                    alt="ShastraAI Logo"
+                    className="w-35 h-35 object-contain"
+                  />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Welcome to PandaAGI
+                  Welcome to ShastraAI
                 </h3>
                 <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-                  I can help you with coding, research, and much more. What
-                  would you like to work on today?
+                  I can assist you with budgeting, Policy reformation, Political Strategy, Effective Administration and much more. What
+                  would you like to discover today?
                 </p>
 
                 {/* Suggestion cards with example prompts */}
-                <GridView
-                  items={[
-                    {
-                      icon: <FileText className="w-5 h-5 mr-2" />,
-                      title: "Data Analysis",
-                      description:
-                        "Analyze this CSV data and create a visualization of the monthly sales trends",
-                      onClick: () =>
-                        setInputValue(
-                          "Analyze this CSV data and create a visualization of the monthly sales trends"
-                        ),
-                      titleClassName: "font-medium text-blue-600 mb-2 flex items-center",
-                    },
-                    {
-                      icon: <Code className="w-5 h-5 mr-2" />,
-                      title: "Landing Page",
-                      description:
-                        "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation",
-                      onClick: () =>
-                        setInputValue(
-                          "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"
-                        ),
-                      titleClassName: "font-medium text-green-600 mb-2 flex items-center",
-                    },
-                    {
-                      icon: <FileCode className="w-5 h-5 mr-2" />,
-                      title: "Research Reports",
-                      description:
-                        "Create a comprehensive report on the latest trends in renewable energy based on online research",
-                      onClick: () =>
-                        setInputValue(
-                          "Create a comprehensive report on the latest trends in renewable energy based on online research"
-                        ),
-                      titleClassName: "font-medium text-orange-600 mb-2 flex items-center",
-                    },
-                    {
-                      icon: <Image className="w-5 h-5 mr-2" />,
-                      title: "Dashboard Design",
-                      description:
-                        "Build a dashboard that visualizes market data for my product's performance across different regions",
-                      onClick: () =>
-                        setInputValue(
-                          "Build a dashboard that visualizes market data for my product's performance across different regions"
-                        ),
-                      titleClassName: "font-medium text-purple-600 mb-2 flex items-center",
-                    },
-                  ]}
-                />
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                  <div
+                    onClick={() =>
+                      setInputValue(
+                        "Give me the socio-economic birds eye view of my constituency"
+                      )
+                    }
+                    className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl p-4 transition duration-200 cursor-pointer"
+                  >
+                    <div className="font-medium text-blue-600 mb-2 flex items-center">
+                      <FileText className="w-5 h-5 mr-2 text-blue-600" />
+                      Birds eye view of your constituency
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      Give me the socio-economic birds eye view of my constituency
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() =>
+                      setInputValue(
+                        "Give me the SWOT analysis of my constituency based on Education status"
+                      )
+                    }
+                    className="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl p-4 transition duration-200 cursor-pointer"
+                  >
+                    <div className="font-medium text-orange-600 mb-2 flex items-center">
+                      <FileCode className="w-5 h-5 mr-2 text-orange-600" />
+                      SWOT Reports
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      Give me the SWOT analysis of my constituency based on Education status
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() =>
+                      setInputValue(
+                        "Give me the Employment status and Economic status relation report along with a plot"
+                      )
+                    }
+                    className="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl p-4 transition duration-200 cursor-pointer sm:col-span-2 sm:justify-self-center w-full sm:w-1/2"
+                  >
+                    <div className="font-medium text-purple-600 mb-2 flex items-center">
+                      <Image className="w-5 h-5 mr-2 text-purple-600" />
+                      Plot Analysis
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      Give me the Employment status and Economic status relation report along
+                      with a plot
+                    </p>
+                  </div>
+                </div>
+
+
               </div>
             )}
 
@@ -893,17 +908,17 @@ function App() {
                     value={inputValue}
                     onChange={(e) => {
                       setInputValue(e.target.value);
-                      // Trigger resize on next frame to ensure content is updated
                       setTimeout(resizeTextarea, 0);
                     }}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask the panda anything..."
-                    className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none border-none outline-none text-md leading-relaxed"
+                    placeholder="Ask the Shastra anything..."
+                    className="w-full bg-white text-gray-900 placeholder-gray-500 resize-none border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-md leading-relaxed rounded-2xl px-4 py-3 transition duration-200"
                     rows={1}
                     disabled={isLoading}
                     style={{ minHeight: "24px", maxHeight: "120px" }}
                   />
                 </div>
+
 
                 {/* Send button */}
                 <button
